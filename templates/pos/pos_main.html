@@ -2,7 +2,7 @@
 {% load static %}
 {% load currency_filters l10n %}
 
-{% block title %}Punto de Venta - CHE GOLOSO{% endblock %}
+{% block title %}Punto de Venta - KioskoPro{% endblock %}
 
 {% block navbar %}{% endblock %}
 
@@ -448,8 +448,8 @@
         flex: 1 0 100%;
         margin-top: 6px;
         padding: 4px 8px;
-        background: linear-gradient(90deg, rgba(245, 208, 0, 0.12), rgba(233, 30, 140, 0.10));
-        border-left: 3px solid #F5D000;
+        background: linear-gradient(90deg, rgba(245, 158, 11, 0.12), rgba(79, 70, 229, 0.10));
+        border-left: 3px solid #F59E0B;
         border-radius: 4px;
         font-size: 0.72rem;
         color: #ffe266;
@@ -463,8 +463,8 @@
         display: inline-flex;
         align-items: center;
         gap: 4px;
-        background: rgba(245, 208, 0, 0.22);
-        color: #F5D000;
+        background: rgba(245, 158, 11, 0.22);
+        color: #F59E0B;
         padding: 2px 7px;
         border-radius: 10px;
         font-weight: 600;
@@ -481,13 +481,13 @@
         display: inline-flex;
         align-items: center;
         gap: 4px;
-        background: rgba(233, 30, 140, 0.18);
+        background: rgba(79, 70, 229, 0.18);
         color: #ff5ca8;
         padding: 2px 7px;
         border-radius: 10px;
         font-weight: 600;
         font-size: 0.68rem;
-        border: 1px dashed rgba(233, 30, 140, 0.5);
+        border: 1px dashed rgba(79, 70, 229, 0.5);
     }
     .cart-item-promo-row .promo-group i { font-size: 0.65rem; }
 </style>
@@ -500,8 +500,8 @@
     <div class="pos-header">
         <div class="d-flex justify-content-between align-items-center">
             <div class="pos-logo d-flex align-items-center">
-                <img src="{% static 'img/logo.png' %}" alt="Che Goloso" style="height: 35px; margin-right: 10px;">
-                <span>CHE GOLOSO</span>
+                <img src="{% static 'img/logo.svg' %}" alt="KioskoPro" style="height: 35px; margin-right: 10px;">
+                <span>KioskoPro</span>
             </div>
             <div class="pos-info">
                 <span class="me-3">

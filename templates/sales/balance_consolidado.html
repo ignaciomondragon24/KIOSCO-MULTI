@@ -1,13 +1,13 @@
 {% extends 'base.html' %}
 {% load currency_filters %}
 
-{% block title %}Balance Consolidado - CHE GOLOSO{% endblock %}
+{% block title %}Balance Consolidado - KioskoPro{% endblock %}
 
 {% block content %}
 <div class="container-fluid py-4">
     <div class="d-flex justify-content-between align-items-center mb-4">
         <div>
-            <h2 class="mb-1"><i class="fas fa-scale-balanced me-2" style="color:var(--che-primary,#E91E8C);"></i>Balance Consolidado</h2>
+            <h2 class="mb-1"><i class="fas fa-scale-balanced me-2" style="color:var(--che-primary,#4F46E5);"></i>Balance Consolidado</h2>
             <p class="text-muted mb-0">
                 Ventas menos gastos operativos menos pérdidas al costo = neto del negocio. Las inversiones (Compras) se listan aparte sin restar.
             </p>
@@ -82,12 +82,12 @@
             </div>
         </div>
         <div class="col-md-3">
-            <div class="card shadow-sm h-100" style="border:2px solid var(--che-primary,#E91E8C);">
+            <div class="card shadow-sm h-100" style="border:2px solid var(--che-primary,#4F46E5);">
                 <div class="card-body">
                     <div class="text-uppercase small text-muted mb-1">
                         <i class="fas fa-scale-balanced me-1"></i>Neto Operativo
                     </div>
-                    <div class="display-6 fw-bold" style="color:var(--che-primary,#E91E8C);">{{ neto_operativo|currency_ar }}</div>
+                    <div class="display-6 fw-bold" style="color:var(--che-primary,#4F46E5);">{{ neto_operativo|currency_ar }}</div>
                     <small class="text-muted">Ventas − Gastos − Pérdidas</small>
                 </div>
             </div>

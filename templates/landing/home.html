@@ -1,0 +1,368 @@
+{% extends 'landing/base.html' %}
+{% load static %}
+
+{% block content %}
+
+{# ============================================================ #}
+{# 1. HERO                                                       #}
+{# ============================================================ #}
+<section class="hero">
+    <div class="hero__inner">
+        <div class="hero__copy reveal">
+            <span class="hero__badge">Pensado para kioscos argentinos</span>
+            <h1>
+                Vend&eacute; m&aacute;s r&aacute;pido.<br>
+                Controlá tu stock.<br>
+                <span class="hero__accent">Dej&aacute; de perder plata.</span>
+            </h1>
+            <p class="hero__lead">
+                El punto de venta completo para tu kiosco: caja, stock, promociones,
+                Mercado Pago, venta al peso y carga de facturas con IA &mdash; todo
+                en una sola pantalla, sin planillas ni papeles.
+            </p>
+            <div class="hero__ctas">
+                <a href="https://wa.me/{{ whatsapp_number }}?text={{ whatsapp_message|urlencode }}"
+                   target="_blank" rel="noopener" class="btn btn--accent btn--lg">
+                    <i class="fab fa-whatsapp"></i>
+                    Hablar por WhatsApp
+                </a>
+                <a href="#features" class="btn btn--outline btn--lg">
+                    Ver qu&eacute; incluye
+                    <i class="fas fa-arrow-down"></i>
+                </a>
+            </div>
+            <div class="hero__trust">
+                <span><i class="fas fa-check-circle"></i> Instalacion en el dia</span>
+                <span><i class="fas fa-check-circle"></i> Soporte en castellano</span>
+                <span><i class="fas fa-check-circle"></i> Probalo antes de decidir</span>
+            </div>
+        </div>
+        <div class="hero__visual">
+            {# Demo en loop: carrusel auto-rotante con las capturas reales. #}
+            <div class="hero__player" id="hero-player" aria-label="Demo del sistema &mdash; click para ampliar" role="button" tabindex="0">
+                <div class="hero__player-stage">
+                    <img class="hero__player-slide is-active" src="{% static 'img/landing/pos.png' %}" alt="POS en modo oscuro" data-caption="POS en modo oscuro con promos autom&aacute;ticas">
+                    <img class="hero__player-slide" src="{% static 'img/landing/dashboard.png' %}" alt="Dashboard" data-caption="Dashboard con ventas del d&iacute;a">
+                    <img class="hero__player-slide" src="{% static 'img/landing/stock.png' %}" alt="Stock" data-caption="Inventario con c&oacute;digo de barras">
+                    <img class="hero__player-slide" src="{% static 'img/landing/promociones.png' %}" alt="Promociones" data-caption="Motor de promociones: 2x1, 3x2, combos">
+                    <img class="hero__player-slide" src="{% static 'img/landing/granel.png' %}" alt="Venta al peso" data-caption="Venta al peso con costo ponderado">
+                    <img class="hero__player-slide" src="{% static 'img/landing/scan-factura.png' %}" alt="Escaneo IA" data-caption="Escaneo de remitos con IA">
+                </div>
+                <span class="hero__player-zoom" aria-hidden="true"><i class="fas fa-magnifying-glass-plus"></i> Click para ampliar</span>
+                <div class="hero__player-progress"><span></span></div>
+                <div class="hero__player-bar">
+                    <button type="button" class="hero__player-toggle" aria-label="Pausar / reanudar" data-state="playing">
+                        <i class="fas fa-pause"></i>
+                    </button>
+                    <div class="hero__player-caption">POS en modo oscuro con promos autom&aacute;ticas</div>
+                    <div class="hero__player-dots" role="tablist">
+                        <button class="is-active" data-slide="0" aria-label="Captura 1"></button>
+                        <button data-slide="1" aria-label="Captura 2"></button>
+                        <button data-slide="2" aria-label="Captura 3"></button>
+                        <button data-slide="3" aria-label="Captura 4"></button>
+                        <button data-slide="4" aria-label="Captura 5"></button>
+                        <button data-slide="5" aria-label="Captura 6"></button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+{# ============================================================ #}
+{# 2. FEATURES                                                   #}
+{# ============================================================ #}
+<section id="features" class="features">
+    <div class="section__header reveal">
+        <span class="section__label">Lo que te damos</span>
+        <h2>Todo en un solo sistema</h2>
+        <p>Sin planillas de Excel, sin apuntar en un papel, sin perder ventas.</p>
+    </div>
+
+    <div class="features__grid">
+        <div class="feature-card reveal">
+            <div class="feature-card__icon"><i class="fas fa-cash-register"></i></div>
+            <h3>Caja r&aacute;pida</h3>
+            <p>POS con atajos de teclado configurables. Tu cajero vende tan r&aacute;pido como tipea.</p>
+        </div>
+        <div class="feature-card reveal">
+            <div class="feature-card__icon feature-card__icon--accent"><i class="fas fa-boxes-stacked"></i></div>
+            <h3>Stock real</h3>
+            <p>Carg&aacute;s el bulto, descuenta la unidad. Te avisa cuando algo se est&aacute; por acabar.</p>
+        </div>
+        <div class="feature-card reveal">
+            <div class="feature-card__icon feature-card__icon--warm"><i class="fas fa-tags"></i></div>
+            <h3>Promociones sin programar</h3>
+            <p>2x1, 3ro al 50%, combos: se configuran en un formulario y el sistema los aplica solo.</p>
+        </div>
+        <div class="feature-card reveal">
+            <div class="feature-card__icon feature-card__icon--ink"><i class="fas fa-mobile-screen-button"></i></div>
+            <h3>Mercado Pago Point</h3>
+            <p>Cobr&aacute;s con d&eacute;bito o cr&eacute;dito desde el sistema, sin usar una posnet aparte.</p>
+        </div>
+        <div class="feature-card reveal">
+            <div class="feature-card__icon feature-card__icon--accent"><i class="fas fa-scale-balanced"></i></div>
+            <h3>Venta al peso</h3>
+            <p>Gomitas, chupetines, golosinas a granel. Costo promedio ponderado y control de merma.</p>
+        </div>
+        <div class="feature-card reveal">
+            <div class="feature-card__icon feature-card__icon--warm"><i class="fas fa-wand-magic-sparkles"></i></div>
+            <h3>Escaneo de facturas con IA</h3>
+            <p>Sac&aacute;le una foto al remito del proveedor y se cargan 30 productos en 10 segundos.</p>
+        </div>
+        <div class="feature-card reveal">
+            <div class="feature-card__icon"><i class="fas fa-tv"></i></div>
+            <h3>Carteler&iacute;a digital</h3>
+            <p>Una pantalla en el kiosco con ofertas, novedades y publicidad. Incluida en el plan.</p>
+        </div>
+        <div class="feature-card reveal">
+            <div class="feature-card__icon feature-card__icon--ink"><i class="fas fa-chart-line"></i></div>
+            <h3>Reportes claros</h3>
+            <p>Cu&aacute;nto vendiste, qu&eacute; se vende m&aacute;s, margen por producto. Todo en pantalla.</p>
+        </div>
+    </div>
+</section>
+
+{# ============================================================ #}
+{# 3. CAPTURAS                                                   #}
+{# ============================================================ #}
+<section id="capturas" class="screens">
+    <div class="section__header reveal">
+        <span class="section__label">Asi se ve por dentro</span>
+        <h2>Capturas reales del sistema</h2>
+        <p>No son diseños, es lo que ves cuando lo usas todos los dias. <strong>Haz&eacute; click en cualquier imagen para ampliarla.</strong></p>
+    </div>
+    <div class="screens__grid">
+        <figure class="screen-card reveal" data-lightbox data-caption="POS en modo oscuro &mdash; venta r&aacute;pida con atajos F1-F12 y promos autom&aacute;ticas">
+            <div class="screen-card__img">
+                <img src="{% static 'img/landing/pos.png' %}" alt="POS en modo oscuro" loading="lazy">
+                <span class="screen-card__zoom" aria-hidden="true"><i class="fas fa-magnifying-glass-plus"></i></span>
+            </div>
+            <figcaption>POS en modo oscuro &mdash; venta r&aacute;pida con atajos F1-F12 y promos autom&aacute;ticas</figcaption>
+        </figure>
+        <figure class="screen-card reveal" data-lightbox data-caption="Dashboard con ventas del d&iacute;a, turnos y stock bajo de un vistazo">
+            <div class="screen-card__img">
+                <img src="{% static 'img/landing/dashboard.png' %}" alt="Dashboard del negocio" loading="lazy">
+                <span class="screen-card__zoom" aria-hidden="true"><i class="fas fa-magnifying-glass-plus"></i></span>
+            </div>
+            <figcaption>Dashboard con ventas del d&iacute;a, turnos y stock bajo de un vistazo</figcaption>
+        </figure>
+        <figure class="screen-card reveal" data-lightbox data-caption="Inventario con categor&iacute;as, c&oacute;digo de barras y filtros r&aacute;pidos">
+            <div class="screen-card__img">
+                <img src="{% static 'img/landing/stock.png' %}" alt="Gesti&oacute;n de productos" loading="lazy">
+                <span class="screen-card__zoom" aria-hidden="true"><i class="fas fa-magnifying-glass-plus"></i></span>
+            </div>
+            <figcaption>Inventario con categor&iacute;as, c&oacute;digo de barras y filtros r&aacute;pidos</figcaption>
+        </figure>
+        <figure class="screen-card reveal" data-lightbox data-caption="Motor de promociones: 2x1, 3x2, combos y descuentos &mdash; todo configurable">
+            <div class="screen-card__img">
+                <img src="{% static 'img/landing/promociones.png' %}" alt="Motor de promociones" loading="lazy">
+                <span class="screen-card__zoom" aria-hidden="true"><i class="fas fa-magnifying-glass-plus"></i></span>
+            </div>
+            <figcaption>Motor de promociones: 2x1, 3x2, combos y descuentos &mdash; todo configurable</figcaption>
+        </figure>
+        <figure class="screen-card reveal" data-lightbox data-caption="Venta al peso y bultos con costo ponderado &mdash; ideal para golosinas sueltas">
+            <div class="screen-card__img">
+                <img src="{% static 'img/landing/granel.png' %}" alt="Venta al peso" loading="lazy">
+                <span class="screen-card__zoom" aria-hidden="true"><i class="fas fa-magnifying-glass-plus"></i></span>
+            </div>
+            <figcaption>Venta al peso y bultos con costo ponderado &mdash; ideal para golosinas sueltas</figcaption>
+        </figure>
+        <figure class="screen-card reveal" data-lightbox data-caption="Escaneo de remitos con IA &mdash; sac&aacute;s una foto y se cargan los productos solos">
+            <div class="screen-card__img">
+                <img src="{% static 'img/landing/scan-factura.png' %}" alt="Escaneo de remitos con IA" loading="lazy">
+                <span class="screen-card__zoom" aria-hidden="true"><i class="fas fa-magnifying-glass-plus"></i></span>
+            </div>
+            <figcaption>Escaneo de remitos con IA &mdash; sac&aacute;s una foto y se cargan los productos solos</figcaption>
+        </figure>
+    </div>
+</section>
+
+{# ============================================================ #}
+{# 4. PLANES                                                     #}
+{# ============================================================ #}
+<section id="planes" class="plans">
+    <div class="section__header reveal">
+        <span class="section__label">Eleg&iacute; tu plan</span>
+        <h2>Planes pensados para cada tamaño de kiosco</h2>
+        <p>Precios a convenir en persona, ajustados a tu negocio. Hablemos por WhatsApp.</p>
+    </div>
+
+    <div class="plans__grid">
+        <div class="plan-card reveal">
+            <div class="plan-card__header">
+                <h3>Bronce</h3>
+                <p>Para empezar a ordenarse</p>
+            </div>
+            <ul class="plan-card__features">
+                <li><i class="fas fa-check"></i> POS y ventas</li>
+                <li><i class="fas fa-check"></i> Stock basico</li>
+                <li><i class="fas fa-check"></i> Turnos y arqueo de caja</li>
+                <li><i class="fas fa-check"></i> Mercado Pago QR</li>
+                <li><i class="fas fa-check"></i> Reportes basicos</li>
+                <li><i class="fas fa-check"></i> 1 caja</li>
+                <li class="muted"><i class="fas fa-minus"></i> Sin promociones avanzadas</li>
+                <li class="muted"><i class="fas fa-minus"></i> Sin carteleria digital</li>
+            </ul>
+            <a href="https://wa.me/{{ whatsapp_number }}?text=Hola! Me interesa el plan Bronce"
+               target="_blank" rel="noopener" class="btn btn--outline btn--full">
+                Consultar precio
+            </a>
+        </div>
+
+        <div class="plan-card plan-card--featured reveal">
+            <div class="plan-card__ribbon">Mas elegido</div>
+            <div class="plan-card__header">
+                <h3>Plata</h3>
+                <p>Para kioscos que ya facturan todos los dias</p>
+            </div>
+            <ul class="plan-card__features">
+                <li><i class="fas fa-check"></i> Todo lo del plan Bronce</li>
+                <li><i class="fas fa-check"></i> Mercado Pago Point (posnet)</li>
+                <li><i class="fas fa-check"></i> Promociones avanzadas (2x1, combos)</li>
+                <li><i class="fas fa-check"></i> Venta al peso / granel</li>
+                <li><i class="fas fa-check"></i> Carteleria digital incluida</li>
+                <li><i class="fas fa-check"></i> Cuenta corriente de clientes (fiado)</li>
+                <li><i class="fas fa-check"></i> Control de vencimientos</li>
+                <li><i class="fas fa-check"></i> Hasta 2 cajas</li>
+            </ul>
+            <a href="https://wa.me/{{ whatsapp_number }}?text=Hola! Me interesa el plan Plata"
+               target="_blank" rel="noopener" class="btn btn--accent btn--full">
+                Consultar precio
+            </a>
+        </div>
+
+        <div class="plan-card reveal">
+            <div class="plan-card__header">
+                <h3>Oro</h3>
+                <p>Para kioscos grandes o con varias sucursales</p>
+            </div>
+            <ul class="plan-card__features">
+                <li><i class="fas fa-check"></i> Todo lo del plan Plata</li>
+                <li><i class="fas fa-check"></i> Escaneo de facturas con IA</li>
+                <li><i class="fas fa-check"></i> Asistente IA conversacional</li>
+                <li><i class="fas fa-check"></i> Alertas Telegram / WhatsApp</li>
+                <li><i class="fas fa-check"></i> Multi-sucursal consolidado</li>
+                <li><i class="fas fa-check"></i> Cajas ilimitadas</li>
+                <li><i class="fas fa-check"></i> Soporte prioritario</li>
+                <li><i class="fas fa-check"></i> API publica</li>
+            </ul>
+            <a href="https://wa.me/{{ whatsapp_number }}?text=Hola! Me interesa el plan Oro"
+               target="_blank" rel="noopener" class="btn btn--outline btn--full">
+                Consultar precio
+            </a>
+        </div>
+    </div>
+</section>
+
+{# ============================================================ #}
+{# 5. FAQ                                                        #}
+{# ============================================================ #}
+<section id="faq" class="faq">
+    <div class="section__header reveal">
+        <span class="section__label">Preguntas frecuentes</span>
+        <h2>Lo que mas nos preguntan</h2>
+    </div>
+    <div class="faq__list">
+        <details class="faq-item">
+            <summary>&iquest;Necesito internet para usarlo?</summary>
+            <p>
+                Si, es un sistema web. Recomendamos una conexi&oacute;n estable y un 4G de
+                respaldo para cuando se corta la fibra. Estamos trabajando en un modo
+                offline que va a estar disponible en los pr&oacute;ximos meses.
+            </p>
+        </details>
+        <details class="faq-item">
+            <summary>&iquest;Funciona con mi impresora de tickets?</summary>
+            <p>
+                S&iacute;. Soportamos impresoras t&eacute;rmicas con conexi&oacute;n USB o red,
+                compatibles con el protocolo ESC/POS (la gran mayor&iacute;a de las que venden hoy).
+                Si ten&eacute;s una en mente, preguntanos.
+            </p>
+        </details>
+        <details class="faq-item">
+            <summary>&iquest;Cu&aacute;nto tarda en estar instalado?</summary>
+            <p>
+                El mismo d&iacute;a. Nosotros te damos de alta, configuramos el logo y los
+                datos de tu kiosco, cargamos 20 productos de ejemplo para que pruebes,
+                y despu&eacute;s vos o nosotros cargamos tu inventario real.
+            </p>
+        </details>
+        <details class="faq-item">
+            <summary>&iquest;Qu&eacute; pasa si dejo de pagar?</summary>
+            <p>
+                Tus datos quedan guardados por 90 d&iacute;as. Si reactivas la cuenta en ese
+                periodo, todo vuelve tal cual. Despu&eacute;s de eso se eliminan.
+            </p>
+        </details>
+        <details class="faq-item">
+            <summary>&iquest;Emite facturas A / B / C oficiales ante AFIP?</summary>
+            <p>
+                Hoy no. El sistema emite tickets internos para el cliente. Si te
+                interesa la integraci&oacute;n con facturaci&oacute;n electr&oacute;nica
+                oficial, avisanos y lo evaluamos para tu caso.
+            </p>
+        </details>
+        <details class="faq-item">
+            <summary>&iquest;Qu&eacute; pasa si se rompe mi computadora?</summary>
+            <p>
+                Nada. Todos tus datos viven en la nube. Abr&iacute;s el sistema desde
+                cualquier computadora o tablet y segu&iacute;s trabajando como si nada.
+            </p>
+        </details>
+        <details class="faq-item">
+            <summary>&iquest;Hay soporte t&eacute;cnico?</summary>
+            <p>
+                S&iacute;. Por WhatsApp y email. El plan Oro tiene soporte priorit&aacute;rio
+                con respuesta en minutos. Los otros planes en el d&iacute;a.
+            </p>
+        </details>
+        <details class="faq-item">
+            <summary>&iquest;Se puede probar antes de comprar?</summary>
+            <p>
+                S&iacute;. Hablanos por WhatsApp y coordinamos una demo en vivo o te
+                dejamos una cuenta de prueba para que lo toques vos mismo.
+            </p>
+        </details>
+    </div>
+</section>
+
+{# ============================================================ #}
+{# 6. CTA FINAL                                                  #}
+{# ============================================================ #}
+<section class="cta-final">
+    <div class="cta-final__inner">
+        <h2>&iquest;List@ para ordenar tu kiosco?</h2>
+        <p>Escribinos por WhatsApp y en el d&iacute;a te mostramos c&oacute;mo funciona.</p>
+        <a href="https://wa.me/{{ whatsapp_number }}?text={{ whatsapp_message|urlencode }}"
+           target="_blank" rel="noopener" class="btn btn--accent btn--lg">
+            <i class="fab fa-whatsapp"></i>
+            Hablar ahora por WhatsApp
+        </a>
+    </div>
+</section>
+
+{# ============================================================ #}
+{# LIGHTBOX para expandir capturas                               #}
+{# ============================================================ #}
+<div class="lightbox" id="lightbox" hidden aria-hidden="true" role="dialog" aria-modal="true" aria-label="Captura ampliada">
+    <button class="lightbox__close" type="button" aria-label="Cerrar">
+        <i class="fas fa-times"></i>
+    </button>
+    <button class="lightbox__nav lightbox__nav--prev" type="button" aria-label="Anterior">
+        <i class="fas fa-chevron-left"></i>
+    </button>
+    <figure class="lightbox__frame">
+        <img id="lightbox-img" src="" alt="">
+        <figcaption id="lightbox-caption"></figcaption>
+    </figure>
+    <button class="lightbox__nav lightbox__nav--next" type="button" aria-label="Siguiente">
+        <i class="fas fa-chevron-right"></i>
+    </button>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/landing.js' %}?v=kp-zoom" defer></script>
+{% endblock %}

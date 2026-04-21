@@ -1,7 +1,7 @@
 {% extends 'base.html' %}
 {% load crispy_forms_tags currency_filters %}
 
-{% block title %}{{ title }} - CHE GOLOSO{% endblock %}
+{% block title %}{{ title }} - KioskoPro{% endblock %}
 
 {% block content %}
 <div class="container py-4">
@@ -171,7 +171,7 @@
                         
                         <hr class="my-4">
                         <h6 class="text-muted mb-3">
-                            <i class="fas fa-warehouse me-2" style="color:#E91E8C;"></i>Depósito para Caramelera
+                            <i class="fas fa-warehouse me-2" style="color:#4F46E5;"></i>Depósito para Caramelera
                         </h6>
                         <div class="row">
                             <div class="col-md-6">
@@ -255,7 +255,7 @@
                         {% if product %}
                         <div class="d-flex align-items-center justify-content-between mb-3">
                             <h6 class="text-muted mb-0"><i class="fas fa-boxes-stacked me-2"></i>Empaques</h6>
-                            <a href="{% url 'stocks:product_packaging' product.pk %}" class="btn btn-sm" style="background:#E91E8C;color:#fff;">
+                            <a href="{% url 'stocks:product_packaging' product.pk %}" class="btn btn-sm" style="background:#4F46E5;color:#fff;">
                                 <i class="fas fa-arrow-right me-1"></i>Gestionar Empaques
                             </a>
                         </div>

@@ -1,0 +1,95 @@
+{% load static %}<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="{{ brand_tagline }}">
+    <meta name="theme-color" content="#4F46E5">
+
+    <title>{% block title %}{{ brand_name }} &mdash; {{ brand_tagline }}{% endblock %}</title>
+
+    <link rel="icon" type="image/svg+xml" href="{% static 'img/landing/kioskopro-mark.svg' %}">
+
+    {# Open Graph para cuando se comparta por WhatsApp #}
+    <meta property="og:type" content="website">
+    <meta property="og:title" content="{{ brand_name }}">
+    <meta property="og:description" content="{{ brand_tagline }}">
+    <meta property="og:image" content="{% static 'img/landing/kioskopro-mark.svg' %}">
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+
+    <link href="{% static 'css/landing.css' %}?v=kp-zoom" rel="stylesheet">
+
+    {% block extra_head %}{% endblock %}
+</head>
+<body>
+    <header class="nav">
+        <div class="nav__inner">
+            <a href="{% url 'landing:home' %}" class="nav__brand">
+                <img src="{% static 'img/landing/kioskopro-mark.svg' %}" alt="{{ brand_name }}" width="38" height="38">
+                <span>{{ brand_name }}</span>
+            </a>
+            <nav class="nav__links">
+                <a href="#features">Funcionalidades</a>
+                <a href="#capturas">Capturas</a>
+                <a href="#planes">Planes</a>
+                <a href="#faq">Preguntas</a>
+            </nav>
+            <div class="nav__cta">
+                <a href="https://wa.me/{{ whatsapp_number }}?text={{ whatsapp_message|urlencode }}"
+                   target="_blank" rel="noopener" class="btn btn--accent">
+                    <i class="fab fa-whatsapp"></i>
+                    Hablar por WhatsApp
+                </a>
+            </div>
+            <button class="nav__burger" aria-label="Abrir menu" onclick="document.body.classList.toggle('nav-open')">
+                <i class="fas fa-bars"></i>
+            </button>
+        </div>
+    </header>
+
+    <main>
+        {% block content %}{% endblock %}
+    </main>
+
+    <footer class="footer">
+        <div class="footer__inner">
+            <div class="footer__brand">
+                <img src="{% static 'img/landing/kioskopro-mark.svg' %}" alt="{{ brand_name }}" width="48" height="48">
+                <div>
+                    <strong>{{ brand_name }}</strong>
+                    <p>{{ brand_tagline }}</p>
+                </div>
+            </div>
+            <div class="footer__links">
+                <a href="https://wa.me/{{ whatsapp_number }}" target="_blank" rel="noopener">
+                    <i class="fab fa-whatsapp"></i> WhatsApp
+                </a>
+                {% if instagram_url %}
+                <a href="{{ instagram_url }}" target="_blank" rel="noopener">
+                    <i class="fab fa-instagram"></i> Instagram
+                </a>
+                {% endif %}
+                <a href="mailto:{{ email_contact }}">
+                    <i class="fas fa-envelope"></i> {{ email_contact }}
+                </a>
+            </div>
+            <div class="footer__copy">
+                &copy; {% now "Y" %} {{ brand_name }}. Todos los derechos reservados.
+            </div>
+        </div>
+    </footer>
+
+    {# CTA flotante de WhatsApp #}
+    <a href="https://wa.me/{{ whatsapp_number }}?text={{ whatsapp_message|urlencode }}"
+       target="_blank" rel="noopener" class="floating-wa" aria-label="Contactar por WhatsApp">
+        <i class="fab fa-whatsapp"></i>
+    </a>
+
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

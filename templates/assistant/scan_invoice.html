@@ -1,7 +1,7 @@
 {% extends 'base.html' %}
 {% load static %}
 
-{% block title %}Escanear Remito - CHE GOLOSO{% endblock %}
+{% block title %}Escanear Remito - KioskoPro{% endblock %}
 
 {% block extra_css %}
 <style>
@@ -12,21 +12,21 @@
 
     /* Camera / Upload area */
     .upload-zone {
-        border: 3px dashed var(--che-purple, #2D1E5F);
+        border: 3px dashed var(--che-purple, #0F172A);
         border-radius: 16px;
         padding: 2rem;
         text-align: center;
         cursor: pointer;
         transition: all 0.3s;
-        background: rgba(45, 30, 95, 0.05);
+        background: rgba(15, 23, 42, 0.05);
     }
     .upload-zone:hover, .upload-zone.dragover {
-        background: rgba(45, 30, 95, 0.12);
-        border-color: var(--che-pink, #E91E8C);
+        background: rgba(15, 23, 42, 0.12);
+        border-color: var(--che-pink, #4F46E5);
     }
     .upload-zone i {
         font-size: 3rem;
-        color: var(--che-purple, #2D1E5F);
+        color: var(--che-purple, #0F172A);
     }
     .upload-zone .btn-camera {
         font-size: 1.1rem;
@@ -59,7 +59,7 @@
     .processing-overlay .spinner-border {
         width: 4rem;
         height: 4rem;
-        color: var(--che-pink, #E91E8C);
+        color: var(--che-pink, #4F46E5);
     }
 
     /* Results */
@@ -77,7 +77,7 @@
         border-radius: 4px;
     }
     .edit-cell input:focus {
-        border-color: var(--che-pink, #E91E8C);
+        border-color: var(--che-pink, #4F46E5);
         background: #fff;
         outline: none;
     }
@@ -91,7 +91,7 @@
 
     /* Summary card */
     .summary-card {
-        border-left: 4px solid var(--che-pink, #E91E8C);
+        border-left: 4px solid var(--che-pink, #4F46E5);
     }
 
     /* Step indicators */
@@ -113,7 +113,7 @@
     .step:first-child { border-radius: 8px 0 0 8px; }
     .step:last-child { border-radius: 0 8px 8px 0; }
     .step.active {
-        background: var(--che-purple, #2D1E5F);
+        background: var(--che-purple, #0F172A);
         color: white;
     }
     .step.completed {
@@ -407,7 +407,7 @@
 <div class="modal fade" id="createProductModal" tabindex="-1" aria-labelledby="createProductModalLabel" aria-hidden="true">
     <div class="modal-dialog">
         <div class="modal-content">
-            <div class="modal-header" style="background: linear-gradient(135deg, var(--che-purple, #2D1E5F), var(--che-pink, #E91E8C)); color: white;">
+            <div class="modal-header" style="background: linear-gradient(135deg, var(--che-purple, #0F172A), var(--che-pink, #4F46E5)); color: white;">
                 <h5 class="modal-title" id="createProductModalLabel">
                     <i class="fas fa-plus-circle me-2"></i>Crear Producto
                 </h5>

@@ -21,6 +21,7 @@ def health_check(request):
 urlpatterns = [
     path('health/', health_check, name='health_check'),
     path('admin/', admin.site.urls),
+    path('', include('landing.urls')),
     path('', include('accounts.urls')),
     path('pos/', include('pos.urls')),
     path('cashregister/', include('cashregister.urls')),
@@ -42,6 +43,6 @@ if settings.DEBUG:
     urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
 
 # Admin site customization
-admin.site.site_header = 'CHE GOLOSO - Administración'
-admin.site.site_title = 'CHE GOLOSO Admin'
+admin.site.site_header = 'KioskoPro - Administración'
+admin.site.site_title = 'KioskoPro Admin'
 admin.site.index_title = 'Panel de Administración'

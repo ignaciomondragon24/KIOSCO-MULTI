@@ -1,14 +1,14 @@
 {% extends 'base.html' %}
 {% load static %}
 
-{% block title %}Asistente Virtual - CHE GOLOSO{% endblock %}
+{% block title %}Asistente Virtual - KioskoPro{% endblock %}
 
 {% block extra_css %}
 <style>
     :root {
         --chat-bg: #1a1a2e;
         --chat-surface: #16213e;
-        --chat-primary: #e94560;
+        --chat-primary: #4F46E5;
         --chat-secondary: #0f3460;
         --chat-text: #eaeaea;
         --chat-text-muted: #a0a0a0;
@@ -45,7 +45,7 @@
     .chat-header .assistant-avatar {
         width: 40px;
         height: 40px;
-        background: linear-gradient(135deg, var(--chat-primary), #ff6b6b);
+        background: linear-gradient(135deg, var(--chat-primary), #0EA5E9);
         border-radius: 50%;
         display: flex;
         align-items: center;
@@ -99,7 +99,7 @@
     }
     
     .message.assistant .message-avatar {
-        background: linear-gradient(135deg, var(--chat-primary), #ff6b6b);
+        background: linear-gradient(135deg, var(--chat-primary), #0EA5E9);
         color: white;
     }
     
@@ -177,7 +177,7 @@
         width: 48px;
         height: 48px;
         border-radius: 50%;
-        background: linear-gradient(135deg, var(--chat-primary), #ff6b6b);
+        background: linear-gradient(135deg, var(--chat-primary), #0EA5E9);
         border: none;
         color: white;
         font-size: 1.2rem;
@@ -303,7 +303,7 @@
     
     .btn-new-chat {
         width: 100%;
-        background: linear-gradient(135deg, var(--chat-primary), #ff6b6b);
+        background: linear-gradient(135deg, var(--chat-primary), #0EA5E9);
         border: none;
         border-radius: 8px;
         padding: 0.75rem;
@@ -481,7 +481,7 @@
                         <div class="assistant-avatar">
                             <i class="fas fa-robot"></i>
                         </div>
-                        Asistente CHE GOLOSO
+                        Asistente KioskoPro
                         <span class="badge bg-success ms-2">Online</span>
                     </h5>
                     <div>
@@ -501,7 +501,7 @@
                         </div>
                         <div>
                             <div class="message-content">
-                                ¡Hola! 👋 Soy el asistente virtual de <strong>CHE GOLOSO</strong>.<br><br>
+                                ¡Hola! 👋 Soy el asistente virtual de <strong>KioskoPro</strong>.<br><br>
                                 Puedo ayudarte con:
                                 <ul>
                                     <li>📊 Análisis de ventas y tendencias</li>
@@ -677,7 +677,7 @@
         } catch (error) {
             hideTyping();
             if (error.message.includes('Sesión expirada')) {
-                addMessage('assistant', '❌ Tu sesión expiró. <a href="/login/" style="color:#e94560">Volver a iniciar sesión</a>');
+                addMessage('assistant', '❌ Tu sesión expiró. <a href="/login/" style="color:#4F46E5">Volver a iniciar sesión</a>');
             } else {
                 addMessage('assistant', '❌ Error de conexión. Verificá que el servidor esté corriendo e intentá de nuevo.');
             }

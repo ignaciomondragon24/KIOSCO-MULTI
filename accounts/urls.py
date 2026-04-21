@@ -7,8 +7,10 @@ from . import views
 app_name = 'accounts'
 
 urlpatterns = [
-    # Authentication
-    path('', views.home_view, name='home'),
+    # Authentication. La raiz '/' ahora la sirve la app landing; el legacy
+    # 'accounts:home' se mantiene como alias al dashboard para no romper
+    # reversos existentes en templates.
+    path('home/', views.home_view, name='home'),
     path('dashboard/', views.dashboard_view, name='dashboard'),
     path('login/', views.login_view, name='login'),
     path('logout/', views.logout_view, name='logout'),

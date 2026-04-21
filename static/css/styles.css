@@ -2,34 +2,34 @@
 
 /* Variables */
 :root {
-    --primary-color: #E91E8C;
-    --secondary-color: #2D1E5F;
+    --primary-color: #4F46E5;
+    --secondary-color: #0F172A;
     --success-color: #198754;
     --danger-color: #dc3545;
-    --warning-color: #F5D000;
+    --warning-color: #F59E0B;
     --info-color: #0dcaf0;
     --light-color: #f8f9fa;
-    --dark-color: #2D1E5F;
+    --dark-color: #0F172A;
     
     /* CHE GOLOSO Brand Colors */
-    --che-primary: #E91E8C;
-    --che-secondary: #F5D000;
-    --che-accent: #2D1E5F;
-    --che-pink: #E91E8C;
-    --che-yellow: #F5D000;
-    --che-purple: #2D1E5F;
+    --che-primary: #4F46E5;
+    --che-secondary: #F59E0B;
+    --che-accent: #0F172A;
+    --che-pink: #4F46E5;
+    --che-yellow: #F59E0B;
+    --che-purple: #0F172A;
     
-    /* Typography */
-    --font-display: 'Fredoka', sans-serif;  /* Títulos, precios, botones */
-    --font-heading: 'Baloo 2', cursive;     /* Subtítulos, badges */
-    --font-body: 'Nunito', sans-serif;      /* Textos, formularios */
+    /* Typography — KioskoPro */
+    --font-display: 'Space Grotesk', 'Inter', sans-serif;
+    --font-heading: 'Space Grotesk', 'Inter', sans-serif;
+    --font-body: 'Inter', 'Segoe UI', sans-serif;
 }
 
 .link-che-accent {
-    color: var(--che-accent, #2D1E5F);
+    color: var(--che-accent, #0F172A);
 }
 .link-che-accent:hover {
-    color: var(--che-primary, #E91E8C);
+    color: var(--che-primary, #4F46E5);
 }
 
 /* General Styles */
@@ -100,7 +100,7 @@ a.card {
 .form-control:focus,
 .form-select:focus {
     border-color: var(--che-pink);
-    box-shadow: 0 0 0 0.25rem rgba(233, 30, 140, 0.25);
+    box-shadow: 0 0 0 0.25rem rgba(79, 70, 229, 0.25);
 }
 
 /* Alerts */
@@ -265,12 +265,12 @@ a.card {
 }
 
 ::-webkit-scrollbar-thumb {
-    background: linear-gradient(180deg, #E91E8C, #2D1E5F);
+    background: linear-gradient(180deg, #4F46E5, #0F172A);
     border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-    background: #E91E8C;
+    background: #4F46E5;
 }
 
 /* Toast Notifications */
@@ -337,23 +337,23 @@ a.card {
 }
 
 .bg-gradient-che-yellow {
-    background: linear-gradient(135deg, var(--che-yellow), #FFE066) !important;
+    background: linear-gradient(135deg, var(--che-yellow), #FCD34D) !important;
 }
 
 /* Primary Button Override */
 .btn-primary {
-    background: linear-gradient(135deg, var(--che-pink), #D11A7D);
+    background: linear-gradient(135deg, var(--che-pink), #4338CA);
     border: none;
     color: white;
 }
 
 .btn-primary:hover {
-    background: linear-gradient(135deg, #D11A7D, var(--che-purple));
+    background: linear-gradient(135deg, #4338CA, var(--che-purple));
     color: white;
 }
 
 .btn-primary:focus {
-    box-shadow: 0 0 0 0.25rem rgba(233, 30, 140, 0.5);
+    box-shadow: 0 0 0 0.25rem rgba(79, 70, 229, 0.5);
 }
 
 .btn-outline-primary {
@@ -369,13 +369,13 @@ a.card {
 
 /* Warning Button (Yellow) */
 .btn-warning {
-    background: linear-gradient(135deg, var(--che-yellow), #FFE066);
+    background: linear-gradient(135deg, var(--che-yellow), #FCD34D);
     border: none;
     color: var(--che-purple);
 }
 
 .btn-warning:hover {
-    background: linear-gradient(135deg, #E5C700, var(--che-yellow));
+    background: linear-gradient(135deg, #D97706, var(--che-yellow));
     color: var(--che-purple);
 }
 
@@ -423,17 +423,17 @@ a.card {
 
 /* Dashboard Cards with Brand Colors */
 .dashboard-card.card-pink {
-    background: linear-gradient(135deg, var(--che-pink), #D11A7D);
+    background: linear-gradient(135deg, var(--che-pink), #4338CA);
     color: white;
 }
 
 .dashboard-card.card-yellow {
-    background: linear-gradient(135deg, var(--che-yellow), #FFE066);
+    background: linear-gradient(135deg, var(--che-yellow), #FCD34D);
     color: var(--che-purple);
 }
 
 .dashboard-card.card-purple {
-    background: linear-gradient(135deg, var(--che-purple), #3D2E6F);
+    background: linear-gradient(135deg, var(--che-purple), #1E293B);
     color: white;
 }
 
@@ -483,7 +483,7 @@ a:hover {
 
 /* Table Styles with Brand Colors */
 .table thead:not(.table-light):not(.table-dark) {
-    background: linear-gradient(135deg, #2D1E5F, #3D2E6F);
+    background: linear-gradient(135deg, #0F172A, #1E293B);
     color: white;
 }
 
@@ -496,7 +496,7 @@ a:hover {
 }
 
 .table-hover tbody tr:hover {
-    background-color: rgba(233, 30, 140, 0.1);
+    background-color: rgba(79, 70, 229, 0.1);
 }
 
 /* Pagination */
@@ -511,7 +511,7 @@ a:hover {
 
 .page-link:hover {
     color: var(--che-purple);
-    background-color: rgba(233, 30, 140, 0.1);
+    background-color: rgba(79, 70, 229, 0.1);
 }
 
 /* Modal Styles */
@@ -527,7 +527,7 @@ a:hover {
 /* Dropdown Menu */
 .dropdown-item:hover,
 .dropdown-item:focus {
-    background-color: rgba(233, 30, 140, 0.1);
+    background-color: rgba(79, 70, 229, 0.1);
     color: var(--che-pink);
 }
 
@@ -551,7 +551,7 @@ a:hover {
 
 /* Badge Variants */
 .badge.bg-primary {
-    background: linear-gradient(135deg, var(--che-pink), #D11A7D) !important;
+    background: linear-gradient(135deg, var(--che-pink), #4338CA) !important;
 }
 
 /* Nav Pills */
@@ -567,7 +567,7 @@ a:hover {
 
 .form-check-input:focus {
     border-color: var(--che-pink);
-    box-shadow: 0 0 0 0.2rem rgba(233, 30, 140, 0.25);
+    box-shadow: 0 0 0 0.2rem rgba(79, 70, 229, 0.25);
 }
 
 /* Success States with Brand */

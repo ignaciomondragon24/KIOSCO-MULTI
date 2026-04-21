@@ -1,7 +1,7 @@
 {% extends 'base.html' %}
 {% load currency_filters %}
 
-{% block title %}Configuración de la Empresa - CHE GOLOSO{% endblock %}
+{% block title %}Configuración de la Empresa - KioskoPro{% endblock %}
 
 {% block content %}
 <div class="container-fluid py-4">
@@ -116,7 +116,7 @@
                     </div>
                     {% endif %}
                     
-                    <h4>{{ company.name|default:"CHE GOLOSO" }}</h4>
+                    <h4>{{ company.name|default:"KioskoPro" }}</h4>
                     {% if company.trade_name %}
                     <p class="text-muted">{{ company.trade_name }}</p>
                     {% endif %}

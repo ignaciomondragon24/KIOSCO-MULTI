@@ -10,7 +10,7 @@
     --dm-text: #e8e8f0;
     --dm-text-muted: #9a9ab0;
     --dm-text-heading: #f0f0ff;
-    --dm-table-hover: rgba(233, 30, 140, 0.08);
+    --dm-table-hover: rgba(79, 70, 229, 0.08);
     --dm-table-stripe: rgba(255,255,255,0.02);
     --dm-shadow: 0 2px 8px rgba(0,0,0,0.3);
 }
@@ -102,7 +102,7 @@
 }
 
 [data-theme="dark"] .table thead:not(.table-light):not(.table-dark) {
-    background: linear-gradient(135deg, #2D1E5F, #3D2E6F) !important;
+    background: linear-gradient(135deg, #0F172A, #1E293B) !important;
 }
 
 [data-theme="dark"] .table thead:not(.table-light):not(.table-dark) th {
@@ -124,7 +124,7 @@
 
 [data-theme="dark"] .table-active,
 [data-theme="dark"] .table-active > * {
-    background-color: rgba(233, 30, 140, 0.12) !important;
+    background-color: rgba(79, 70, 229, 0.12) !important;
     color: var(--dm-text) !important;
 }
 
@@ -149,7 +149,7 @@
     background-color: #1a2540 !important;
     border-color: var(--che-pink) !important;
     color: var(--dm-text) !important;
-    box-shadow: 0 0 0 0.25rem rgba(233, 30, 140, 0.25) !important;
+    box-shadow: 0 0 0 0.25rem rgba(79, 70, 229, 0.25) !important;
 }
 
 [data-theme="dark"] .form-control:disabled,
@@ -190,7 +190,7 @@
 
 [data-theme="dark"] .dropdown-item:hover,
 [data-theme="dark"] .dropdown-item:focus {
-    background-color: rgba(233, 30, 140, 0.12) !important;
+    background-color: rgba(79, 70, 229, 0.12) !important;
     color: #f472b6 !important;
 }
 
@@ -227,9 +227,9 @@
 }
 
 [data-theme="dark"] .alert-warning {
-    background-color: rgba(245, 208, 0, 0.1) !important;
+    background-color: rgba(245, 158, 11, 0.1) !important;
     color: #fde68a !important;
-    border-color: rgba(245, 208, 0, 0.2) !important;
+    border-color: rgba(245, 158, 11, 0.2) !important;
 }
 
 [data-theme="dark"] .alert-danger {
@@ -252,7 +252,7 @@
 }
 
 [data-theme="dark"] .page-link:hover {
-    background-color: rgba(233, 30, 140, 0.15) !important;
+    background-color: rgba(79, 70, 229, 0.15) !important;
     color: #f472b6 !important;
 }
 
@@ -322,7 +322,7 @@
 }
 
 [data-theme="dark"] .sidebar .nav-link:hover {
-    background-color: rgba(233, 30, 140, 0.1) !important;
+    background-color: rgba(79, 70, 229, 0.1) !important;
 }
 
 /* ─── Buttons outline ──────────────────────────────── */
@@ -381,7 +381,7 @@
 }
 
 [data-theme="dark"] .list-group-item:hover {
-    background-color: rgba(233, 30, 140, 0.06) !important;
+    background-color: rgba(79, 70, 229, 0.06) !important;
 }
 
 /* ─── Nav tabs/pills ───────────────────────────────── */
@@ -411,7 +411,7 @@
 }
 
 [data-theme="dark"] .accordion-button:not(.collapsed) {
-    background-color: rgba(233, 30, 140, 0.1) !important;
+    background-color: rgba(79, 70, 229, 0.1) !important;
     color: #f472b6 !important;
 }
 

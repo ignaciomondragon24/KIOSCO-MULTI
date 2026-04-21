@@ -64,6 +64,7 @@ INSTALLED_APPS = [
     'assistant.apps.AssistantConfig',
     'signage.apps.SignageConfig',
     'granel.apps.GranelConfig',
+    'landing.apps.LandingConfig',
 ]
 
 MIDDLEWARE = [
@@ -178,7 +179,13 @@ MEDIA_ROOT = BASE_DIR / 'media'
 # para que cada deploy invalide automaticamente la cache del navegador sin
 # requerir Ctrl+Shift+R. manifest_strict=False evita crashes por referencias
 # a archivos inexistentes.
-STATICFILES_STORAGE = 'superrecord.storage.ForgivingManifestStaticFilesStorage'
+# En dev (DEBUG=True) usamos el storage simple porque el runserver sirve
+# static por finders y no resuelve los nombres hasheados que genera el
+# manifest. En produccion usamos el storage con manifest.
+if DEBUG:
+    STATICFILES_STORAGE = 'django.contrib.staticfiles.storage.StaticFilesStorage'
+else:
+    STATICFILES_STORAGE = 'superrecord.storage.ForgivingManifestStaticFilesStorage'
 
 # Cache larga para estaticos: como tienen hash en el nombre, son inmutables.
 # Cuando el archivo cambia, cambia el hash, cambia la URL, y el navegador
@@ -191,8 +198,8 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # Login/Logout URLs
 LOGIN_URL = 'accounts:login'
-LOGIN_REDIRECT_URL = 'accounts:home'
-LOGOUT_REDIRECT_URL = 'accounts:login'
+LOGIN_REDIRECT_URL = 'accounts:dashboard'
+LOGOUT_REDIRECT_URL = 'landing:home'
 
 # Session settings
 SESSION_COOKIE_AGE = 1209600  # 2 weeks
