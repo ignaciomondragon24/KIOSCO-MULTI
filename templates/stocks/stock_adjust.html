@@ -1,0 +1,193 @@
+{% extends 'base.html' %}
+{% load currency_filters %}
+
+{% block title %}Ajustar Stock - {{ product.name }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row justify-content-center">
+        <div class="col-lg-6">
+            <!-- Header -->
+            <div class="mb-4">
+                <h1 class="h3 mb-0">
+                    <i class="fas fa-boxes me-2"></i>Ajustar Stock
+                </h1>
+                <nav aria-label="breadcrumb">
+                    <ol class="breadcrumb mb-0">
+                        <li class="breadcrumb-item"><a href="{% url 'stocks:product_list' %}">Productos</a></li>
+                        <li class="breadcrumb-item"><a href="{% url 'stocks:product_detail' product.pk %}">{{ product.name }}</a></li>
+                        <li class="breadcrumb-item active">Ajustar Stock</li>
+                    </ol>
+                </nav>
+            </div>
+
+            <!-- Product Info Card -->
+            <div class="card mb-4">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-shrink-0">
+                            <div class="rounded-circle bg-primary d-flex align-items-center justify-content-center" style="width: 60px; height: 60px;">
+                                <i class="fas fa-box fa-2x text-white"></i>
+                            </div>
+                        </div>
+                        <div class="flex-grow-1 ms-3">
+                            <h5 class="mb-1">{{ product.name }}</h5>
+                            <p class="text-muted mb-0">
+                                SKU: {{ product.sku }}
+                                {% if product.barcode %} | Código: {{ product.barcode }}{% endif %}
+                            </p>
+                        </div>
+                        <div class="text-end">
+                            <h4 class="mb-0 {% if product.current_stock <= product.min_stock %}text-danger{% else %}text-success{% endif %}">
+                                {{ product.current_stock|floatformat:2 }}
+                            </h4>
+                            <small class="text-muted">Stock Actual</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Adjustment Form -->
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-plus-minus me-2"></i>Nuevo Ajuste
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <form method="post">
+                        {% csrf_token %}
+                        
+                        <div class="mb-3">
+                            <label for="id_new_quantity" class="form-label">Nueva Cantidad <span class="text-danger">*</span></label>
+                            <div class="input-group input-group-lg">
+                                <input type="number" 
+                                       class="form-control text-center {% if form.new_quantity.errors %}is-invalid{% endif %}" 
+                                       id="id_new_quantity" 
+                                       name="new_quantity" 
+                                       value="{{ form.new_quantity.value|default:product.current_stock }}"
+                                       step="0.01"
+                                       min="0"
+                                       required
+                                       autofocus>
+                                <span class="input-group-text">{{ product.unit_of_measure.abbreviation|default:"u" }}</span>
+                            </div>
+                            {% if form.new_quantity.errors %}
+                            <div class="invalid-feedback">{{ form.new_quantity.errors.0 }}</div>
+                            {% endif %}
+                            <small class="text-muted">Stock actual: {{ product.current_stock|floatformat:2 }}</small>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="id_reason" class="form-label">Motivo del Ajuste <span class="text-danger">*</span></label>
+                            <select class="form-select {% if form.reason.errors %}is-invalid{% endif %}" id="id_reason" name="reason" required>
+                                <option value="">Seleccionar motivo...</option>
+                                <option value="conteo_fisico">Conteo Físico / Inventario</option>
+                                <option value="mercaderia_danada">Mercadería Dañada</option>
+                                <option value="mercaderia_vencida">Mercadería Vencida</option>
+                                <option value="robo_perdida">Robo / Pérdida</option>
+                                <option value="devolucion">Devolución</option>
+                                <option value="correccion_error">Corrección de Error</option>
+                                <option value="consumo_interno">Consumo Interno</option>
+                                <option value="otro">Otro</option>
+                            </select>
+                            {% if form.reason.errors %}
+                            <div class="invalid-feedback">{{ form.reason.errors.0 }}</div>
+                            {% endif %}
+                        </div>
+
+                        <div class="mb-4">
+                            <label for="id_notes" class="form-label">Notas Adicionales</label>
+                            <textarea class="form-control" id="id_notes" name="notes" rows="3" placeholder="Detalles adicionales del ajuste..."></textarea>
+                        </div>
+
+                        <!-- Batch cost fields (shown only when stock increases) -->
+                        <div id="batch-fields" style="display: none;">
+                            <hr>
+                            <h6 class="text-muted mb-3">
+                                <i class="fas fa-layer-group me-1"></i>Datos del Lote (opcional)
+                            </h6>
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label for="id_purchase_price" class="form-label">Costo Unitario</label>
+                                    <div class="input-group">
+                                        <span class="input-group-text">$</span>
+                                        <input type="number" class="form-control" id="id_purchase_price"
+                                               name="purchase_price" step="0.01" min="0"
+                                               placeholder="Precio por unidad">
+                                    </div>
+                                    <small class="text-muted">Si se completa, se registra un lote de compra</small>
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label for="id_supplier_name" class="form-label">Proveedor</label>
+                                    <input type="text" class="form-control" id="id_supplier_name"
+                                           name="supplier_name" placeholder="Nombre del proveedor">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Preview -->
+                        <div class="alert alert-info" id="preview-alert" style="display: none;">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <strong>Diferencia:</strong>
+                                    <span id="diff-value"></span>
+                                </div>
+                                <div>
+                                    <strong>Stock Final:</strong>
+                                    <span id="final-value"></span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-primary btn-lg">
+                                <i class="fas fa-check me-2"></i>Confirmar Ajuste
+                            </button>
+                            <a href="javascript:history.back()" class="btn btn-outline-secondary">
+                                <i class="fas fa-times me-2"></i>Cancelar
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const currentStock = {{ product.current_stock }};
+    const quantityInput = document.getElementById('id_new_quantity');
+    const previewAlert = document.getElementById('preview-alert');
+    const diffValue = document.getElementById('diff-value');
+    const finalValue = document.getElementById('final-value');
+    const batchFields = document.getElementById('batch-fields');
+
+    function updatePreview() {
+        const newQuantity = parseFloat(quantityInput.value) || 0;
+        const difference = newQuantity - currentStock;
+
+        // Show batch fields only when stock increases
+        batchFields.style.display = difference > 0 ? 'block' : 'none';
+
+        if (newQuantity !== currentStock) {
+            previewAlert.style.display = 'block';
+
+            if (difference > 0) {
+                diffValue.innerHTML = `<span class="text-success">+${difference.toFixed(2)}</span>`;
+            } else {
+                diffValue.innerHTML = `<span class="text-danger">${difference.toFixed(2)}</span>`;
+            }
+
+            finalValue.textContent = newQuantity.toFixed(2);
+        } else {
+            previewAlert.style.display = 'none';
+        }
+    }
+
+    quantityInput.addEventListener('input', updatePreview);
+    updatePreview();
+});
+</script>
+{% endblock %}

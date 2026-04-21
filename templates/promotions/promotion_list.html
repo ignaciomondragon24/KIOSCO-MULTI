@@ -1,0 +1,315 @@
+{% extends 'base.html' %}
+{% load currency_filters %}
+
+{% block title %}Promociones - CHE GOLOSO{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row mb-4">
+        <div class="col">
+            <h2><i class="fas fa-tags me-2"></i>Promociones</h2>
+            <p class="text-muted">Gestión de ofertas y descuentos</p>
+        </div>
+        <div class="col-auto">
+            <a href="{% url 'promotions:promotion_create' %}" class="btn btn-primary">
+                <i class="fas fa-plus me-1"></i>Nueva Promoción
+            </a>
+        </div>
+    </div>
+
+    <!-- Stats Cards -->
+    <div class="row mb-4">
+        <div class="col-md-3 col-sm-6 mb-3">
+            <div class="card bg-success text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h6 class="opacity-75">Activas</h6>
+                            <h3 class="mb-0">{{ active_count }}</h3>
+                        </div>
+                        <i class="fas fa-check-circle fa-2x opacity-50"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 col-sm-6 mb-3">
+            <div class="card bg-warning text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h6 class="opacity-75">Pausadas</h6>
+                            <h3 class="mb-0">{{ paused_count }}</h3>
+                        </div>
+                        <i class="fas fa-pause-circle fa-2x opacity-50"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 col-sm-6 mb-3">
+            <div class="card bg-secondary text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h6 class="opacity-75">Borradores</h6>
+                            <h3 class="mb-0">{{ draft_count }}</h3>
+                        </div>
+                        <i class="fas fa-edit fa-2x opacity-50"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 col-sm-6 mb-3">
+            <div class="card bg-info text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h6 class="opacity-75">Total</h6>
+                            <h3 class="mb-0">{{ total_count }}</h3>
+                        </div>
+                        <i class="fas fa-tags fa-2x opacity-50"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <form method="get" class="row g-3 align-items-end">
+                <div class="col-md-3">
+                    <label class="form-label">Buscar</label>
+                    <input type="text" name="search" class="form-control" 
+                           placeholder="Nombre de promoción..." value="{{ search }}">
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Tipo</label>
+                    <select name="type" class="form-select">
+                        <option value="">Todos</option>
+                        <option value="nxm" {% if type == 'nxm' %}selected{% endif %}>NxM (2x1, 3x2)</option>
+                        <option value="quantity_discount" {% if type == 'quantity_discount' %}selected{% endif %}>Por Cantidad</option>
+                        <option value="combo" {% if type == 'combo' %}selected{% endif %}>Combo</option>
+                        <option value="second_unit" {% if type == 'second_unit' %}selected{% endif %}>Segunda Unidad</option>
+                        <option value="simple_discount" {% if type == 'simple_discount' %}selected{% endif %}>Descuento %</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Estado</label>
+                    <select name="status" class="form-select">
+                        <option value="">Todos</option>
+                        <option value="active" {% if status == 'active' %}selected{% endif %}>Activas</option>
+                        <option value="paused" {% if status == 'paused' %}selected{% endif %}>Pausadas</option>
+                        <option value="draft" {% if status == 'draft' %}selected{% endif %}>Borradores</option>
+                        <option value="finished" {% if status == 'finished' %}selected{% endif %}>Finalizadas</option>
+                    </select>
+                </div>
+                <div class="col-auto">
+                    <button type="submit" class="btn btn-outline-primary">
+                        <i class="fas fa-filter me-1"></i>Filtrar
+                    </button>
+                    <a href="{% url 'promotions:promotion_list' %}" class="btn btn-outline-secondary">Limpiar</a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Promotions Grid -->
+    <div class="row">
+        {% for promo in promotions %}
+        <div class="col-lg-4 col-md-6 mb-4">
+            <div class="card h-100 {% if promo.status == 'active' %}border-success{% elif promo.status == 'paused' %}border-warning{% endif %}">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h6 class="mb-0">{{ promo.name|truncatechars:30 }}</h6>
+                    {% if promo.status == 'active' %}
+                    <span class="badge bg-success">Activa</span>
+                    {% elif promo.status == 'paused' %}
+                    <span class="badge bg-warning">Pausada</span>
+                    {% elif promo.status == 'draft' %}
+                    <span class="badge bg-secondary">Borrador</span>
+                    {% else %}
+                    <span class="badge bg-dark">Finalizada</span>
+                    {% endif %}
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <span class="badge bg-primary">{{ promo.get_promo_type_display }}</span>
+                        {% if not promo.is_combinable %}
+                        <span class="badge bg-warning">No combinable</span>
+                        {% endif %}
+                        {% if promo.group %}
+                        <span class="badge bg-info" title="Grupo enlazado: {{ promo.group.name }}">
+                            <i class="fas fa-link"></i> {{ promo.group.name }}
+                        </span>
+                        {% endif %}
+                    </div>
+                    
+                    {% if promo.description %}
+                    <p class="card-text text-muted small">{{ promo.description|truncatechars:80 }}</p>
+                    {% endif %}
+                    
+                    <div class="small">
+                        {% if promo.promo_type == 'nxm' %}
+                        <p class="mb-1">
+                            <i class="fas fa-percentage me-1"></i>
+                            Llevás {{ promo.quantity_required }}, pagás {{ promo.quantity_charged }}
+                        </p>
+                        {% elif promo.promo_type == 'quantity_discount' %}
+                        <p class="mb-1">
+                            <i class="fas fa-percentage me-1"></i>
+                            {{ promo.min_quantity }}+ unidades: {{ promo.discount_percent }}% OFF
+                        </p>
+                        {% elif promo.promo_type == 'combo' %}
+                        <p class="mb-1">
+                            <i class="fas fa-box me-1"></i>
+                            Precio especial: {{ promo.combo_price|currency_ar }}
+                        </p>
+                        {% elif promo.promo_type == 'second_unit' %}
+                        <p class="mb-1">
+                            <i class="fas fa-percentage me-1"></i>
+                            2da unidad al {{ promo.second_unit_discount }}% OFF
+                        </p>
+                        {% elif promo.promo_type == 'simple_discount' %}
+                        <p class="mb-1">
+                            <i class="fas fa-percentage me-1"></i>
+                            {{ promo.discount_percent }}% de descuento
+                        </p>
+                        {% endif %}
+                        
+                        {% if promo.start_date or promo.end_date %}
+                        <p class="mb-1 text-muted">
+                            <i class="fas fa-calendar me-1"></i>
+                            {% if promo.start_date %}{{ promo.start_date|date:"d/m/y" }}{% endif %}
+                            -
+                            {% if promo.end_date %}{{ promo.end_date|date:"d/m/y" }}{% endif %}
+                        </p>
+                        {% endif %}
+                        
+                        <p class="mb-0 text-muted">
+                            <i class="fas fa-cubes me-1"></i>
+                            {{ promo.products.count }} producto(s)
+                        </p>
+                    </div>
+                </div>
+                <div class="card-footer bg-transparent">
+                    <div class="btn-group w-100">
+                        <a href="{% url 'promotions:promotion_edit' promo.pk %}" class="btn btn-outline-primary btn-sm">
+                            <i class="fas fa-edit me-1"></i>Editar
+                        </a>
+                        {% if promo.status == 'active' %}
+                        <form action="{% url 'promotions:promotion_pause' promo.pk %}" method="post" class="d-inline">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-outline-warning btn-sm">
+                                <i class="fas fa-pause me-1"></i>Pausar
+                            </button>
+                        </form>
+                        {% elif promo.status == 'paused' or promo.status == 'draft' %}
+                        <form action="{% url 'promotions:promotion_activate' promo.pk %}" method="post" class="d-inline">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-outline-success btn-sm">
+                                <i class="fas fa-play me-1"></i>Activar
+                            </button>
+                        </form>
+                        {% endif %}
+                        <button type="button" class="btn btn-outline-danger btn-sm" 
+                                onclick="confirmDelete({{ promo.pk }}, '{{ promo.name|escapejs }}')">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% empty %}
+        <div class="col-12">
+            <div class="alert alert-info text-center py-5">
+                <i class="fas fa-tags fa-3x mb-3 d-block text-muted"></i>
+                <h5>No hay promociones</h5>
+                <p class="text-muted mb-3">Crea tu primera promoción para comenzar a ofrecer descuentos</p>
+                <a href="{% url 'promotions:promotion_create' %}" class="btn btn-primary">
+                    <i class="fas fa-plus me-1"></i>Crear Promoción
+                </a>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- Pagination -->
+    {% if promotions.has_other_pages %}
+    <nav aria-label="Page navigation" class="mt-4">
+        <ul class="pagination justify-content-center">
+            {% if promotions.has_previous %}
+            <li class="page-item">
+                <a class="page-link" href="?page={{ promotions.previous_page_number }}{% if search %}&search={{ search }}{% endif %}{% if type %}&type={{ type }}{% endif %}{% if status %}&status={{ status }}{% endif %}">
+                    &laquo; Anterior
+                </a>
+            </li>
+            {% endif %}
+            
+            <li class="page-item disabled">
+                <span class="page-link">Página {{ promotions.number }} de {{ promotions.paginator.num_pages }}</span>
+            </li>
+            
+            {% if promotions.has_next %}
+            <li class="page-item">
+                <a class="page-link" href="?page={{ promotions.next_page_number }}{% if search %}&search={{ search }}{% endif %}{% if type %}&type={{ type }}{% endif %}{% if status %}&status={{ status }}{% endif %}">
+                    Siguiente &raquo;
+                </a>
+            </li>
+            {% endif %}
+        </ul>
+    </nav>
+    {% endif %}
+</div>
+
+<!-- Modal Confirmación Eliminación — requiere escribir el nombre exacto -->
+<div class="modal fade" id="deleteModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title"><i class="fas fa-exclamation-triangle me-2"></i>Confirmar Eliminación</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>¿Estás seguro de eliminar la promoción "<strong><span id="deletePromoName"></span></strong>"?</p>
+                <p class="text-danger"><small><i class="fas fa-warning me-1"></i>Esta acción no se puede deshacer.</small></p>
+                <div class="mt-3">
+                    <label for="confirmNameInput" class="form-label">Escribí el nombre exacto de la promoción para confirmar:</label>
+                    <input type="text" class="form-control" id="confirmNameInput" autocomplete="off"
+                           placeholder="Escribí el nombre aquí...">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <form id="deleteForm" method="post" class="d-inline">
+                    {% csrf_token %}
+                    <input type="hidden" name="confirm_name" id="confirmNameHidden">
+                    <button type="submit" class="btn btn-danger" id="deleteBtn" disabled>
+                        <i class="fas fa-trash me-1"></i>Eliminar
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let _deleteTargetName = '';
+function confirmDelete(promoId, promoName) {
+    _deleteTargetName = promoName;
+    document.getElementById('deletePromoName').textContent = promoName;
+    document.getElementById('deleteForm').action = "{% url 'promotions:promotion_delete' 0 %}".replace('/0/', '/' + promoId + '/');
+    const inp = document.getElementById('confirmNameInput');
+    const btn = document.getElementById('deleteBtn');
+    inp.value = '';
+    btn.disabled = true;
+    new bootstrap.Modal(document.getElementById('deleteModal')).show();
+    setTimeout(() => inp.focus(), 500);
+}
+document.getElementById('confirmNameInput').addEventListener('input', function() {
+    const match = this.value.trim() === _deleteTargetName;
+    document.getElementById('deleteBtn').disabled = !match;
+    document.getElementById('confirmNameHidden').value = this.value.trim();
+});
+</script>
+{% endblock %}

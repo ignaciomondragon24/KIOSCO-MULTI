@@ -1,0 +1,1334 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load currency_filters l10n %}
+
+{% block title %}Punto de Venta - CHE GOLOSO{% endblock %}
+
+{% block navbar %}{% endblock %}
+
+{% block body_class %}pos-body{% endblock %}
+
+{% block extra_css %}
+<link href="{% static 'css/pos-dark.css' %}?v={% now "U" %}" rel="stylesheet">
+<style>
+    /* Keyboard shortcut badges */
+    .shortcut-badge {
+        font-size: 0.6rem;
+        padding: 1px 5px;
+        border-radius: 3px;
+        background: rgba(0,210,211,0.12);
+        color: rgba(0,210,211,0.8);
+        font-family: 'Courier New', monospace;
+        margin-left: 4px;
+        border: 1px solid rgba(0,210,211,0.2);
+        letter-spacing: 0.02em;
+        vertical-align: middle;
+    }
+    .btn .shortcut-badge {
+        opacity: 0.85;
+    }
+    
+    /* Focus indicator */
+    #product-search:focus {
+        box-shadow: 0 0 0 3px rgba(0, 210, 211, 0.5);
+        border-color: #00d2d3;
+    }
+    
+    /* Quick access button numbers */
+    .quick-btn {
+        position: relative;
+    }
+    .quick-btn::before {
+        content: attr(data-shortcut);
+        position: absolute;
+        top: 5px;
+        right: 5px;
+        font-size: 0.6rem;
+        background: rgba(0,0,0,0.5);
+        padding: 1px 4px;
+        border-radius: 3px;
+        font-family: monospace;
+    }
+    
+    /* Active cart item highlight */
+    .cart-item:last-child {
+        border-left: 3px solid #00d2d3;
+    }
+    
+    /* Help button */
+    .help-float {
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        z-index: 100;
+        width: 50px;
+        height: 50px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #667eea, #764ba2);
+        border: none;
+        color: white;
+        font-size: 1.2rem;
+        cursor: pointer;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+        transition: transform 0.2s;
+    }
+    .help-float:hover {
+        transform: scale(1.1);
+    }
+    
+    /* Purple outline button for suspended transactions */
+    .btn-outline-purple {
+        color: #b07cd8;
+        border-color: rgba(176,124,216,0.35);
+        background: transparent;
+    }
+    .btn-outline-purple:hover, .btn-outline-purple:focus {
+        color: #fff;
+        background-color: rgba(176,124,216,0.18);
+        border-color: #b07cd8;
+    }
+
+    /* ===== NAVEGACIÓN POR TECLADO - INDICADORES DE FOCO VISIBLES ===== */
+    /* Indicador principal para todos los elementos interactivos */
+    *:focus-visible {
+        outline: 2px solid #00d2d3 !important;
+        outline-offset: 2px;
+    }
+    /* Botones de acción */
+    .action-btn:focus-visible {
+        border-color: #00d2d3 !important;
+        box-shadow: 0 0 0 3px rgba(0, 210, 211, 0.35) !important;
+        background-color: rgba(0, 210, 211, 0.08) !important;
+    }
+    /* Botón cobrar */
+    #btn-checkout:focus-visible {
+        box-shadow: 0 0 0 4px rgba(0, 210, 211, 0.5) !important;
+        outline: 3px solid #00d2d3 !important;
+    }
+    /* Inputs del carrito */
+    .qty-input:focus {
+        outline: 2px solid #00d2d3 !important;
+        outline-offset: 1px;
+        background-color: rgba(0, 210, 211, 0.06) !important;
+    }
+    /* Checkboxes de pago en modal cobrar */
+    .payment-method-check:focus-visible {
+        box-shadow: 0 0 0 3px rgba(0, 210, 211, 0.4) !important;
+    }
+    /* Links del header */
+    .pos-actions a:focus-visible {
+        box-shadow: 0 0 0 3px rgba(0, 210, 211, 0.4) !important;
+        border-radius: 4px;
+    }
+    /* Hint visual: elemento activo en Tab */
+    .btn:focus-visible {
+        outline: 2px solid #00d2d3 !important;
+        outline-offset: 2px;
+    }
+</style>
+
+<style>
+    /* ===== PANEL LATERAL POS ===== */
+    .pos-wrapper {
+        display: flex;
+        gap: 0;
+        height: 100%;
+    }
+    .pos-container {
+        flex: 1;
+        min-width: 0;
+    }
+    /* Sidebar toggle button */
+    .pos-sidebar-toggle {
+        position: fixed;
+        top: 50%;
+        right: 0;
+        transform: translateY(-50%);
+        z-index: 1050;
+        background: #1a1a2e;
+        border: 1px solid #2d2d44;
+        border-right: none;
+        border-radius: 6px 0 0 6px;
+        padding: 8px 6px;
+        cursor: pointer;
+        color: #00d2d3;
+        font-size: 0.8rem;
+        writing-mode: vertical-rl;
+        text-orientation: mixed;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 4px;
+        transition: background 0.2s, opacity 0.2s;
+        /* Por defecto oculto (sidebar abierto) */
+        opacity: 0;
+        pointer-events: none;
+    }
+    /* Se muestra solo cuando el sidebar está collapsed */
+    .pos-sidebar-toggle.visible { opacity: 1; pointer-events: auto; }
+    .pos-sidebar-toggle:hover { background: #2d2d44; }
+    .pos-sidebar-toggle .toggle-icon { writing-mode: initial; }
+
+    /* Sidebar */
+    .pos-sidebar {
+        width: 300px;
+        min-width: 300px;
+        background: #12122a;
+        border-left: 1px solid #2d2d44;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        transition: width 0.25s ease, min-width 0.25s ease;
+    }
+    .pos-sidebar.collapsed {
+        width: 0;
+        min-width: 0;
+    }
+    .pos-sidebar-inner {
+        width: 300px;
+        overflow-y: auto;
+        overflow-x: hidden;
+        flex: 1;
+        padding: 0;
+    }
+    /* Sidebar tabs */
+    .sidebar-tabs {
+        display: flex;
+        border-bottom: 1px solid #2d2d44;
+        background: #1a1a2e;
+    }
+    .sidebar-tab-btn {
+        flex: 1;
+        padding: 8px 4px;
+        background: none;
+        border: none;
+        color: #888;
+        font-size: 0.72rem;
+        cursor: pointer;
+        border-bottom: 2px solid transparent;
+        transition: color 0.2s, border-color 0.2s;
+        text-align: center;
+    }
+    .sidebar-tab-btn.active {
+        color: #00d2d3;
+        border-bottom-color: #00d2d3;
+    }
+    .sidebar-tab-btn:hover { color: #ccc; }
+    .sidebar-tab-btn i { display: block; font-size: 1rem; margin-bottom: 2px; }
+    /* Botón cerrar sidebar */
+    .sidebar-close-btn {
+        background: none;
+        border: none;
+        color: #888;
+        font-size: 0.9rem;
+        cursor: pointer;
+        padding: 4px 8px;
+        border-radius: 4px;
+        line-height: 1;
+        flex-shrink: 0;
+        align-self: center;
+    }
+    .sidebar-close-btn:hover { color: #e74c3c; background: rgba(231,76,60,0.12); }
+
+    /* Sidebar tab panes */
+    .sidebar-pane { display: none; padding: 10px; }
+    .sidebar-pane.active { display: block; }
+
+    /* Shortcuts table */
+    .shortcut-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 5px 4px;
+        border-bottom: 1px solid rgba(255,255,255,0.05);
+        font-size: 0.78rem;
+        gap: 6px;
+    }
+    .shortcut-row:last-child { border-bottom: none; }
+    .shortcut-label { color: #ccc; flex: 1; }
+    .shortcut-key-badge {
+        font-family: monospace;
+        font-size: 0.72rem;
+        background: #222;
+        color: #00d2d3;
+        padding: 2px 7px;
+        border-radius: 3px;
+        border: 1px solid #333;
+        white-space: nowrap;
+        flex-shrink: 0;
+    }
+    .shortcut-key-badge.none { color: #555; background: #1a1a1a; border-color: #222; }
+
+    /* Shortcut key select (inline edit) */
+    .shortcut-key-select {
+        font-family: monospace;
+        font-size: 0.72rem;
+        background: #222;
+        color: #00d2d3;
+        padding: 2px 4px;
+        border-radius: 3px;
+        border: 1px solid #444;
+        flex-shrink: 0;
+        cursor: pointer;
+        max-width: 90px;
+        text-align: center;
+        appearance: auto;
+    }
+    .shortcut-key-select:focus {
+        border-color: #00d2d3;
+        outline: none;
+        box-shadow: 0 0 0 2px rgba(0,210,211,0.25);
+    }
+    .shortcut-key-select option {
+        background: #1a1a2e;
+        color: #ccc;
+    }
+    .shortcut-saving {
+        opacity: 0.5;
+        pointer-events: none;
+    }
+
+    /* Quick payment buttons */
+    .quick-pay-btn {
+        width: 100%;
+        margin-bottom: 7px;
+        padding: 10px;
+        border-radius: 6px;
+        border: 1px solid rgba(255,255,255,0.1);
+        background: rgba(255,255,255,0.04);
+        color: #eee;
+        text-align: left;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        transition: background 0.15s, border-color 0.15s;
+        font-size: 0.85rem;
+    }
+    .quick-pay-btn:hover, .quick-pay-btn:focus-visible {
+        background: rgba(0,210,211,0.1);
+        border-color: #00d2d3;
+        outline: none;
+    }
+    .quick-pay-btn .pay-icon { font-size: 1.2rem; width: 22px; text-align: center; flex-shrink: 0; }
+    .quick-pay-btn .pay-key {
+        margin-left: auto;
+        font-size: 0.68rem;
+        background: #222;
+        color: #00d2d3;
+        border: 1px solid #333;
+        border-radius: 3px;
+        padding: 1px 5px;
+        font-family: monospace;
+        flex-shrink: 0;
+    }
+    .quick-pay-btn .pay-key.none { display: none; }
+    .quick-pay-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    /* Sales history */
+    .history-item {
+        padding: 8px 6px;
+        border-bottom: 1px solid rgba(255,255,255,0.05);
+        cursor: pointer;
+        transition: background 0.15s;
+        border-radius: 4px;
+    }
+    .history-item:hover, .history-item:focus-visible { background: rgba(255,255,255,0.05); outline: none; }
+    .history-ticket { font-size: 0.72rem; color: #00d2d3; font-family: monospace; }
+    .history-total { font-size: 0.9rem; font-weight: bold; color: #eee; }
+    .history-time { font-size: 0.7rem; color: #888; }
+    .history-preview { font-size: 0.7rem; color: #aaa; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .history-payments { font-size: 0.7rem; color: #6ec; margin-top: 2px; }
+    #history-empty { color: #888; font-size: 0.82rem; text-align: center; padding: 20px 0; }
+    .btn-reprint-history {
+        font-size: 0.7rem;
+        padding: 2px 7px;
+        margin-top: 4px;
+    }
+
+    /* Products list (códigos rápidos) */
+    .quick-product-item {
+        display: flex;
+        align-items: center;
+        padding: 6px 6px;
+        border-bottom: 1px solid rgba(255,255,255,0.05);
+        cursor: pointer;
+        gap: 6px;
+        transition: background 0.15s;
+        border-radius: 3px;
+    }
+    .quick-product-item:hover, .quick-product-item:focus-visible {
+        background: rgba(0,210,211,0.07);
+        outline: 2px solid #00d2d3;
+        outline-offset: 1px;
+    }
+    .quick-product-code {
+        font-family: monospace;
+        font-size: 0.7rem;
+        color: #888;
+        min-width: 55px;
+        flex-shrink: 0;
+    }
+    .quick-product-name { color: #ddd; font-size: 0.78rem; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+    .quick-product-price { color: #00d2d3; font-size: 0.78rem; flex-shrink: 0; white-space: nowrap; font-weight: 600; }
+    #quick-products-search {
+        background: #1a1a2e;
+        border: 1px solid #333;
+        color: #eee;
+        font-size: 0.8rem;
+        border-radius: 4px;
+        padding: 5px 8px;
+        width: 100%;
+        margin-bottom: 8px;
+    }
+    #quick-products-search:focus { outline: 2px solid #00d2d3; }
+
+    /* ===== NAVEGACIÓN CARRITO POR TECLADO ===== */
+    .cart-item {
+        outline: none;
+        border-left: 3px solid transparent !important;
+        transition: background 0.12s, border-left-color 0.12s;
+    }
+    .cart-item:focus { outline: none; }
+    .cart-item.kb-active {
+        background: rgba(0, 210, 211, 0.1) !important;
+        border-left-color: #00d2d3 !important;
+        border-left-width: 3px !important;
+    }
+    .cart-item.kb-active .cart-item-name { color: #00d2d3; }
+    /* Hint de teclado en el header del carrito */
+    .kb-hint {
+        font-size: 0.6rem;
+        font-family: monospace;
+        padding: 1px 6px;
+        border-radius: 3px;
+        background: rgba(0, 210, 211, 0.12);
+        color: #00d2d3;
+        display: inline-block;
+        margin-left: 8px;
+        vertical-align: middle;
+        transition: opacity 0.25s;
+        opacity: 0;
+        pointer-events: none;
+        white-space: nowrap;
+    }
+    .kb-hint.visible { opacity: 1; }
+    /* Botones de navegación del carrito */
+    .cart-nav-btn {
+        width: 28px; height: 28px;
+        padding: 0;
+        border-radius: 5px;
+        background: rgba(0,0,0,0.3);
+        border: 1px solid #333;
+        color: #00d2d3;
+        cursor: pointer;
+        font-size: 0.72rem;
+        transition: background 0.15s, border-color 0.15s;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+    }
+    .cart-nav-btn:hover  { background: rgba(0,210,211,0.15); border-color: #00d2d3; }
+    .cart-nav-btn:active { background: rgba(0,210,211,0.3); }
+    .cart-nav-btn:focus-visible { outline: 2px solid #00d2d3; }
+    .cart-nav-btn:disabled { opacity: 0.25; cursor: not-allowed; }
+    /* Input en modo edición */
+    .qty-input.editing {
+        background: rgba(0,210,211,0.12) !important;
+        border-color: #00d2d3 !important;
+        outline: 2px solid rgba(0,210,211,0.5) !important;
+    }
+
+    /* ===== Línea de promoción aplicada al item ===== */
+    /* .cart-item es display:flex — forzamos wrap para que la promo-row ocupe
+       su propia fila debajo del item principal. */
+    .cart-item { flex-wrap: wrap; }
+    .cart-item-promo-row {
+        flex: 1 0 100%;
+        margin-top: 6px;
+        padding: 4px 8px;
+        background: linear-gradient(90deg, rgba(245, 208, 0, 0.12), rgba(233, 30, 140, 0.10));
+        border-left: 3px solid #F5D000;
+        border-radius: 4px;
+        font-size: 0.72rem;
+        color: #ffe266;
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 6px;
+        line-height: 1.25;
+    }
+    .cart-item-promo-row .promo-tag {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        background: rgba(245, 208, 0, 0.22);
+        color: #F5D000;
+        padding: 2px 7px;
+        border-radius: 10px;
+        font-weight: 600;
+        font-size: 0.7rem;
+    }
+    .cart-item-promo-row .promo-tag i { font-size: 0.72rem; }
+    .cart-item-promo-row .promo-amount {
+        color: #00d2d3;
+        font-weight: 700;
+        margin-left: auto;
+        white-space: nowrap;
+    }
+    .cart-item-promo-row .promo-group {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        background: rgba(233, 30, 140, 0.18);
+        color: #ff5ca8;
+        padding: 2px 7px;
+        border-radius: 10px;
+        font-weight: 600;
+        font-size: 0.68rem;
+        border: 1px dashed rgba(233, 30, 140, 0.5);
+    }
+    .cart-item-promo-row .promo-group i { font-size: 0.65rem; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="pos-wrapper">
+<div class="pos-container">
+    <!-- Header -->
+    <div class="pos-header">
+        <div class="d-flex justify-content-between align-items-center">
+            <div class="pos-logo d-flex align-items-center">
+                <img src="{% static 'img/logo.png' %}" alt="Che Goloso" style="height: 35px; margin-right: 10px;">
+                <span>CHE GOLOSO</span>
+            </div>
+            <div class="pos-info">
+                <span class="me-3">
+                    <i class="fas fa-user me-1"></i>{{ user.get_short_name|default:user.username }}
+                </span>
+                <span class="me-3">
+                    <i class="fas fa-cash-register me-1"></i>{{ cash_register.name }}
+                </span>
+                <span id="pos-clock">
+                    <i class="fas fa-clock me-1"></i>--:--:--
+                </span>
+            </div>
+            <div class="pos-actions">
+                {% if suspended_count > 0 %}
+                <button type="button" class="btn btn-warning btn-sm me-2 position-relative" id="header-suspended-btn">
+                    <i class="fas fa-pause-circle me-1"></i>Apartados
+                    <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
+                        {{ suspended_count }}
+                    </span>
+                </button>
+                {% endif %}
+                <a href="#" id="btn-dashboard" class="btn btn-outline-light btn-sm" onclick="event.preventDefault(); if(typeof dispatchAction==='function') dispatchAction('dashboard'); else if(window.POS_dispatchAction) window.POS_dispatchAction('dashboard');">
+                    <i class="fas fa-home me-1"></i>Dashboard
+                    <span class="shortcut-badge">F12</span>
+                </a>
+                <a href="{% url 'accounts:logout' %}" class="btn btn-outline-danger btn-sm ms-2">
+                    <i class="fas fa-sign-out-alt me-1"></i>Salir
+                </a>
+            </div>
+        </div>
+    </div>
+    
+    <div class="pos-main">
+        <!-- Left Panel - Product Search & Cart -->
+        <div class="pos-left">
+            <!-- Search Bar -->
+            <div class="pos-search">
+                <div class="input-group">
+                    <span class="input-group-text bg-dark border-secondary">
+                        <i class="fas fa-barcode text-primary"></i>
+                    </span>
+                    <input type="text" 
+                           id="product-search" 
+                           class="form-control bg-dark text-white border-secondary"
+                           placeholder="Escanear código de barras o buscar... (F2)"
+                           autofocus
+                           autocomplete="off">
+                    <button type="button" class="btn btn-primary" id="search-btn" tabindex="-1">
+                        <i class="fas fa-search"></i>
+                    </button>
+                </div>
+                <small class="text-muted mt-1 d-block">
+                    <kbd>Enter</kbd> agregar &nbsp;
+                    <kbd>↑↓</kbd> resultados &nbsp;
+                    <kbd>Tab</kbd>→ carrito &nbsp;
+                    <kbd>Esc</kbd> limpiar
+                </small>
+                
+                <!-- Search Results -->
+                <div class="pos-search-results" id="search-results" style="display: none;">
+                    <div class="search-results-list" id="search-results-list">
+                        <!-- Results will be populated by JavaScript -->
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Cart -->
+            <div class="pos-cart">
+                <div class="cart-header">
+                    <h5>
+                        <i class="fas fa-shopping-cart me-2"></i>Carrito
+                        <span class="kb-hint" id="cart-kb-hint">↑↓ nav · +/- cant · Del eliminar · Esc búsq</span>
+                    </h5>
+                    <div class="d-flex align-items-center gap-1">
+                        <button type="button" class="cart-nav-btn" id="cart-nav-up"
+                                tabindex="-1" title="Ítem anterior [↑]">
+                            <i class="fas fa-chevron-up"></i>
+                        </button>
+                        <button type="button" class="cart-nav-btn" id="cart-nav-down"
+                                tabindex="-1" title="Ítem siguiente [↓]">
+                            <i class="fas fa-chevron-down"></i>
+                        </button>
+                        <button type="button" class="btn btn-outline-danger btn-sm ms-1" id="clear-cart" tabindex="-1">
+                            <i class="fas fa-trash me-1"></i>Vaciar
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="cart-items" id="cart-items">
+                    <!-- Cart items will be populated by JavaScript -->
+                    <div class="cart-empty text-center text-muted py-5">
+                        <i class="fas fa-shopping-basket fa-3x mb-3"></i>
+                        <p>El carrito está vacío</p>
+                        <small>Escanee o busque productos para agregar</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Right Panel - Totals & Quick Access -->
+        <div class="pos-right">
+            <!-- Totals -->
+            <div class="pos-totals">
+                <div class="total-row">
+                    <span>Subtotal:</span>
+                    <span id="cart-subtotal">$0,00</span>
+                </div>
+                <div class="total-row discount-row" id="discount-row" style="display: none;">
+                    <span>Descuento:</span>
+                    <span id="cart-discount" class="text-success">-$0,00</span>
+                </div>
+                <div class="total-row total-final">
+                    <span>TOTAL:</span>
+                    <span id="cart-total">$0,00</span>
+                </div>
+                <div class="total-row items-count">
+                    <span>Artículos:</span>
+                    <span id="cart-items-count">0</span>
+                </div>
+            </div>
+            
+            <!-- Quick Access Buttons -->
+            <div class="pos-quick-access">
+                <h6 class="text-muted mb-2">Acceso Rápido</h6>
+                <div class="quick-access-grid" id="quick-access-grid">
+                    {% localize off %}
+                    {% for button in quick_buttons %}
+                    <button type="button"
+                            class="quick-btn"
+                            tabindex="-1"
+                            data-product-id="{{ button.product.id }}"
+                            data-is-granel="{{ button.product.is_granel|yesno:'true,false' }}"
+                            data-is-bulk="{{ button.product.is_bulk|yesno:'true,false' }}"
+                            data-unit-price="{{ button.product.sale_price|unlocalize }}"
+                            data-price-per-kg="{{ button.product.sale_price_250g|unlocalize }}"
+                            data-stock="{{ button.product.current_stock|unlocalize }}"
+                            data-name="{{ button.product.name }}"
+                            style="background-color: {{ button.color }};">
+                        <span class="quick-btn-name">{{ button.product.name|truncatechars:15 }}</span>
+                        <span class="quick-btn-price">{{ button.product.sale_price|currency_ar }}</span>
+                    </button>
+                    {% empty %}
+                    <p class="text-muted text-center w-100">
+                        No hay botones configurados
+                    </p>
+                    {% endfor %}
+                    {% endlocalize %}
+                </div>
+            </div>
+            
+            <!-- Action Buttons -->
+            <div class="pos-action-buttons">
+                <div class="row g-2">
+                    <div class="col-4">
+                        <button type="button" class="btn btn-outline-warning w-100 action-btn" id="btn-discount">
+                            <i class="fas fa-percent me-1"></i>Desc.
+                            <span class="shortcut-badge">F6</span>
+                        </button>
+                    </div>
+                    <div class="col-4">
+                        <button type="button" class="btn btn-outline-info w-100 action-btn" id="btn-hold">
+                            <i class="fas fa-pause me-1"></i>Apartar
+                            <span class="shortcut-badge">F4</span>
+                        </button>
+                    </div>
+                    <div class="col-4">
+                        <button type="button" class="btn btn-outline-purple w-100 action-btn" id="btn-suspended">
+                            <i class="fas fa-pause-circle me-1"></i>Apartados
+                            <span class="shortcut-badge">F5</span>
+                        </button>
+                    </div>
+                    <div class="col-4">
+                        <button type="button" class="btn btn-outline-danger w-100 action-btn" id="btn-cancel">
+                            <i class="fas fa-times me-1"></i>Cancelar
+                            <span class="shortcut-badge">F7</span>
+                        </button>
+                    </div>
+                    <div class="col-4">
+                        <button type="button" class="btn btn-outline-secondary w-100 action-btn" id="btn-reprint">
+                            <i class="fas fa-print me-1"></i>Reimpr.
+                            <span class="shortcut-badge">F9</span>
+                        </button>
+                    </div>
+                    <div class="col-4">
+                        <button type="button" class="btn btn-outline-primary w-100 action-btn" id="btn-cost-sale" disabled>
+                            <i class="fas fa-tag me-1"></i>Costo
+                            <span class="shortcut-badge">F10</span>
+                        </button>
+                    </div>
+                    <div class="col-12">
+                        <button type="button" class="btn btn-outline-light w-100 action-btn" id="btn-internal-consumption" disabled>
+                            <i class="fas fa-utensils me-1"></i>Consumo Interno
+                            <span class="shortcut-badge">F11</span>
+                        </button>
+                    </div>
+                </div>
+                
+                <button type="button" class="btn btn-success w-100 btn-lg mt-3" id="btn-checkout" disabled>
+                    <i class="fas fa-cash-register me-2"></i>COBRAR
+                    <span class="shortcut-badge">F8</span>
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ===== SIDEBAR PANEL ===== -->
+<!-- Toggle button (visible when sidebar is collapsed) -->
+<button class="pos-sidebar-toggle" id="sidebar-toggle-btn" title="Abrir panel lateral"
+        aria-label="Abrir panel lateral">
+    <span class="toggle-icon"><i class="fas fa-chevron-left" id="sidebar-toggle-icon"></i></span>
+    <span>Panel</span>
+</button>
+
+<!-- Sidebar -->
+<div class="pos-sidebar" id="pos-sidebar">
+    <div class="pos-sidebar-inner">
+        <!-- Tabs + botón cerrar -->
+        <div class="sidebar-tabs" role="tablist">
+            <button class="sidebar-tab-btn active" data-tab="shortcuts" role="tab" aria-selected="true">
+                <i class="fas fa-keyboard"></i>Atajos
+            </button>
+            <button class="sidebar-tab-btn" data-tab="quickpay" role="tab" aria-selected="false">
+                <i class="fas fa-bolt"></i>Cobros
+            </button>
+            <button class="sidebar-tab-btn" data-tab="products" role="tab" aria-selected="false">
+                <i class="fas fa-list"></i>Productos
+            </button>
+            <button class="sidebar-tab-btn" data-tab="history" role="tab" aria-selected="false">
+                <i class="fas fa-history"></i>Historial
+            </button>
+            <button class="sidebar-close-btn" id="sidebar-close-btn" title="Cerrar panel" tabindex="-1">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+
+        <!-- Tab 1: Atajos de teclado -->
+        <div class="sidebar-pane active" id="pane-shortcuts">
+            <p class="text-muted" style="font-size:0.72rem;margin-bottom:8px;">
+                <i class="fas fa-keyboard me-1"></i>
+                Cambiá la tecla de cada acción directamente acá
+            </p>
+            {% for sc in keyboard_shortcuts %}
+            {% if sc.action != 'pay_mixed' %}
+            <div class="shortcut-row" data-action="{{ sc.action }}">
+                <span class="shortcut-label">{{ sc.get_action_display }}</span>
+                <select class="shortcut-key-select" data-action="{{ sc.action }}">
+                    {% for kval, klabel in key_choices %}
+                    <option value="{{ kval }}" {% if sc.key == kval %}selected{% endif %}>{% if kval == 'none' %}—{% else %}{{ klabel }}{% endif %}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            {% endif %}
+            {% empty %}
+            <p class="text-muted" style="font-size:0.8rem">No hay atajos configurados.</p>
+            {% endfor %}
+        </div>
+
+        <!-- Tab 2: Cobros rápidos directos -->
+        <div class="sidebar-pane" id="pane-quickpay">
+            <p class="text-muted" style="font-size:0.72rem;margin-bottom:10px;">
+                Cobrar carrito actual directamente con un solo botón / tecla.
+            </p>
+            <div id="quick-pay-buttons-container">
+                {% for method in payment_methods %}
+                {% with sc=keyboard_shortcuts %}
+                <button type="button"
+                        class="quick-pay-btn"
+                        data-method-code="{{ method.code }}"
+                        data-method-name="{{ method.name }}"
+                        data-method-icon="{{ method.icon }}"
+                        {% for s in keyboard_shortcuts %}{% if s.action == 'pay_'|add:method.code %}data-shortcut-key="{{ s.key }}"{% endif %}{% endfor %}
+                        disabled
+                        title="Cobrar con {{ method.name }}">
+                    <span class="pay-icon"><i class="{{ method.icon }}"></i></span>
+                    <span>{{ method.name }}</span>
+                    {% for s in keyboard_shortcuts %}{% if s.action == 'pay_'|add:method.code and s.key != 'none' %}<span class="pay-key">{{ s.key }}</span>{% endif %}{% endfor %}
+                </button>
+                {% endwith %}
+                {% empty %}
+                <p class="text-muted" style="font-size:0.8rem">Sin métodos de pago activos.</p>
+                {% endfor %}
+
+                <!-- Botón Pago Mixto (MP + Efectivo) -->
+                <button type="button"
+                        class="quick-pay-btn"
+                        id="btn-mixed-pay"
+                        data-method-code="mixed"
+                        data-method-name="Mixto (MP + Efectivo)"
+                        disabled
+                        title="Pago Mixto: MercadoPago + Efectivo"
+                        style="border-color:#00b1ea;">
+                    <span class="pay-icon"><i class="fas fa-exchange-alt" style="color:#00b1ea;"></i></span>
+                    <span>Mixto (MP + Efectivo)</span>
+                </button>
+            </div>
+            <small class="text-muted d-block mt-2" style="font-size:0.68rem;">
+                Los botones se habilitan cuando hay productos en el carrito.
+                <br>Asigná teclas desde la pestaña <strong>Atajos</strong>.
+            </small>
+        </div>
+
+        <!-- Tab 3: Productos sin código de barras -->
+        <div class="sidebar-pane" id="pane-products">
+            <div class="d-flex gap-1 mb-2">
+                <input type="text" id="quick-products-search" placeholder="Filtrar por nombre o código..." autocomplete="off" tabindex="-1" style="flex:1;">
+                <button type="button" class="btn btn-sm" id="toggle-no-barcode"
+                        style="white-space:nowrap;font-size:0.68rem;padding:4px 8px;border:1px solid rgba(0,210,211,0.3);color:#00d2d3;background:rgba(0,210,211,0.1);border-radius:4px;"
+                        title="Mostrar solo productos sin código de barras">
+                    <i class="fas fa-barcode me-1"></i>Sin código
+                </button>
+            </div>
+            <div id="quick-products-list">
+                <!-- Populated by JS -->
+                <p class="text-muted" style="font-size:0.8rem;text-align:center;padding:20px 0" id="products-loading">
+                    <i class="fas fa-spinner fa-spin me-1"></i>Cargando...
+                </p>
+            </div>
+        </div>
+
+        <!-- Tab 4: Historial de ventas -->
+        <div class="sidebar-pane" id="pane-history">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <small class="text-muted">Últimas 50 ventas del turno</small>
+                <button type="button" class="btn btn-outline-secondary btn-sm" id="btn-refresh-history" tabindex="-1" title="Actualizar">
+                    <i class="fas fa-sync-alt"></i>
+                </button>
+            </div>
+            <div id="sales-history-list">
+                <p id="history-empty"><i class="fas fa-info-circle me-1"></i>No hay ventas aún.</p>
+            </div>
+        </div>
+    </div>
+</div>
+</div><!-- /pos-wrapper -->
+
+<!-- Checkout Modal -->
+<div class="modal fade" id="checkoutModal" tabindex="-1" data-bs-backdrop="static">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content" style="background:#1a1a2e;border:1.5px solid rgba(0,210,211,0.15);border-radius:16px;color:#eaeaea;">
+            <div class="modal-header" style="border-bottom:1px solid rgba(0,210,211,0.1);padding:1rem 1.5rem;">
+                <h5 class="modal-title" style="font-weight:700;">
+                    <i class="fas fa-money-bill-wave me-2" style="color:#00d2d3;"></i>Cobrar
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" style="padding:1.5rem;">
+                <div class="row">
+                    <div class="col-md-6">
+                        <p style="color:#888;font-size:0.85rem;margin-bottom:0.5rem;">Total a Cobrar</p>
+                        <div class="checkout-total" id="checkout-total" style="font-size:2.2rem;font-weight:800;color:#00d2d3;margin-bottom:1.5rem;text-shadow:0 0 20px rgba(0,210,211,0.2);">
+                            $0,00
+                        </div>
+                        
+                        <p style="font-weight:600;margin-bottom:0.75rem;color:#ccc;">Métodos de Pago</p>
+                        <div class="payment-methods" id="payment-methods">
+                            {% localize off %}
+                            {% for method in payment_methods %}
+                            <div class="form-check mb-2">
+                                <input type="checkbox"
+                                       class="form-check-input payment-method-check"
+                                       id="payment-{{ method.id }}"
+                                       data-method-id="{{ method.id }}"
+                                       data-method-name="{{ method.name }}"
+                                       data-method-code="{{ method.code }}"
+                                       style="background-color:#2a2a4e;border-color:#444;">
+                                <label class="form-check-label" for="payment-{{ method.id }}">
+                                    <i class="{{ method.icon }} me-1" style="color:#00d2d3;"></i>{{ method.name }}
+                                </label>
+                            </div>
+                            {% endfor %}
+                            {% endlocalize %}
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div id="payment-inputs">
+                            <!-- Payment amount inputs will be added dynamically -->
+                        </div>
+                        
+                        <div style="margin-top:1.5rem;padding:1rem;background:rgba(0,210,211,0.05);border:1px solid rgba(0,210,211,0.1);border-radius:10px;">
+                            <div class="d-flex justify-content-between mb-2">
+                                <span style="color:#999;">Total Recibido:</span>
+                                <span id="total-received" style="font-weight:600;">$0,00</span>
+                            </div>
+                            <div class="d-flex justify-content-between">
+                                <span style="color:#999;">Vuelto:</span>
+                                <span id="change-amount" style="color:#2ecc71;font-weight:700;font-size:1.1rem;">$0,00</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer" style="border-top:1px solid rgba(0,210,211,0.1);padding:1rem 1.5rem;">
+                <button type="button" class="btn" data-bs-dismiss="modal"
+                    style="background:rgba(255,255,255,0.06);border:1.5px solid rgba(255,255,255,0.15);color:#ccc;border-radius:8px;padding:0.5rem 1.2rem;">
+                    Cancelar
+                </button>
+                <button type="button" class="btn btn-lg" id="confirm-payment" disabled
+                    style="background:rgba(46,204,113,0.15);border:1.5px solid rgba(46,204,113,0.3);color:#2ecc71;border-radius:10px;padding:0.5rem 1.5rem;font-weight:700;">
+                    <i class="fas fa-check me-2"></i>Confirmar Pago
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Quantity Modal -->
+<div class="modal fade" id="quantityModal" tabindex="-1">
+    <div class="modal-dialog modal-sm modal-dialog-centered">
+        <div class="modal-content" style="background:#1a1a2e;border:1.5px solid rgba(0,210,211,0.15);border-radius:14px;color:#eaeaea;">
+            <div class="modal-header" style="border-bottom:1px solid rgba(0,210,211,0.1);padding:0.8rem 1.2rem;">
+                <h5 class="modal-title" style="font-weight:700;">Cantidad</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" style="padding:1.2rem;">
+                <input type="number" 
+                       class="form-control form-control-lg text-center" 
+                       id="quantity-input"
+                       min="0.001"
+                       step="0.001"
+                       value="1"
+                       style="background:#0d0d1f;border:2px solid rgba(45,45,68,0.8);color:#fff;font-weight:700;font-size:1.5rem;border-radius:10px;">
+            </div>
+            <div class="modal-footer" style="border-top:1px solid rgba(0,210,211,0.1);padding:0.8rem 1.2rem;">
+                <button type="button" class="btn" data-bs-dismiss="modal"
+                    style="background:rgba(255,255,255,0.06);border:1.5px solid rgba(255,255,255,0.15);color:#ccc;border-radius:8px;">Cancelar</button>
+                <button type="button" class="btn" id="confirm-quantity"
+                    style="background:rgba(0,210,211,0.12);border:1.5px solid rgba(0,210,211,0.3);color:#00d2d3;border-radius:8px;font-weight:600;">Aceptar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Discount Modal -->
+<div class="modal fade" id="discountModal" tabindex="-1">
+    <div class="modal-dialog modal-sm modal-dialog-centered">
+        <div class="modal-content" style="background:#1a1a2e;border:1.5px solid rgba(0,210,211,0.15);border-radius:14px;color:#eaeaea;">
+            <div class="modal-header" style="border-bottom:1px solid rgba(0,210,211,0.1);padding:0.8rem 1.2rem;">
+                <h5 class="modal-title" style="font-weight:700;">
+                    <i class="fas fa-percent me-2" style="color:#f0c040;"></i>Aplicar Descuento
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" style="padding:1.2rem;">
+                <div class="mb-3">
+                    <label class="form-label" style="color:#aaa;font-size:0.85rem;">Tipo de Descuento</label>
+                    <div class="btn-group w-100" role="group">
+                        <input type="radio" class="btn-check" name="discount-type" id="discount-percent" value="percent" checked>
+                        <label class="btn" for="discount-percent"
+                            style="background:rgba(240,192,64,0.08);border:1.5px solid rgba(240,192,64,0.3);color:#f0c040;font-weight:600;">
+                            <i class="fas fa-percent"></i> Porcentaje
+                        </label>
+                        <input type="radio" class="btn-check" name="discount-type" id="discount-fixed" value="fixed">
+                        <label class="btn" for="discount-fixed"
+                            style="background:rgba(240,192,64,0.08);border:1.5px solid rgba(240,192,64,0.3);color:#f0c040;font-weight:600;">
+                            <i class="fas fa-dollar-sign"></i> Monto Fijo
+                        </label>
+                    </div>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label" style="color:#aaa;font-size:0.85rem;">Valor del Descuento</label>
+                    <div class="input-group">
+                        <span class="input-group-text" id="discount-symbol" style="background:#2a2a4e;border:1.5px solid rgba(45,45,68,0.8);color:#f0c040;font-weight:700;">%</span>
+                        <input type="number" 
+                               class="form-control form-control-lg text-center" 
+                               id="discount-value"
+                               min="0"
+                               step="0.01"
+                               value="10"
+                               placeholder="0"
+                               style="background:#0d0d1f;border:1.5px solid rgba(45,45,68,0.8);color:#fff;font-weight:700;">
+                    </div>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label" style="color:#aaa;font-size:0.85rem;">Motivo (opcional)</label>
+                    <input type="text" 
+                           class="form-control" 
+                           id="discount-reason"
+                           placeholder="Ej: Cliente frecuente"
+                           style="background:#0d0d1f;border:1.5px solid rgba(45,45,68,0.8);color:#eee;">
+                </div>
+                <div id="discount-preview" style="background:rgba(0,210,211,0.06);border:1px solid rgba(0,210,211,0.12);border-radius:8px;padding:0.5rem 0.8rem;">
+                    <small style="color:#aaa;">Descuento: <strong id="discount-preview-amount" style="color:#00d2d3;">$0,00</strong></small>
+                </div>
+            </div>
+            <div class="modal-footer" style="border-top:1px solid rgba(0,210,211,0.1);padding:0.8rem 1.2rem;">
+                <button type="button" class="btn" data-bs-dismiss="modal"
+                    style="background:rgba(255,255,255,0.06);border:1.5px solid rgba(255,255,255,0.15);color:#ccc;border-radius:8px;">Cancelar</button>
+                <button type="button" class="btn" id="confirm-discount"
+                    style="background:rgba(240,192,64,0.12);border:1.5px solid rgba(240,192,64,0.3);color:#f0c040;border-radius:8px;font-weight:600;">
+                    <i class="fas fa-check me-2"></i>Aplicar
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Cost Sale Modal -->
+<div class="modal fade" id="costSaleModal" tabindex="-1" data-bs-backdrop="static">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content" style="background:#1a1a2e;border:1.5px solid rgba(0,210,211,0.15);border-radius:16px;color:#eaeaea;">
+            <div class="modal-header" style="border-bottom:1px solid rgba(0,210,211,0.1);padding:1rem 1.5rem;">
+                <h5 class="modal-title" style="font-weight:700;">
+                    <i class="fas fa-tag me-2" style="color:#6ea8fe;"></i>Venta al Costo
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" style="padding:1.5rem;">
+                <div style="background:rgba(110,168,254,0.06);border:1px solid rgba(110,168,254,0.15);border-radius:10px;padding:0.75rem 1rem;margin-bottom:1.2rem;color:#aaa;font-size:0.85rem;">
+                    <i class="fas fa-info-circle me-2" style="color:#6ea8fe;"></i>
+                    Los productos se cobrarán al <strong style="color:#eee;">precio de costo</strong>. Ideal para empleados o dueños.
+                </div>
+                <div class="row">
+                    <div class="col-md-6">
+                        <p style="color:#888;font-size:0.85rem;margin-bottom:0.5rem;">Total a Cobrar (Costo)</p>
+                        <div class="checkout-total" id="cost-sale-total" style="font-size:2.2rem;font-weight:800;color:#6ea8fe;margin-bottom:1.2rem;">
+                            $0,00
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label" style="color:#aaa;font-size:0.85rem;">Nota / Quién consume:</label>
+                            <input type="text" 
+                                   class="form-control" 
+                                   id="cost-sale-note" 
+                                   placeholder="Ej: Juan Pérez - Empleado"
+                                   style="background:#0d0d1f;border:1.5px solid rgba(45,45,68,0.8);color:#eee;">
+                        </div>
+                        
+                        <p style="font-weight:600;margin-bottom:0.75rem;color:#ccc;">Método de Pago</p>
+                        <div class="payment-methods" id="cost-payment-methods">
+                            {% localize off %}
+                            {% for method in payment_methods %}
+                            <div class="form-check mb-2">
+                                <input type="radio"
+                                       class="form-check-input cost-payment-method-check"
+                                       name="cost-payment-method"
+                                       id="cost-payment-{{ method.id }}"
+                                       data-method-id="{{ method.id }}"
+                                       data-method-name="{{ method.name }}"
+                                       data-method-code="{{ method.code }}"
+                                       {% if method.code == 'cash' %}checked{% endif %}
+                                       style="background-color:#2a2a4e;border-color:#444;">
+                                <label class="form-check-label" for="cost-payment-{{ method.id }}">
+                                    <i class="{{ method.icon }} me-1" style="color:#6ea8fe;"></i>{{ method.name }}
+                                </label>
+                            </div>
+                            {% endfor %}
+                            {% endlocalize %}
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <p style="font-weight:600;margin-bottom:0.75rem;color:#ccc;">Detalle de Items al Costo</p>
+                        <div id="cost-sale-items" style="border:1px solid rgba(45,45,68,0.6);border-radius:10px;padding:0.5rem;max-height:200px;overflow-y:auto;background:rgba(0,0,0,0.15);">
+                            <!-- Items will be populated -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer" style="border-top:1px solid rgba(0,210,211,0.1);padding:1rem 1.5rem;">
+                <button type="button" class="btn" data-bs-dismiss="modal"
+                    style="background:rgba(255,255,255,0.06);border:1.5px solid rgba(255,255,255,0.15);color:#ccc;border-radius:8px;">Cancelar</button>
+                <button type="button" class="btn btn-lg" id="confirm-cost-sale"
+                    style="background:rgba(110,168,254,0.12);border:1.5px solid rgba(110,168,254,0.3);color:#6ea8fe;border-radius:10px;font-weight:700;">
+                    <i class="fas fa-check me-2"></i>Confirmar Venta al Costo
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Internal Consumption Modal -->
+<div class="modal fade" id="internalConsumptionModal" tabindex="-1" data-bs-backdrop="static">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content" style="background:#1a1a2e;border:1.5px solid rgba(0,210,211,0.15);border-radius:16px;color:#eaeaea;">
+            <div class="modal-header" style="border-bottom:1px solid rgba(0,210,211,0.1);padding:1rem 1.5rem;">
+                <h5 class="modal-title" style="font-weight:700;">
+                    <i class="fas fa-utensils me-2" style="color:#f0c040;"></i>Consumo Interno
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" style="padding:1.5rem;">
+                <div style="background:rgba(240,192,64,0.06);border:1px solid rgba(240,192,64,0.15);border-radius:10px;padding:0.75rem 1rem;margin-bottom:1.2rem;color:#aaa;font-size:0.85rem;">
+                    <i class="fas fa-exclamation-triangle me-2" style="color:#f0c040;"></i>
+                    <strong style="color:#eee;">Sin cobro:</strong> Los productos se descontarán del stock pero <strong style="color:#eee;">NO se cobrará nada</strong>.
+                </div>
+                
+                <div class="mb-3">
+                    <label class="form-label" style="color:#aaa;font-size:0.85rem;">¿Quién consume? (para registro)</label>
+                    <input type="text" 
+                           class="form-control" 
+                           id="consumption-note" 
+                           placeholder="Ej: Empleado Juan - Almuerzo"
+                           value="{{ user.get_full_name|default:user.username }}"
+                           style="background:#0d0d1f;border:1.5px solid rgba(45,45,68,0.8);color:#eee;">
+                </div>
+                
+                <p style="font-weight:600;margin-bottom:0.75rem;color:#ccc;">Productos a descontar:</p>
+                <div id="consumption-items" style="border:1px solid rgba(45,45,68,0.6);border-radius:10px;padding:0.5rem;max-height:200px;overflow-y:auto;background:rgba(0,0,0,0.15);">
+                    <!-- Items will be populated -->
+                </div>
+                
+                <div style="margin-top:1rem;padding:0.75rem 1rem;background:rgba(0,210,211,0.05);border:1px solid rgba(0,210,211,0.1);border-radius:10px;text-align:center;">
+                    <span style="color:#888;">Valor de costo:</span>
+                    <span id="consumption-cost-value" style="margin-left:0.5rem;font-size:1.15rem;font-weight:700;color:#00d2d3;">$0,00</span>
+                </div>
+            </div>
+            <div class="modal-footer" style="border-top:1px solid rgba(0,210,211,0.1);padding:1rem 1.5rem;">
+                <button type="button" class="btn" data-bs-dismiss="modal"
+                    style="background:rgba(255,255,255,0.06);border:1.5px solid rgba(255,255,255,0.15);color:#ccc;border-radius:8px;">Cancelar</button>
+                <button type="button" class="btn btn-lg" id="confirm-consumption"
+                    style="background:rgba(240,192,64,0.12);border:1.5px solid rgba(240,192,64,0.3);color:#f0c040;border-radius:10px;font-weight:700;">
+                    <i class="fas fa-check me-2"></i>Confirmar Consumo
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Agregar Producto Rápido -->
+<div class="modal fade" id="quickAddProductModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content" style="background:#1a1a2e;border:1.5px solid rgba(0,210,211,0.15);border-radius:16px;color:#eaeaea;">
+            <div class="modal-header" style="border-bottom:1px solid rgba(0,210,211,0.1);padding:1rem 1.5rem;">
+                <h5 class="modal-title" style="font-weight:700;">
+                    <i class="fas fa-plus-circle me-2" style="color:#2ecc71;"></i>Agregar Producto Nuevo
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" style="padding:1.5rem;">
+                <div style="background:rgba(0,210,211,0.06);border:1px solid rgba(0,210,211,0.12);border-radius:10px;padding:0.6rem 1rem;margin-bottom:1rem;color:#aaa;font-size:0.85rem;">
+                    <i class="fas fa-info-circle me-2" style="color:#00d2d3;"></i>
+                    Código de barras no encontrado. ¿Qué deseas hacer?
+                </div>
+                
+                <!-- Options: Quick Add -->
+                <div class="d-flex gap-2 mb-3" id="barcode-not-found-options">
+                    <button type="button" class="btn flex-fill btn-option-selected" id="option-quick-add"
+                        style="background:rgba(46,204,113,0.12);border:1.5px solid rgba(46,204,113,0.3);color:#2ecc71;font-weight:600;border-radius:8px;">
+                        <i class="fas fa-plus-circle me-2"></i>Producto Nuevo
+                    </button>
+                </div>
+                <hr style="border-color:rgba(45,45,68,0.6);">
+                
+                <form id="quick-add-product-form">
+                    <div class="mb-3">
+                        <label class="form-label" style="color:#aaa;font-size:0.85rem;">Código de Barras</label>
+                        <input type="text" class="form-control" 
+                               id="quick-add-barcode" readonly
+                               style="background:#0d0d1f;border:1.5px solid rgba(45,45,68,0.8);color:#888;">
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label" style="color:#aaa;font-size:0.85rem;">Nombre del Producto <span style="color:#ff6b7a;">*</span></label>
+                        <input type="text" class="form-control" 
+                               id="quick-add-name" required placeholder="Ej: Coca Cola 500ml"
+                               style="background:#0d0d1f;border:1.5px solid rgba(45,45,68,0.8);color:#eee;">
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-6 mb-3">
+                            <label class="form-label" style="color:#aaa;font-size:0.85rem;">Precio Venta <span style="color:#ff6b7a;">*</span></label>
+                            <div class="input-group">
+                                <span class="input-group-text" style="background:#2a2a4e;border:1.5px solid rgba(45,45,68,0.8);color:#00d2d3;font-weight:700;">$</span>
+                                <input type="number" step="0.01" min="0.01" 
+                                       class="form-control" 
+                                       id="quick-add-sale-price" required placeholder="0.00"
+                                       style="background:#0d0d1f;border:1.5px solid rgba(45,45,68,0.8);color:#eee;">
+                            </div>
+                        </div>
+                        <div class="col-6 mb-3">
+                            <label class="form-label" style="color:#aaa;font-size:0.85rem;">Precio Costo</label>
+                            <div class="input-group">
+                                <span class="input-group-text" style="background:#2a2a4e;border:1.5px solid rgba(45,45,68,0.8);color:#00d2d3;font-weight:700;">$</span>
+                                <input type="number" step="0.01" min="0" 
+                                       class="form-control" 
+                                       id="quick-add-purchase-price" placeholder="0.00"
+                                       style="background:#0d0d1f;border:1.5px solid rgba(45,45,68,0.8);color:#eee;">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-6 mb-3">
+                            <label class="form-label" style="color:#aaa;font-size:0.85rem;">Categoría</label>
+                            <select class="form-select" id="quick-add-category"
+                                style="background:#0d0d1f;border:1.5px solid rgba(45,45,68,0.8);color:#eee;">
+                                <option value="">Sin categoría</option>
+                                {% localize off %}
+                                {% for cat in categories %}
+                                <option value="{{ cat.id }}">{{ cat.name }}</option>
+                                {% endfor %}
+                                {% endlocalize %}
+                            </select>
+                        </div>
+                        <div class="col-6 mb-3">
+                            <label class="form-label" style="color:#aaa;font-size:0.85rem;">Stock Inicial</label>
+                            <input type="number" min="0" 
+                                   class="form-control" 
+                                   id="quick-add-stock" value="1" placeholder="0"
+                                   style="background:#0d0d1f;border:1.5px solid rgba(45,45,68,0.8);color:#eee;">
+                        </div>
+                    </div>
+                    
+                    <div class="form-check mb-3">
+                        <input type="checkbox" class="form-check-input" id="quick-add-to-cart" checked
+                            style="background-color:#2a2a4e;border-color:#444;">
+                        <label class="form-check-label" for="quick-add-to-cart" style="color:#ccc;">
+                            Agregar al carrito después de crear
+                        </label>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer" style="border-top:1px solid rgba(0,210,211,0.1);padding:1rem 1.5rem;">
+                <button type="button" class="btn" data-bs-dismiss="modal"
+                    style="background:rgba(255,255,255,0.06);border:1.5px solid rgba(255,255,255,0.15);color:#ccc;border-radius:8px;">
+                    Cancelar
+                </button>
+                <button type="button" class="btn btn-lg" id="confirm-quick-add"
+                    style="background:rgba(46,204,113,0.12);border:1.5px solid rgba(46,204,113,0.3);color:#2ecc71;border-radius:10px;font-weight:700;">
+                    <i class="fas fa-save me-2"></i>Guardar y Agregar
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+{% localize off %}
+<script>
+    // Transaction ID
+    const TRANSACTION_ID = {{ transaction.id }};
+
+    // API URLs
+    const API_URLS = {
+        search: '{% url "pos:api_search" %}',
+        addToCart: '{% url "pos:api_cart_add" %}',
+        updateCart: '/pos/api/cart/item/',
+        removeFromCart: '/pos/api/cart/item/',
+        clearCart: '/pos/api/cart/{{ transaction.id }}/clear/',
+        getCart: '/pos/api/transaction/{{ transaction.id }}/',
+        checkout: '{% url "pos:api_checkout" %}',
+        costSale: '{% url "pos:api_checkout_cost_sale" %}',
+        internalConsumption: '{% url "pos:api_checkout_internal_consumption" %}',
+        calculateCost: '/pos/api/transaction/{{ transaction.id }}/cost-total/',
+        keyboardShortcuts: '{% url "pos:api_keyboard_shortcuts" %}',
+        updateShortcut: '{% url "pos:api_update_keyboard_shortcut" %}',
+        salesHistory: '{% url "pos:api_sales_history" %}',
+        quickCheckout: '{% url "pos:api_quick_checkout" %}',
+        cartItemDiscount: '/pos/api/cart/item/',  // + {id}/discount/
+        allProducts: '/pos/api/all-products/',
+        toggleQuickAccess: '/pos/api/toggle-quick-access/',
+    };
+
+    // CSRF Token
+    const CSRF_TOKEN = '{{ csrf_token }}';
+
+    // Keyboard shortcuts pre-loaded from server (Django template → JS)
+    const INITIAL_SHORTCUTS = [
+        {% for sc in keyboard_shortcuts %}
+        { action: "{{ sc.action }}", key: "{{ sc.key }}", label: "{{ sc.get_action_display|escapejs }}", is_enabled: {{ sc.is_enabled|yesno:"true,false" }} },
+        {% endfor %}
+    ];
+
+    // Payment methods pre-loaded for fast checkout overlay
+    const PAYMENT_METHODS = [
+        {% for method in payment_methods %}
+        { id: {{ method.id }}, name: "{{ method.name|escapejs }}", code: "{{ method.code }}", icon: "{{ method.icon }}" },
+        {% endfor %}
+    ];
+</script>
+{% endlocalize %}
+<script>
+    // ─── Inline shortcut editing ─────────────────────────────────────
+    document.querySelectorAll('.shortcut-key-select').forEach(select => {
+        select.addEventListener('change', async function() {
+            const action = this.dataset.action;
+            const newKey = this.value;
+            const row = this.closest('.shortcut-row');
+            const originalValue = this.dataset.prev || this.value;
+
+            // Store previous value for rollback
+            this.dataset.prev = originalValue;
+            row.classList.add('shortcut-saving');
+
+            try {
+                const resp = await fetch(API_URLS.updateShortcut, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': CSRF_TOKEN,
+                    },
+                    body: JSON.stringify({ action, key: newKey }),
+                });
+                const data = await resp.json();
+
+                if (data.success) {
+                    // Update INITIAL_SHORTCUTS and rebuild shortcut map
+                    INITIAL_SHORTCUTS.length = 0;
+                    data.shortcuts.forEach(s => INITIAL_SHORTCUTS.push(s));
+                    if (window.POS_rebuildShortcuts) window.POS_rebuildShortcuts(INITIAL_SHORTCUTS);
+
+                    // Update all selects to reflect new state
+                    data.shortcuts.forEach(sc => {
+                        const sel = document.querySelector(`.shortcut-key-select[data-action="${sc.action}"]`);
+                        if (sel) { sel.value = sc.key; sel.dataset.prev = sc.key; }
+                    });
+
+                    // Flash green briefly
+                    this.style.borderColor = '#27ae60';
+                    setTimeout(() => { this.style.borderColor = ''; }, 800);
+                } else {
+                    // Rollback
+                    this.value = originalValue;
+                    if (window.POS_showToast) window.POS_showToast(data.error || 'Error al guardar', 'danger');
+                }
+            } catch (err) {
+                this.value = originalValue;
+                if (window.POS_showToast) window.POS_showToast('Error de conexión', 'danger');
+            } finally {
+                row.classList.remove('shortcut-saving');
+            }
+        });
+        // Store initial value
+        select.dataset.prev = select.value;
+    });
+</script>
+<script src="{% static 'js/pos-main.js' %}?v={% now "U" %}"></script>
+<script src="{% static 'js/pos-sidebar.js' %}?v={% now "U" %}"></script>
+{% endblock %}

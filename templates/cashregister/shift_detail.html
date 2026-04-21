@@ -1,0 +1,469 @@
+{% extends 'base.html' %}
+{% load currency_filters %}
+
+{% block title %}Turno #{{ shift.pk }} - CHE GOLOSO{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="{% url 'cashregister:dashboard' %}">Caja</a></li>
+                    <li class="breadcrumb-item active">Turno #{{ shift.pk }}</li>
+                </ol>
+            </nav>
+            <h2>
+                <i class="fas fa-receipt me-2"></i>Detalle del Turno
+                {% if shift.status == 'open' %}
+                <span class="badge bg-success">Abierto</span>
+                {% else %}
+                <span class="badge bg-secondary">Cerrado</span>
+                {% endif %}
+            </h2>
+        </div>
+        <div class="col-auto">
+            {% if shift.status == 'open' %}
+                {% if shift.cashier == request.user or is_admin_user %}
+                <a href="{% url 'pos:main' %}" class="btn btn-primary me-2">
+                    <i class="fas fa-cash-register me-1"></i>Ir al POS
+                </a>
+                <a href="{% url 'cashregister:add_movement' shift.pk %}" class="btn btn-outline-primary me-2">
+                    <i class="fas fa-plus me-1"></i>Movimiento
+                </a>
+                <a href="{% url 'cashregister:close_shift' shift.pk %}" class="btn btn-danger">
+                    <i class="fas fa-stop me-1"></i>Cerrar Turno
+                </a>
+                {% endif %}
+            {% else %}
+            <a href="{% url 'cashregister:shift_report_pdf' shift.pk %}" class="btn btn-outline-primary" target="_blank">
+                <i class="fas fa-file-pdf me-1"></i>Descargar Reporte
+            </a>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Info Cards -->
+    <div class="row mb-4">
+        <div class="col-md-3 col-sm-6 mb-3">
+            <div class="card bg-primary text-white h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h6 class="text-uppercase opacity-75 mb-1">Caja</h6>
+                            <h4 class="mb-0">{{ shift.cash_register.code }}</h4>
+                        </div>
+                        <i class="fas fa-cash-register fa-2x opacity-50"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 col-sm-6 mb-3">
+            <div class="card bg-success text-white h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h6 class="text-uppercase opacity-75 mb-1">Monto Inicial</h6>
+                            <h4 class="mb-0">{{ shift.initial_amount|currency_ar }}</h4>
+                        </div>
+                        <i class="fas fa-money-bill fa-2x opacity-50"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 col-sm-6 mb-3">
+            <div class="card bg-info text-white h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h6 class="text-uppercase opacity-75 mb-1">Total Ventas</h6>
+                            <h4 class="mb-0">{{ shift.total_sales|currency_ar }}</h4>
+                        </div>
+                        <i class="fas fa-shopping-cart fa-2x opacity-50"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 col-sm-6 mb-3">
+            <div class="card {% if shift.status == 'closed' %}bg-secondary{% else %}bg-warning{% endif %} text-white h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h6 class="text-uppercase opacity-75 mb-1">Esperado</h6>
+                            <h4 class="mb-0">{{ shift.calculate_expected|currency_ar }}</h4>
+                        </div>
+                        <i class="fas fa-calculator fa-2x opacity-50"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Detalle del Turno -->
+        <div class="col-lg-4 mb-4">
+            <div class="card h-100">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-info-circle me-2"></i>Información</h5>
+                </div>
+                <div class="card-body">
+                    <table class="table table-borderless">
+                        <tr>
+                            <td class="text-muted">Cajero:</td>
+                            <td><strong>{{ shift.cashier.get_full_name|default:shift.cashier.username }}</strong></td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted">Apertura:</td>
+                            <td>{{ shift.opened_at|date:"d/m/Y H:i" }}</td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted">Duración:</td>
+                            <td>
+                                <strong id="shift-duration"
+                                        data-opened-at="{{ shift.opened_at|date:'c' }}"
+                                        {% if shift.closed_at %}data-closed-at="{{ shift.closed_at|date:'c' }}"{% endif %}>
+                                    {{ shift.duration_display }}
+                                </strong>
+                                {% if shift.status == 'open' and shift.hours_open >= 10 %}
+                                <span class="badge bg-danger ms-2" title="Este turno lleva mucho tiempo abierto — verificar si se olvidaron de cerrarlo.">
+                                    <i class="fas fa-exclamation-triangle me-1"></i>Sesión muy larga
+                                </span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% if shift.closed_at %}
+                        <tr>
+                            <td class="text-muted">Cierre:</td>
+                            <td>{{ shift.closed_at|date:"d/m/Y H:i" }}</td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted">Monto Final:</td>
+                            <td>{{ shift.final_amount|currency_ar }}</td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted">Diferencia:</td>
+                            <td>
+                                {% if shift.difference > 0 %}
+                                <span class="text-success">+{{ shift.difference|currency_ar }}</span>
+                                {% elif shift.difference < 0 %}
+                                <span class="text-danger">{{ shift.difference|currency_ar }}</span>
+                                {% else %}
+                                <span class="text-muted">$0,00</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endif %}
+                    </table>
+                    
+                    {% if shift.notes %}
+                    <hr>
+                    <h6 class="text-muted">Observaciones:</h6>
+                    <p>{{ shift.notes }}</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Totales por Método de Pago -->
+        <div class="col-lg-4 mb-4">
+            <div class="card h-100">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-credit-card me-2"></i>Por Método de Pago</h5>
+                </div>
+                <div class="card-body">
+                    {% if shift.status == 'closed' and shift.payment_summaries.exists %}
+                    <!-- Mostrar resumen guardado del cierre Z -->
+                    {% for summary in shift.payment_summaries.all %}
+                    <div class="d-flex justify-content-between align-items-center mb-3 p-2 rounded" 
+                         style="background: {{ summary.payment_method.color }}15; border-left: 3px solid {{ summary.payment_method.color }}">
+                        <div>
+                            <i class="{{ summary.payment_method.icon }} me-2" style="color: {{ summary.payment_method.color }}"></i>
+                            <strong>{{ summary.payment_method.name }}</strong>
+                            <small class="text-muted d-block">{{ summary.transaction_count }} transacciones</small>
+                        </div>
+                        <strong class="fs-5" style="color: {{ summary.payment_method.color }}">{{ summary.total_amount|currency_ar }}</strong>
+                    </div>
+                    {% endfor %}
+                    {% else %}
+                    <!-- Mostrar datos en tiempo real -->
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>Método</th>
+                                <th class="text-end">Ingresos</th>
+                                <th class="text-end">Egresos</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in totals_by_method %}
+                            <tr>
+                                <td>{{ item.payment_method__name|default:'Sin especificar' }}</td>
+                                <td class="text-end text-success">{{ item.income|currency_ar }}</td>
+                                <td class="text-end text-danger">{{ item.expense|currency_ar }}</td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="3" class="text-center text-muted">Sin movimientos</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Resumen o Conteo de Billetes -->
+        <div class="col-lg-4 mb-4">
+            {% if shift.status == 'closed' and shift.bill_counts.exists %}
+            <!-- Conteo de Billetes del Cierre Z -->
+            <div class="card h-100">
+                <div class="card-header bg-dark text-white">
+                    <h5 class="mb-0"><i class="fas fa-money-bill-wave me-2"></i>Conteo de Billetes</h5>
+                </div>
+                <div class="card-body bg-dark bg-opacity-10">
+                    <table class="table table-sm mb-3">
+                        <thead>
+                            <tr>
+                                <th>Denominación</th>
+                                <th class="text-center">Cant.</th>
+                                <th class="text-end">Subtotal</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for bill in shift.bill_counts.all %}
+                            <tr>
+                                <td>
+                                    {% if bill.denomination == 1 %}
+                                    <i class="fas fa-coins me-1"></i>Monedas
+                                    {% else %}
+                                    ${{ bill.denomination|floatformat:0 }}
+                                    {% endif %}
+                                </td>
+                                <td class="text-center">{{ bill.quantity }}</td>
+                                <td class="text-end"><strong>{{ bill.subtotal|currency_ar }}</strong></td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                        <tfoot>
+                            <tr class="table-primary">
+                                <td colspan="2"><strong>TOTAL CONTADO</strong></td>
+                                <td class="text-end"><strong class="fs-5">{{ shift.get_bill_count_total|currency_ar }}</strong></td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                    
+                    <!-- Diferencia -->
+                    <div class="p-3 rounded text-center {% if shift.difference > 0 %}bg-success bg-opacity-10{% elif shift.difference < 0 %}bg-danger bg-opacity-10{% else %}bg-warning bg-opacity-10{% endif %}">
+                        <small class="text-muted d-block">Diferencia con Esperado</small>
+                        <strong class="fs-4 {% if shift.difference > 0 %}text-success{% elif shift.difference < 0 %}text-danger{% else %}text-warning{% endif %}">
+                            {% if shift.difference > 0 %}+{% endif %}{{ shift.difference|currency_ar }}
+                        </strong>
+                        <small class="d-block">
+                            {% if shift.difference > 0 %}
+                            <i class="fas fa-arrow-up me-1"></i>Sobrante
+                            {% elif shift.difference < 0 %}
+                            <i class="fas fa-arrow-down me-1"></i>Faltante
+                            {% else %}
+                            <i class="fas fa-check me-1"></i>Cuadra perfecto
+                            {% endif %}
+                        </small>
+                    </div>
+                </div>
+            </div>
+            {% else %}
+            <!-- Resumen Rápido (turno abierto) -->
+            <div class="card h-100">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-chart-pie me-2"></i>Resumen</h5>
+                </div>
+                <div class="card-body">
+                    <div class="d-flex justify-content-between mb-3">
+                        <span>Total Ingresos:</span>
+                        <strong class="text-success">{{ shift.total_income|currency_ar }}</strong>
+                    </div>
+                    <div class="d-flex justify-content-between mb-3">
+                        <span>Total Egresos:</span>
+                        <strong class="text-danger">{{ shift.total_expense|currency_ar }}</strong>
+                    </div>
+                    <hr>
+                    <div class="d-flex justify-content-between mb-3">
+                        <span>Ventas POS:</span>
+                        <strong>{{ shift.transactions_count }}</strong>
+                    </div>
+                    <div class="d-flex justify-content-between">
+                        <span>Movimientos Manuales:</span>
+                        <strong>{{ shift.manual_movements_count }}</strong>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Movimientos -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="fas fa-list me-2"></i>Movimientos</h5>
+                    {% if shift.status == 'open' %}
+                    <a href="{% url 'cashregister:add_movement' shift.pk %}" class="btn btn-sm btn-primary">
+                        <i class="fas fa-plus me-1"></i>Agregar
+                    </a>
+                    {% endif %}
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Hora</th>
+                                    <th>Tipo</th>
+                                    <th>Descripción</th>
+                                    <th>Método</th>
+                                    <th class="text-end">Monto</th>
+                                    <th>Usuario</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for movement in movements %}
+                                <tr>
+                                    <td>{{ movement.created_at|time:"H:i:s" }}</td>
+                                    <td>
+                                        {% if movement.movement_type == 'income' %}
+                                        <span class="badge bg-success">Ingreso</span>
+                                        {% else %}
+                                        <span class="badge bg-danger">Egreso</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {{ movement.description }}
+                                        {% if movement.reference %}
+                                        <br><small class="text-muted">Ref: {{ movement.reference }}</small>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ movement.payment_method.name|default:'-' }}</td>
+                                    <td class="text-end">
+                                        {% if movement.movement_type == 'income' %}
+                                        <span class="text-success">+{{ movement.amount|currency_ar }}</span>
+                                        {% else %}
+                                        <span class="text-danger">-{{ movement.amount|currency_ar }}</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ movement.created_by.username|default:'-' }}</td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="6" class="text-center text-muted py-4">
+                                        <i class="fas fa-inbox fa-2x mb-2 d-block"></i>
+                                        No hay movimientos registrados
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+{% if shift.status == 'open' %}
+<script>
+// Actualización en tiempo real del turno
+(function() {
+    const shiftId = {{ shift.pk }};
+    const updateInterval = 15000; // 15 segundos
+    
+    function formatCurrency(amount) {
+        return '$' + amount.toLocaleString('es-AR', {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2
+        });
+    }
+    
+    async function updateShiftData() {
+        try {
+            const response = await fetch('{% url "cashregister:shift_data_api" shift.pk %}');
+            if (!response.ok) return;
+            
+            const data = await response.json();
+            
+            // Actualizar tarjetas
+            const salesCard = document.querySelector('.bg-info h4');
+            if (salesCard) {
+                salesCard.textContent = formatCurrency(data.total_sales);
+            }
+            
+            const expectedCard = document.querySelector('.bg-warning h4, .bg-secondary h4');
+            if (expectedCard) {
+                expectedCard.textContent = formatCurrency(data.expected);
+            }
+            
+            // Mostrar indicador de última actualización
+            updateLastSync();
+            
+        } catch (error) {
+            console.error('Error actualizando datos:', error);
+        }
+    }
+    
+    function updateLastSync() {
+        let syncIndicator = document.getElementById('sync-indicator');
+        if (!syncIndicator) {
+            syncIndicator = document.createElement('small');
+            syncIndicator.id = 'sync-indicator';
+            syncIndicator.className = 'text-muted';
+            const header = document.querySelector('.row.mb-4 .col');
+            if (header) {
+                header.appendChild(document.createElement('br'));
+                header.appendChild(syncIndicator);
+            }
+        }
+        const now = new Date();
+        syncIndicator.innerHTML = '<i class="fas fa-sync-alt me-1"></i>Última actualización: ' + now.toLocaleTimeString();
+    }
+    
+    // Actualizar cada 15 segundos solo si el turno está abierto
+    setInterval(updateShiftData, updateInterval);
+
+    // Primera actualización después de 5 segundos
+    setTimeout(updateShiftData, 5000);
+
+    // Cronometro de duracion: recalcula contra Date.now() en cada tick, no
+    // incrementa un contador — si la pestana quedo congelada y luego el
+    // usuario vuelve, al primer tick ya refleja el tiempo real transcurrido.
+    const durationEl = document.getElementById('shift-duration');
+    if (durationEl) {
+        const openedAt = new Date(durationEl.dataset.openedAt);
+        const closedAtAttr = durationEl.dataset.closedAt;
+        const closedAt = closedAtAttr ? new Date(closedAtAttr) : null;
+
+        function formatDuration(ms) {
+            const total = Math.max(0, Math.floor(ms / 1000));
+            const days = Math.floor(total / 86400);
+            const hours = Math.floor((total % 86400) / 3600);
+            const minutes = Math.floor((total % 3600) / 60);
+            const seconds = total % 60;
+            if (days > 0) return `${days}d ${hours}h ${minutes}m`;
+            if (hours > 0) return `${hours}h ${minutes}m ${String(seconds).padStart(2,'0')}s`;
+            return `${minutes}m ${String(seconds).padStart(2,'0')}s`;
+        }
+
+        function tickDuration() {
+            const end = closedAt || new Date();
+            durationEl.textContent = formatDuration(end - openedAt);
+        }
+
+        tickDuration();
+        if (!closedAt) setInterval(tickDuration, 1000);
+    }
+})();
+</script>
+{% endif %}
+{% endblock %}

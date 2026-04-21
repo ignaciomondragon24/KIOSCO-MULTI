@@ -1,0 +1,183 @@
+{% extends 'base.html' %}
+
+{% block title %}Dispositivos Point{% endblock %}
+
+{% block extra_css %}
+<style>
+    .device-card {
+        border-radius: 12px;
+        border: none;
+        box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+        transition: transform 0.2s;
+    }
+    .device-card:hover {
+        transform: translateY(-3px);
+    }
+    .device-icon {
+        width: 80px;
+        height: 80px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 2rem;
+        margin: 0 auto 1rem;
+    }
+    .device-icon.active {
+        background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+        color: white;
+    }
+    .device-icon.inactive {
+        background: #e5e7eb;
+        color: #9ca3af;
+    }
+    .device-status {
+        padding: 0.3rem 0.8rem;
+        border-radius: 15px;
+        font-size: 0.8rem;
+        font-weight: 500;
+    }
+    .device-status.active { background: #d1fae5; color: #065f46; }
+    .device-status.inactive { background: #fee2e2; color: #991b1b; }
+    .device-status.unknown { background: #e5e7eb; color: #374151; }
+    .mode-badge {
+        padding: 0.25rem 0.6rem;
+        border-radius: 10px;
+        font-size: 0.75rem;
+        background: #e0f2fe;
+        color: #0369a1;
+    }
+    .sync-info {
+        font-size: 0.85rem;
+        color: #6b7280;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <a href="{% url 'mercadopago:dashboard' %}" class="btn btn-outline-secondary btn-sm mb-2">
+                <i class="fas fa-arrow-left"></i> Dashboard
+            </a>
+            <h2><i class="fas fa-mobile-alt text-primary"></i> Dispositivos Point</h2>
+            <p class="text-muted mb-0">Administra tus dispositivos Mercado Pago Point</p>
+        </div>
+        <div>
+            <a href="{% url 'mercadopago:sync_devices' %}" class="btn btn-primary">
+                <i class="fas fa-sync-alt"></i> Sincronizar desde MP
+            </a>
+        </div>
+    </div>
+
+    {% if devices %}
+    <div class="row">
+        {% for device in devices %}
+        <div class="col-lg-4 col-md-6 mb-4">
+            <div class="card device-card h-100">
+                <div class="card-body text-center">
+                    <div class="device-icon {% if device.status == 'active' %}active{% else %}inactive{% endif %}">
+                        <i class="fas fa-mobile-alt"></i>
+                    </div>
+                    
+                    <h5 class="card-title">{{ device.device_name }}</h5>
+                    
+                    <p class="mb-2">
+                        <span class="device-status {{ device.status }}">
+                            {{ device.get_status_display }}
+                        </span>
+                        <span class="mode-badge ms-1">
+                            {{ device.operating_mode }}
+                        </span>
+                    </p>
+                    
+                    <div class="mb-3">
+                        {% if device.cash_register %}
+                            <span class="text-success">
+                                <i class="fas fa-cash-register"></i> {{ device.cash_register.name }}
+                            </span>
+                        {% else %}
+                            <span class="text-warning">
+                                <i class="fas fa-exclamation-triangle"></i> Sin asignar a caja
+                            </span>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="sync-info mb-3">
+                        <small>
+                            <strong>ID:</strong> {{ device.device_id|truncatechars:20 }}<br>
+                            {% if device.serial_number %}
+                            <strong>Serie:</strong> {{ device.serial_number }}<br>
+                            {% endif %}
+                            {% if device.last_sync %}
+                            <strong>Última sync:</strong> {{ device.last_sync|date:"d/m/Y H:i" }}
+                            {% endif %}
+                        </small>
+                    </div>
+                    
+                    <div class="d-grid gap-2">
+                        <a href="{% url 'mercadopago:device_edit' device.id %}" class="btn btn-outline-primary btn-sm">
+                            <i class="fas fa-edit"></i> Editar / Asignar Caja
+                        </a>
+                        <div class="btn-group btn-group-sm">
+                            <form method="post" action="{% url 'mercadopago:device_change_mode' device.id %}" class="d-inline">
+                                {% csrf_token %}
+                                <input type="hidden" name="mode" value="PDV">
+                                <button type="submit" class="btn btn-outline-secondary {% if device.operating_mode == 'PDV' %}active{% endif %}">
+                                    PDV
+                                </button>
+                            </form>
+                            <form method="post" action="{% url 'mercadopago:device_change_mode' device.id %}" class="d-inline">
+                                {% csrf_token %}
+                                <input type="hidden" name="mode" value="STANDALONE">
+                                <button type="submit" class="btn btn-outline-secondary {% if device.operating_mode == 'STANDALONE' %}active{% endif %}">
+                                    Standalone
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="card">
+        <div class="card-body text-center py-5">
+            <i class="fas fa-mobile-alt fa-4x text-muted mb-4"></i>
+            <h4>No hay dispositivos configurados</h4>
+            <p class="text-muted mb-4">
+                Sincroniza tus dispositivos Point desde tu cuenta de Mercado Pago
+            </p>
+            <a href="{% url 'mercadopago:sync_devices' %}" class="btn btn-primary btn-lg">
+                <i class="fas fa-sync-alt"></i> Sincronizar Dispositivos
+            </a>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Info -->
+    <div class="card mt-4">
+        <div class="card-body">
+            <h5><i class="fas fa-info-circle text-info"></i> Modos de operación</h5>
+            <div class="row mt-3">
+                <div class="col-md-6">
+                    <h6><span class="mode-badge">PDV</span> Punto de Venta</h6>
+                    <p class="text-muted small">
+                        El dispositivo recibe instrucciones de cobro desde el sistema POS.
+                        El monto se envía automáticamente y el cliente solo pasa la tarjeta.
+                    </p>
+                </div>
+                <div class="col-md-6">
+                    <h6><span class="mode-badge">STANDALONE</span> Independiente</h6>
+                    <p class="text-muted small">
+                        El dispositivo funciona de forma independiente.
+                        El operador ingresa el monto manualmente en el Point.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

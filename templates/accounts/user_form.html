@@ -1,0 +1,115 @@
+{% extends 'base.html' %}
+{% load widget_tweaks %}
+
+{% block title %}{{ title }} - CHE GOLOSO{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row justify-content-center">
+        <div class="col-lg-6">
+            <div class="card shadow-sm">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-user-{% if is_edit %}edit{% else %}plus{% endif %} me-2"></i>{{ title }}
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <form method="post" novalidate>
+                        {% csrf_token %}
+                        
+                        {% if form.non_field_errors %}
+                        <div class="alert alert-danger d-flex align-items-center border-0 shadow-sm" style="border-radius: 0.75rem;">
+                            <i class="fas fa-exclamation-circle me-2 fs-5"></i>
+                            <div>
+                                {% for error in form.non_field_errors %}
+                                    <div>{{ error }}</div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        {% endif %}
+                        
+                        <div class="mb-3">
+                            <label for="id_username" class="form-label">Usuario *</label>
+                            {{ form.username|add_class:"form-control"|attr:"placeholder:Nombre de usuario" }}
+                            {% if form.username.errors %}
+                                <div class="invalid-feedback d-block">
+                                    <i class="fas fa-exclamation-triangle me-1"></i>{{ form.username.errors.0 }}
+                                </div>
+                            {% endif %}
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="id_first_name" class="form-label">Nombre</label>
+                                {{ form.first_name|add_class:"form-control"|attr:"placeholder:Nombre" }}
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="id_last_name" class="form-label">Apellido</label>
+                                {{ form.last_name|add_class:"form-control"|attr:"placeholder:Apellido" }}
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="id_email" class="form-label">Email</label>
+                            {{ form.email|add_class:"form-control"|attr:"placeholder:email@ejemplo.com" }}
+                        </div>
+
+                        {% if form.password %}
+                        <div class="mb-3">
+                            <label for="id_password" class="form-label">Contraseña *</label>
+                            {{ form.password|add_class:"form-control"|attr:"placeholder:Mínimo 8 caracteres" }}
+                            {% if form.password.errors %}
+                                <div class="invalid-feedback d-block">
+                                    <i class="fas fa-exclamation-triangle me-1"></i>{{ form.password.errors.0 }}
+                                </div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="id_password_confirm" class="form-label">Confirmar Contraseña *</label>
+                            {{ form.password_confirm|add_class:"form-control"|attr:"placeholder:Repetir contraseña" }}
+                            {% if form.password_confirm.errors %}
+                                <div class="invalid-feedback d-block">
+                                    <i class="fas fa-exclamation-triangle me-1"></i>{{ form.password_confirm.errors.0 }}
+                                </div>
+                            {% endif %}
+                        </div>
+                        {% endif %}
+
+                        <div class="mb-3">
+                            <label for="id_role" class="form-label">Rol *</label>
+                            {{ form.role|add_class:"form-select" }}
+                            {% if form.role.errors %}
+                                <div class="invalid-feedback d-block">
+                                    <i class="fas fa-exclamation-triangle me-1"></i>{{ form.role.errors.0 }}
+                                </div>
+                            {% endif %}
+                            <small class="text-muted">El rol determina qué puede hacer el usuario</small>
+                        </div>
+
+                        <div class="mb-3">
+                            <div class="form-check">
+                                {{ form.is_active|add_class:"form-check-input" }}
+                                <label class="form-check-label" for="id_is_active">
+                                    Usuario activo
+                                </label>
+                            </div>
+                        </div>
+
+                        <hr>
+                        
+                        <div class="d-flex justify-content-between">
+                            <a href="{% url 'accounts:user_list' %}" class="btn btn-outline-secondary">
+                                <i class="fas fa-arrow-left me-2"></i>Cancelar
+                            </a>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save me-2"></i>Guardar
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,279 @@
+{% extends 'base.html' %}
+{% load currency_filters %}
+
+{% block title %}{{ promotion.name }} - Detalle{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h3 mb-0">
+                <i class="fas fa-percent me-2"></i>{{ promotion.name }}
+            </h1>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-0">
+                    <li class="breadcrumb-item"><a href="{% url 'promotions:promotion_list' %}">Promociones</a></li>
+                    <li class="breadcrumb-item active">{{ promotion.name }}</li>
+                </ol>
+            </nav>
+        </div>
+        <div>
+            <a href="{% url 'promotions:promotion_edit' promotion.pk %}" class="btn btn-warning">
+                <i class="fas fa-edit me-1"></i> Editar
+            </a>
+            {% if promotion.status == 'draft' or promotion.status == 'paused' %}
+            <a href="{% url 'promotions:promotion_activate' promotion.pk %}" class="btn btn-success">
+                <i class="fas fa-play me-1"></i> Activar
+            </a>
+            {% elif promotion.status == 'active' %}
+            <a href="{% url 'promotions:promotion_pause' promotion.pk %}" class="btn btn-secondary">
+                <i class="fas fa-pause me-1"></i> Pausar
+            </a>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Main Info -->
+        <div class="col-lg-8">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-info-circle me-2"></i>Información de la Promoción
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <table class="table table-borderless">
+                                <tr>
+                                    <td class="text-muted">Tipo:</td>
+                                    <td><strong>{{ promotion.get_promo_type_display }}</strong></td>
+                                </tr>
+                                <tr>
+                                    <td class="text-muted">Estado:</td>
+                                    <td>
+                                        {% if promotion.status == 'active' %}
+                                            <span class="badge bg-success">Activa</span>
+                                        {% elif promotion.status == 'paused' %}
+                                            <span class="badge bg-warning">Pausada</span>
+                                        {% elif promotion.status == 'draft' %}
+                                            <span class="badge bg-secondary">Borrador</span>
+                                        {% else %}
+                                            <span class="badge bg-danger">Finalizada</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td class="text-muted">Prioridad:</td>
+                                    <td><strong>{{ promotion.priority }}</strong></td>
+                                </tr>
+                                <tr>
+                                    <td class="text-muted">Combinable:</td>
+                                    <td>
+                                        {% if promotion.is_combinable %}
+                                            <span class="text-success"><i class="fas fa-check"></i> Sí</span>
+                                        {% else %}
+                                            <span class="text-danger"><i class="fas fa-times"></i> No</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% if promotion.group %}
+                                <tr>
+                                    <td class="text-muted">Grupo enlazado:</td>
+                                    <td>
+                                        <span class="badge bg-info">
+                                            <i class="fas fa-link me-1"></i>{{ promotion.group.name }}
+                                        </span>
+                                        <small class="text-muted d-block mt-1">
+                                            Suma cantidades con {{ promotion.group.promotions.count|add:"-1" }} otra(s) promo(s) del mismo grupo.
+                                        </small>
+                                    </td>
+                                </tr>
+                                {% endif %}
+                            </table>
+                        </div>
+                        <div class="col-md-6">
+                            <table class="table table-borderless">
+                                <tr>
+                                    <td class="text-muted">Fecha Inicio:</td>
+                                    <td>{{ promotion.start_date|date:"d/m/Y"|default:"Sin definir" }}</td>
+                                </tr>
+                                <tr>
+                                    <td class="text-muted">Fecha Fin:</td>
+                                    <td>{{ promotion.end_date|date:"d/m/Y"|default:"Sin fecha de fin" }}</td>
+                                </tr>
+                                <tr>
+                                    <td class="text-muted">Creada por:</td>
+                                    <td>{{ promotion.created_by.get_full_name|default:promotion.created_by.username }}</td>
+                                </tr>
+                            </table>
+                        </div>
+                    </div>
+                    
+                    {% if promotion.description %}
+                    <hr>
+                    <h6>Descripción</h6>
+                    <p class="text-muted">{{ promotion.description }}</p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Configuration -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-cog me-2"></i>Configuración de la Promoción
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if promotion.promo_type == 'nxm' %}
+                    <div class="alert alert-info">
+                        <h5 class="alert-heading"><i class="fas fa-clone me-2"></i>Promoción NxM</h5>
+                        <p class="mb-0">Lleva <strong>{{ promotion.buy_quantity }}</strong>, paga <strong>{{ promotion.pay_quantity }}</strong></p>
+                    </div>
+                    {% elif promotion.promo_type == 'second_unit' %}
+                    <div class="alert alert-success">
+                        <h5 class="alert-heading"><i class="fas fa-percent me-2"></i>Segunda Unidad con Descuento</h5>
+                        <p class="mb-0">Segunda unidad al <strong>{{ promotion.second_unit_discount }}%</strong> de descuento</p>
+                    </div>
+                    {% elif promotion.promo_type == 'quantity_discount' %}
+                    <div class="alert alert-warning">
+                        <h5 class="alert-heading"><i class="fas fa-boxes me-2"></i>Descuento por Cantidad</h5>
+                        <p class="mb-0">Al llevar <strong>{{ promotion.min_quantity }}+</strong> unidades, <strong>{{ promotion.discount_percent }}%</strong> de descuento</p>
+                    </div>
+                    {% elif promotion.promo_type == 'combo' %}
+                    <div class="alert alert-info">
+                        <h5 class="alert-heading"><i class="fas fa-cubes me-2"></i>Combo</h5>
+                        <p class="mb-0">Precio del combo: <strong>{{ promotion.combo_price|currency }}</strong></p>
+                    </div>
+                    {% elif promotion.promo_type == 'simple_discount' %}
+                    <div class="alert alert-danger">
+                        <h5 class="alert-heading"><i class="fas fa-tags me-2"></i>Descuento Porcentual</h5>
+                        <p class="mb-0">Descuento del <strong>{{ promotion.discount_percent }}%</strong></p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Products -->
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-box me-2"></i>Productos Incluidos ({{ promotion.products.count }})
+                    </h5>
+                </div>
+                <div class="card-body p-0">
+                    {% if promotion.products.exists %}
+                    <div class="table-responsive">
+                        <table class="table mb-0">
+                            <thead>
+                                <tr>
+                                    <th>Producto</th>
+                                    <th>Categoría</th>
+                                    <th class="text-end">Precio Normal</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for product in promotion.products.all %}
+                                <tr>
+                                    <td>
+                                        <strong>{{ product.name }}</strong>
+                                        <br>
+                                        <small class="text-muted">{{ product.barcode|default:product.sku }}</small>
+                                    </td>
+                                    <td>
+                                        {% if product.category %}
+                                        <span class="badge" style="background-color: {{ product.category.color }}">
+                                            {{ product.category.name }}
+                                        </span>
+                                        {% else %}
+                                        <span class="text-muted">-</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-end">{{ product.sale_price|currency }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="text-center py-4">
+                        <i class="fas fa-box-open fa-3x text-muted mb-3"></i>
+                        <p class="text-muted mb-0">No hay productos asociados a esta promoción</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Sidebar -->
+        <div class="col-lg-4">
+            <!-- Status Card -->
+            <div class="card mb-4 {% if promotion.status == 'active' %}border-success{% endif %}">
+                <div class="card-header {% if promotion.status == 'active' %}bg-success text-white{% endif %}">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-signal me-2"></i>Estado
+                    </h5>
+                </div>
+                <div class="card-body text-center">
+                    {% if promotion.status == 'active' %}
+                    <i class="fas fa-check-circle fa-4x text-success mb-3"></i>
+                    <h4 class="text-success">Promoción Activa</h4>
+                    <p class="text-muted">Se está aplicando en las ventas</p>
+                    {% elif promotion.status == 'paused' %}
+                    <i class="fas fa-pause-circle fa-4x text-warning mb-3"></i>
+                    <h4 class="text-warning">Pausada</h4>
+                    <p class="text-muted">La promoción no se está aplicando</p>
+                    {% elif promotion.status == 'draft' %}
+                    <i class="fas fa-edit fa-4x text-secondary mb-3"></i>
+                    <h4 class="text-secondary">Borrador</h4>
+                    <p class="text-muted">Todavía no publicada</p>
+                    {% else %}
+                    <i class="fas fa-times-circle fa-4x text-danger mb-3"></i>
+                    <h4 class="text-danger">Finalizada</h4>
+                    <p class="text-muted">La promoción ha terminado</p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Days -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-calendar-week me-2"></i>Días Activos
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="d-flex flex-wrap gap-2">
+                        <span class="badge {% if promotion.monday %}bg-primary{% else %}bg-secondary{% endif %}">Lun</span>
+                        <span class="badge {% if promotion.tuesday %}bg-primary{% else %}bg-secondary{% endif %}">Mar</span>
+                        <span class="badge {% if promotion.wednesday %}bg-primary{% else %}bg-secondary{% endif %}">Mié</span>
+                        <span class="badge {% if promotion.thursday %}bg-primary{% else %}bg-secondary{% endif %}">Jue</span>
+                        <span class="badge {% if promotion.friday %}bg-primary{% else %}bg-secondary{% endif %}">Vie</span>
+                        <span class="badge {% if promotion.saturday %}bg-primary{% else %}bg-secondary{% endif %}">Sáb</span>
+                        <span class="badge {% if promotion.sunday %}bg-primary{% else %}bg-secondary{% endif %}">Dom</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Meta Info -->
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-clock me-2"></i>Información de Sistema
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <small class="text-muted d-block">Creada</small>
+                    <p>{{ promotion.created_at|date:"d/m/Y H:i" }}</p>
+                    
+                    <small class="text-muted d-block">Última actualización</small>
+                    <p class="mb-0">{{ promotion.updated_at|date:"d/m/Y H:i" }}</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,345 @@
+{% extends 'base.html' %}
+{% load currency_filters %}
+
+{% block title %}Mercado Pago - Dashboard{% endblock %}
+
+{% block extra_css %}
+<style>
+    .mp-card {
+        border-radius: 12px;
+        border: none;
+        box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+        transition: transform 0.2s, box-shadow 0.2s;
+    }
+    .mp-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 20px rgba(0,0,0,0.12);
+    }
+    .mp-header {
+        background: linear-gradient(135deg, #009ee3 0%, #00b1ea 100%);
+        color: white;
+        padding: 2rem;
+        border-radius: 12px;
+        margin-bottom: 2rem;
+    }
+    .mp-logo {
+        width: 180px;
+        filter: brightness(0) invert(1);
+    }
+    .stat-card {
+        padding: 1.5rem;
+        border-radius: 10px;
+        text-align: center;
+    }
+    .stat-card.success { background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; }
+    .stat-card.warning { background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); color: white; }
+    .stat-card.danger { background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); color: white; }
+    .stat-card.info { background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); color: white; }
+    .stat-card .number { font-size: 2.5rem; font-weight: 700; }
+    .stat-card .label { font-size: 0.9rem; opacity: 0.9; }
+    .device-badge {
+        display: inline-flex;
+        align-items: center;
+        padding: 0.5rem 1rem;
+        border-radius: 20px;
+        font-size: 0.85rem;
+    }
+    .device-badge.active { background: #d1fae5; color: #065f46; }
+    .device-badge.inactive { background: #fee2e2; color: #991b1b; }
+    .intent-status {
+        padding: 0.3rem 0.8rem;
+        border-radius: 15px;
+        font-size: 0.8rem;
+        font-weight: 500;
+    }
+    .intent-status.approved { background: #d1fae5; color: #065f46; }
+    .intent-status.pending, .intent-status.processing { background: #fef3c7; color: #92400e; }
+    .intent-status.rejected, .intent-status.error { background: #fee2e2; color: #991b1b; }
+    .intent-status.cancelled { background: #e5e7eb; color: #374151; }
+    .quick-action {
+        display: flex;
+        align-items: center;
+        padding: 1rem 1.5rem;
+        border-radius: 10px;
+        background: white;
+        border: 1px solid #e5e7eb;
+        text-decoration: none;
+        color: #374151;
+        transition: all 0.2s;
+    }
+    .quick-action:hover {
+        background: #f9fafb;
+        border-color: #009ee3;
+        color: #009ee3;
+        transform: translateX(5px);
+    }
+    .quick-action i {
+        font-size: 1.5rem;
+        margin-right: 1rem;
+        width: 40px;
+        text-align: center;
+    }
+    .connection-status {
+        padding: 0.5rem 1rem;
+        border-radius: 20px;
+        font-size: 0.85rem;
+    }
+    .connection-status.connected { background: #d1fae5; color: #065f46; }
+    .connection-status.disconnected { background: #fee2e2; color: #991b1b; }
+    .connection-status.unknown { background: #e5e7eb; color: #374151; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <!-- Header -->
+    <div class="mp-header">
+        <div class="row align-items-center">
+            <div class="col-md-8">
+                <img src="https://http2.mlstatic.com/frontend-assets/ui-navigation/5.21.9/mercadopago/logo__large.png" 
+                     alt="Mercado Pago" class="mp-logo mb-3">
+                <h4 class="mb-0">Integración Point para CHE GOLOSO</h4>
+                <p class="mb-0 opacity-75">Sistema de cobros con dispositivos Mercado Pago Point</p>
+            </div>
+            <div class="col-md-4 text-md-end">
+                {% if credentials %}
+                    <span class="connection-status {% if credentials.is_active %}connected{% else %}disconnected{% endif %}">
+                        <i class="fas fa-{% if credentials.is_active %}check-circle{% else %}times-circle{% endif %}"></i>
+                        {% if credentials.is_active %}Conectado{% else %}Desconectado{% endif %}
+                        {% if credentials.is_sandbox %}<small>(Sandbox)</small>{% endif %}
+                    </span>
+                    <br>
+                    <button id="btnTestConnection" class="btn btn-light btn-sm mt-2">
+                        <i class="fas fa-sync-alt"></i> Probar Conexión
+                    </button>
+                {% else %}
+                    <span class="connection-status unknown">
+                        <i class="fas fa-exclamation-triangle"></i> Sin configurar
+                    </span>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Stats Row -->
+    <div class="row mb-4">
+        <div class="col-md-3 mb-3">
+            <div class="stat-card info">
+                <div class="number">{{ stats.total_devices }}</div>
+                <div class="label"><i class="fas fa-mobile-alt"></i> Dispositivos</div>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="stat-card success">
+                <div class="number">{{ stats.today_total|currency }}</div>
+                <div class="label"><i class="fas fa-check-circle"></i> Cobrado Hoy</div>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="stat-card warning">
+                <div class="number">{{ stats.today_pending }}</div>
+                <div class="label"><i class="fas fa-clock"></i> Pendientes</div>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="stat-card danger">
+                <div class="number">{{ stats.today_rejected }}</div>
+                <div class="label"><i class="fas fa-times-circle"></i> Rechazados</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Quick Actions -->
+        <div class="col-lg-4 mb-4">
+            <div class="card mp-card h-100">
+                <div class="card-header bg-white border-0">
+                    <h5 class="mb-0"><i class="fas fa-bolt text-warning"></i> Acciones Rápidas</h5>
+                </div>
+                <div class="card-body">
+                    <div class="d-grid gap-3">
+                        <a href="{% url 'mercadopago:credentials' %}" class="quick-action">
+                            <i class="fas fa-key text-primary"></i>
+                            <div>
+                                <strong>Credenciales</strong>
+                                <small class="d-block text-muted">Configurar Access Token</small>
+                            </div>
+                        </a>
+                        <a href="{% url 'mercadopago:device_list' %}" class="quick-action">
+                            <i class="fas fa-mobile-alt text-success"></i>
+                            <div>
+                                <strong>Dispositivos</strong>
+                                <small class="d-block text-muted">Administrar Points</small>
+                            </div>
+                        </a>
+                        <a href="{% url 'mercadopago:payment_intent_list' %}" class="quick-action">
+                            <i class="fas fa-credit-card text-info"></i>
+                            <div>
+                                <strong>Pagos</strong>
+                                <small class="d-block text-muted">Ver intenciones de pago</small>
+                            </div>
+                        </a>
+                        <a href="{% url 'mercadopago:webhook_logs' %}" class="quick-action">
+                            <i class="fas fa-history text-secondary"></i>
+                            <div>
+                                <strong>Logs</strong>
+                                <small class="d-block text-muted">Historial de webhooks</small>
+                            </div>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Devices -->
+        <div class="col-lg-4 mb-4">
+            <div class="card mp-card h-100">
+                <div class="card-header bg-white border-0 d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="fas fa-mobile-alt text-primary"></i> Dispositivos</h5>
+                    <a href="{% url 'mercadopago:sync_devices' %}" class="btn btn-sm btn-outline-primary">
+                        <i class="fas fa-sync-alt"></i> Sincronizar
+                    </a>
+                </div>
+                <div class="card-body">
+                    {% if devices %}
+                        <div class="list-group list-group-flush">
+                            {% for device in devices %}
+                            <div class="list-group-item px-0">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <strong>{{ device.device_name }}</strong>
+                                        <small class="d-block text-muted">
+                                            {% if device.cash_register %}
+                                                <i class="fas fa-cash-register"></i> {{ device.cash_register.name }}
+                                            {% else %}
+                                                <span class="text-warning">Sin asignar</span>
+                                            {% endif %}
+                                        </small>
+                                    </div>
+                                    <span class="device-badge {% if device.status == 'active' %}active{% else %}inactive{% endif %}">
+                                        {{ device.get_status_display }}
+                                    </span>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <div class="text-center text-muted py-4">
+                            <i class="fas fa-mobile-alt fa-3x mb-3 opacity-50"></i>
+                            <p>No hay dispositivos configurados</p>
+                            <a href="{% url 'mercadopago:sync_devices' %}" class="btn btn-primary btn-sm">
+                                <i class="fas fa-sync-alt"></i> Sincronizar Dispositivos
+                            </a>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Recent Intents -->
+        <div class="col-lg-4 mb-4">
+            <div class="card mp-card h-100">
+                <div class="card-header bg-white border-0 d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="fas fa-credit-card text-success"></i> Pagos Recientes</h5>
+                    <a href="{% url 'mercadopago:payment_intent_list' %}" class="btn btn-sm btn-outline-success">
+                        Ver todos
+                    </a>
+                </div>
+                <div class="card-body">
+                    {% if recent_intents %}
+                        <div class="list-group list-group-flush">
+                            {% for intent in recent_intents|slice:":5" %}
+                            <a href="{% url 'mercadopago:payment_intent_detail' intent.id %}" 
+                               class="list-group-item list-group-item-action px-0">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <strong>{{ intent.amount|currency }}</strong>
+                                        <small class="d-block text-muted">
+                                            {{ intent.created_at|date:"d/m H:i" }}
+                                        </small>
+                                    </div>
+                                    <span class="intent-status {{ intent.status }}">
+                                        {{ intent.get_status_display }}
+                                    </span>
+                                </div>
+                            </a>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <div class="text-center text-muted py-4">
+                            <i class="fas fa-credit-card fa-3x mb-3 opacity-50"></i>
+                            <p>No hay pagos recientes</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Info Card -->
+    <div class="card mp-card">
+        <div class="card-body">
+            <h5><i class="fas fa-info-circle text-info"></i> Cómo funciona la integración</h5>
+            <div class="row mt-3">
+                <div class="col-md-3 text-center mb-3">
+                    <div class="rounded-circle bg-primary text-white d-inline-flex align-items-center justify-content-center" 
+                         style="width: 50px; height: 50px; font-size: 1.5rem;">1</div>
+                    <p class="mt-2 mb-0"><strong>Cobro en POS</strong></p>
+                    <small class="text-muted">El cajero inicia el cobro con tarjeta</small>
+                </div>
+                <div class="col-md-3 text-center mb-3">
+                    <div class="rounded-circle bg-primary text-white d-inline-flex align-items-center justify-content-center" 
+                         style="width: 50px; height: 50px; font-size: 1.5rem;">2</div>
+                    <p class="mt-2 mb-0"><strong>Envío al Point</strong></p>
+                    <small class="text-muted">Se envía el monto al dispositivo</small>
+                </div>
+                <div class="col-md-3 text-center mb-3">
+                    <div class="rounded-circle bg-primary text-white d-inline-flex align-items-center justify-content-center" 
+                         style="width: 50px; height: 50px; font-size: 1.5rem;">3</div>
+                    <p class="mt-2 mb-0"><strong>Cliente paga</strong></p>
+                    <small class="text-muted">Pasa la tarjeta en el Point</small>
+                </div>
+                <div class="col-md-3 text-center mb-3">
+                    <div class="rounded-circle bg-success text-white d-inline-flex align-items-center justify-content-center" 
+                         style="width: 50px; height: 50px; font-size: 1.5rem;">4</div>
+                    <p class="mt-2 mb-0"><strong>Confirmación</strong></p>
+                    <small class="text-muted">El sistema registra el pago</small>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const btnTest = document.getElementById('btnTestConnection');
+    if (btnTest) {
+        btnTest.addEventListener('click', function() {
+            const btn = this;
+            const originalHtml = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Probando...';
+            
+            fetch('{% url "mercadopago:test_connection" %}')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        alert('✅ ' + data.message + '\nDispositivos encontrados: ' + data.devices_count);
+                    } else {
+                        alert('❌ ' + data.message);
+                    }
+                })
+                .catch(error => {
+                    alert('❌ Error de conexión: ' + error);
+                })
+                .finally(() => {
+                    btn.disabled = false;
+                    btn.innerHTML = originalHtml;
+                });
+        });
+    }
+});
+</script>
+{% endblock %}

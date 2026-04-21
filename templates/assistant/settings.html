@@ -1,0 +1,244 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Configuración del Asistente - CHE GOLOSO{% endblock %}
+
+{% block extra_css %}
+<style>
+    .settings-card {
+        background: #1a1a2e;
+        border-radius: 16px;
+        padding: 2rem;
+        color: #eaeaea;
+    }
+    
+    .settings-card .form-label {
+        color: #a0a0a0;
+        font-weight: 500;
+    }
+    
+    .settings-card .form-control,
+    .settings-card .form-select {
+        background: #16213e;
+        border: 1px solid rgba(255,255,255,0.1);
+        color: #eaeaea;
+    }
+    
+    .settings-card .form-control:focus,
+    .settings-card .form-select:focus {
+        background: #16213e;
+        border-color: #e94560;
+        color: #eaeaea;
+        box-shadow: 0 0 0 0.2rem rgba(233, 69, 96, 0.25);
+    }
+    
+    .settings-card .form-text {
+        color: #6c757d;
+    }
+    
+    .stat-card {
+        background: #16213e;
+        border-radius: 12px;
+        padding: 1.5rem;
+        text-align: center;
+    }
+    
+    .stat-card h3 {
+        color: #e94560;
+        margin-bottom: 0.5rem;
+    }
+    
+    .stat-card p {
+        color: #a0a0a0;
+        margin: 0;
+        font-size: 0.9rem;
+    }
+    
+    .section-title {
+        color: #eaeaea;
+        border-bottom: 2px solid #e94560;
+        padding-bottom: 0.5rem;
+        margin-bottom: 1.5rem;
+    }
+    
+    .btn-save {
+        background: linear-gradient(135deg, #e94560, #ff6b6b);
+        border: none;
+        color: white;
+        padding: 0.75rem 2rem;
+        border-radius: 8px;
+        font-weight: 600;
+    }
+    
+    .btn-save:hover {
+        background: linear-gradient(135deg, #ff6b6b, #e94560);
+        color: white;
+    }
+    
+    .api-key-input {
+        font-family: monospace;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2 class="text-white mb-0">
+            <i class="fas fa-cog me-2"></i>Configuración del Asistente
+        </h2>
+        <a href="{% url 'assistant:home' %}" class="btn btn-outline-light">
+            <i class="fas fa-arrow-left me-2"></i>Volver al Chat
+        </a>
+    </div>
+    
+    <!-- Usage Stats -->
+    <div class="row g-4 mb-4">
+        <div class="col-md-4">
+            <div class="stat-card">
+                <h3>{{ usage_stats.total_queries|default:0 }}</h3>
+                <p>Consultas (30 días)</p>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="stat-card">
+                <h3>{{ usage_stats.total_tokens|default:0|floatformat:0 }}</h3>
+                <p>Tokens usados</p>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="stat-card">
+                <h3>{{ usage_stats.avg_response_time|default:0|floatformat:0 }} ms</h3>
+                <p>Tiempo promedio de respuesta</p>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Instrucciones para obtener API Key -->
+    <div class="alert alert-info mb-4" style="background: #0f3460; border: 1px solid #17a2b8; color: #eaeaea;">
+        <h5><i class="fas fa-info-circle me-2"></i>¿Cómo obtener tu API Key de Gemini?</h5>
+        <ol class="mb-0">
+            <li>Andá a <a href="https://aistudio.google.com/apikey" target="_blank" style="color: #17a2b8;">Google AI Studio</a> e iniciá sesión con tu cuenta de Google</li>
+            <li>Hacé clic en <strong>"Create API Key"</strong></li>
+            <li>Copiá la key que empieza con <code>AIza...</code> y pegala abajo</li>
+            <li><strong>Importante:</strong> Gemini ofrece un <strong>plan gratuito generoso</strong> con límites de uso diarios suficientes para un negocio</li>
+        </ol>
+        <hr style="border-color: rgba(255,255,255,0.2);">
+        <small><strong>Costo:</strong> Gemini 2.0 Flash es gratuito con hasta 15 solicitudes por minuto. Para mayor uso, podés activar facturación en Google Cloud.</small>
+    </div>
+    
+    <div class="settings-card">
+        <form method="post">
+            {% csrf_token %}
+            
+            <!-- API Configuration -->
+            <h5 class="section-title">
+                <i class="fas fa-key me-2"></i>Configuración de API
+            </h5>
+            
+            <div class="row g-3 mb-4">
+                <div class="col-md-8">
+                    <label class="form-label">Gemini API Key <span class="text-danger">*</span></label>
+                    <input 
+                        type="text" 
+                        class="form-control api-key-input" 
+                        name="openai_api_key"
+                        value="{{ settings.openai_api_key }}"
+                        placeholder="AIza..."
+                        required
+                    >
+                    <div class="form-text">
+                        Tu clave de API de Google Gemini. Empieza con <code>AIza</code>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Modelo</label>
+                    <select class="form-select" name="model">
+                        {% for value, label in available_models %}
+                        <option value="{{ value }}" {% if settings.model == value %}selected{% endif %}>
+                            {{ label }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+            
+            <!-- Model Parameters -->
+            <h5 class="section-title">
+                <i class="fas fa-sliders-h me-2"></i>Parámetros del Modelo
+            </h5>
+            
+            <div class="row g-3 mb-4">
+                <div class="col-md-4">
+                    <label class="form-label">Max Tokens</label>
+                    <input 
+                        type="number" 
+                        class="form-control" 
+                        name="max_tokens"
+                        value="{{ settings.max_tokens|default:2000 }}"
+                        min="100"
+                        max="4000"
+                    >
+                    <div class="form-text">Máximo de tokens por respuesta (100-4000)</div>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Temperatura</label>
+                    <input 
+                        type="number" 
+                        class="form-control" 
+                        name="temperature"
+                        value="{{ settings.temperature|default:0.7 }}"
+                        min="0"
+                        max="1"
+                        step="0.1"
+                    >
+                    <div class="form-text">Creatividad de las respuestas (0.0-1.0)</div>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Estado</label>
+                    <div class="form-check form-switch mt-2">
+                        <input 
+                            class="form-check-input" 
+                            type="checkbox" 
+                            name="is_enabled"
+                            id="isEnabled"
+                            {% if settings.is_enabled %}checked{% endif %}
+                        >
+                        <label class="form-check-label" for="isEnabled">
+                            Asistente habilitado
+                        </label>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- System Prompt -->
+            <h5 class="section-title">
+                <i class="fas fa-comment-alt me-2"></i>Prompt del Sistema
+            </h5>
+            
+            <div class="mb-4">
+                <label class="form-label">Instrucciones para el asistente</label>
+                <textarea 
+                    class="form-control" 
+                    name="system_prompt"
+                    rows="10"
+                    placeholder="Instrucciones base para el comportamiento del asistente..."
+                >{{ settings.system_prompt }}</textarea>
+                <div class="form-text">
+                    Define el comportamiento y personalidad del asistente. 
+                    Dejalo vacío para usar las instrucciones por defecto.
+                </div>
+            </div>
+            
+            <div class="d-flex justify-content-between align-items-center">
+                <a href="{% url 'assistant:logs' %}" class="btn btn-outline-light">
+                    <i class="fas fa-list me-2"></i>Ver Logs
+                </a>
+                <button type="submit" class="btn btn-save">
+                    <i class="fas fa-save me-2"></i>Guardar Configuración
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

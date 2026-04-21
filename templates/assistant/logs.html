@@ -1,0 +1,169 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Logs del Asistente - CHE GOLOSO{% endblock %}
+
+{% block extra_css %}
+<style>
+    .logs-table {
+        background: #1a1a2e;
+        border-radius: 16px;
+        overflow: hidden;
+    }
+    
+    .logs-table table {
+        color: #eaeaea;
+        margin: 0;
+    }
+    
+    .logs-table thead {
+        background: #16213e;
+    }
+    
+    .logs-table th {
+        border: none;
+        padding: 1rem;
+        font-weight: 600;
+        color: #a0a0a0;
+        text-transform: uppercase;
+        font-size: 0.8rem;
+        letter-spacing: 0.5px;
+    }
+    
+    .logs-table td {
+        border-color: rgba(255,255,255,0.05);
+        padding: 1rem;
+        vertical-align: middle;
+    }
+    
+    .logs-table tbody tr:hover {
+        background: rgba(233, 69, 96, 0.1);
+    }
+    
+    .query-text {
+        max-width: 300px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+    
+    .badge-success {
+        background: #28a745;
+    }
+    
+    .badge-danger {
+        background: #dc3545;
+    }
+    
+    .pagination-dark .page-link {
+        background: #16213e;
+        border-color: rgba(255,255,255,0.1);
+        color: #eaeaea;
+    }
+    
+    .pagination-dark .page-link:hover {
+        background: #0f3460;
+        color: #fff;
+    }
+    
+    .pagination-dark .page-item.active .page-link {
+        background: #e94560;
+        border-color: #e94560;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2 class="text-white mb-0">
+            <i class="fas fa-list me-2"></i>Logs de Consultas
+        </h2>
+        <div>
+            <a href="{% url 'assistant:settings' %}" class="btn btn-outline-light me-2">
+                <i class="fas fa-cog me-2"></i>Configuración
+            </a>
+            <a href="{% url 'assistant:home' %}" class="btn btn-outline-light">
+                <i class="fas fa-arrow-left me-2"></i>Volver al Chat
+            </a>
+        </div>
+    </div>
+    
+    <div class="logs-table">
+        <table class="table table-hover">
+            <thead>
+                <tr>
+                    <th>Fecha</th>
+                    <th>Usuario</th>
+                    <th>Consulta</th>
+                    <th>Estado</th>
+                    <th>Tokens</th>
+                    <th>Tiempo</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for log in logs %}
+                <tr>
+                    <td>{{ log.created_at|date:"d/m/Y H:i" }}</td>
+                    <td>{{ log.user.username|default:"Anónimo" }}</td>
+                    <td>
+                        <span class="query-text" title="{{ log.query }}">
+                            {{ log.query|truncatewords:10 }}
+                        </span>
+                    </td>
+                    <td>
+                        {% if log.was_successful %}
+                        <span class="badge badge-success">Exitosa</span>
+                        {% else %}
+                        <span class="badge badge-danger" title="{{ log.error_message }}">Error</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ log.tokens_used }}</td>
+                    <td>{{ log.response_time_ms }} ms</td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="6" class="text-center py-4 text-muted">
+                        No hay consultas registradas
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    
+    {% if logs.has_other_pages %}
+    <nav class="mt-4">
+        <ul class="pagination pagination-dark justify-content-center">
+            {% if logs.has_previous %}
+            <li class="page-item">
+                <a class="page-link" href="?page={{ logs.previous_page_number }}">
+                    <i class="fas fa-chevron-left"></i>
+                </a>
+            </li>
+            {% endif %}
+            
+            {% for num in logs.paginator.page_range %}
+                {% if logs.number == num %}
+                <li class="page-item active">
+                    <span class="page-link">{{ num }}</span>
+                </li>
+                {% elif num > logs.number|add:'-3' and num < logs.number|add:'3' %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ num }}">{{ num }}</a>
+                </li>
+                {% endif %}
+            {% endfor %}
+            
+            {% if logs.has_next %}
+            <li class="page-item">
+                <a class="page-link" href="?page={{ logs.next_page_number }}">
+                    <i class="fas fa-chevron-right"></i>
+                </a>
+            </li>
+            {% endif %}
+        </ul>
+    </nav>
+    {% endif %}
+</div>
+{% endblock %}

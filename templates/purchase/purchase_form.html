@@ -1,0 +1,549 @@
+{% extends 'base.html' %}
+{% load currency_filters %}
+
+{% block title %}Nueva Orden de Compra{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-3">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="h3 mb-0">
+            <i class="fas fa-file-invoice me-2" style="color:var(--che-primary,#E91E8C);"></i>Nueva Orden de Compra
+        </h1>
+        <a href="{% url 'purchase:purchase_list' %}" class="btn btn-sm btn-outline-secondary">
+            <i class="fas fa-arrow-left me-1"></i>Volver
+        </a>
+    </div>
+
+    {% if messages %}
+    {% for msg in messages %}
+    <div class="alert alert-{{ msg.tags|default:'info' }} alert-dismissible fade show">
+        {{ msg }}<button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+    {% endfor %}
+    {% endif %}
+
+    <!-- Real form: submits hidden JSON field -->
+    <form method="post" id="oc-form">
+        {% csrf_token %}
+
+
+        <div class="row g-4">
+            <!-- Datos de la orden -->
+            <div class="col-lg-4">
+                <div class="card shadow-sm">
+                    <div class="card-header" style="background:var(--che-secondary,#2D1E5F);color:#fff;">
+                        <h6 class="mb-0"><i class="fas fa-info-circle me-2"></i>Datos de la Orden</h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Proveedor <span class="text-danger">*</span></label>
+                            <select id="supplier-select" class="form-select">
+                                <option value="">-- Seleccionar --</option>
+                                {% for s in suppliers %}
+                                <option value="{{ s.pk|unlocalize }}">{{ s.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Fecha</label>
+                            <input type="date" id="order-date" class="form-control" value="{% now 'Y-m-d' %}">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">IVA (%)</label>
+                            <div class="input-group">
+                                <input type="number" id="tax-percent" class="form-control" step="0.01" min="0" value="21">
+                                <span class="input-group-text">%</span>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Notas</label>
+                            <textarea id="order-notes" class="form-control" rows="2" placeholder="Opcional..."></textarea>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Totales -->
+                <div class="card shadow-sm mt-3">
+                    <div class="card-body">
+                        <table class="table table-borderless mb-0">
+                            <tr>
+                                <td class="text-muted">Subtotal:</td>
+                                <td class="text-end fw-semibold" id="lbl-subtotal">$0</td>
+                            </tr>
+                            <tr>
+                                <td class="text-muted">IVA (<span id="lbl-tax-pct">21</span>%):</td>
+                                <td class="text-end fw-semibold" id="lbl-tax">$0</td>
+                            </tr>
+                            <tr class="border-top">
+                                <td class="fw-bold fs-5">TOTAL:</td>
+                                <td class="text-end fw-bold fs-5" id="lbl-total" style="color:var(--che-primary,#E91E8C);">$0</td>
+                            </tr>
+                        </table>
+                    </div>
+                </div>
+
+                <div id="form-error" class="alert alert-danger alert-permanent mt-3" style="display:none;"></div>
+
+                <button type="button" id="btn-submit-oc" class="btn w-100 mt-2" style="background:var(--che-primary,#E91E8C);color:#fff;">
+                    <i class="fas fa-save me-2"></i>Crear Orden de Compra
+                </button>
+            </div>
+
+            <!-- Tabla de productos -->
+            <div class="col-lg-8">
+                <div class="card shadow-sm">
+                    <div class="card-header d-flex justify-content-between align-items-center" style="background:var(--che-secondary,#2D1E5F);color:#fff;">
+                        <h6 class="mb-0"><i class="fas fa-boxes me-2"></i>Productos</h6>
+                        <div class="d-flex gap-2">
+                            <div class="input-group input-group-sm" style="width:220px;" title="Escanear código de barras">
+                                <span class="input-group-text bg-light border-0"><i class="fas fa-barcode"></i></span>
+                                <input type="text" id="barcode-scan-input" class="form-control form-control-sm"
+                                       placeholder="Escanear codigo..." autocomplete="off"
+                                       inputmode="numeric" style="font-size:.85rem;">
+                            </div>
+                            <button type="button" id="btn-add-row" class="btn btn-sm btn-light">
+                                <i class="fas fa-plus me-1"></i>Agregar fila
+                            </button>
+                        </div>
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="table-responsive">
+                            <table class="table table-hover mb-0">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Producto</th>
+                                        <th style="width:150px;">Empaque</th>
+                                        <th style="width:90px;">Cant.</th>
+                                        <th style="width:130px;" title="Costo por unidad del empaque">Costo</th>
+                                        <th style="width:120px;">P. Venta</th>
+                                        <th style="width:110px;" class="text-end">Subtotal</th>
+                                        <th style="width:40px;"></th>
+                                    </tr>
+                                </thead>
+                                <tbody id="items-body"></tbody>
+                            </table>
+                        </div>
+                        <div id="no-rows-msg" class="text-center text-muted py-4">
+                            <i class="fas fa-box-open fa-2x mb-2 d-block opacity-50"></i>
+                            Escaneá un código de barras o usá <strong>Agregar fila</strong> para sumar productos
+                        </div>
+                    </div>
+                </div>
+                <p class="text-muted small mt-2">
+                    <i class="fas fa-info-circle me-1"></i>
+                    <strong>P. Venta</strong> es opcional — actualiza el precio del producto al recibir la compra.
+                </p>
+            </div>
+        </div>
+    </form>
+</div>
+
+<!-- Autocomplete dropdown -->
+<ul id="ac-drop" class="list-group shadow" style="position:fixed;z-index:9999;display:none;min-width:300px;max-height:260px;overflow-y:auto;"></ul>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const SEARCH_URL = '{% url "purchase:api_search_products" %}';
+let rowCount = 0;
+const rowProducts = {}; // rowId -> {id, name, cost_price, sale_price}
+
+/* ─── Format ─────────────────────────────── */
+function ars(n) {
+    return '$' + (parseFloat(n)||0).toLocaleString('es-AR',{minimumFractionDigits:0,maximumFractionDigits:0});
+}
+
+/* ─── Totals ─────────────────────────────── */
+function recalc() {
+    let sub = 0;
+    document.querySelectorAll('#items-body tr').forEach(tr => {
+        const q  = parseFloat(tr.querySelector('.r-qty').value)  || 0;
+        const c  = parseFloat(tr.querySelector('.r-cost').value) || 0;
+        const rs = tr.querySelector('.r-sub');
+        if (rs) { rs.textContent = ars(q*c); }
+        sub += q * c;
+    });
+    const pct = parseFloat(document.getElementById('tax-percent').value) || 0;
+    const tax = sub * pct / 100;
+    document.getElementById('lbl-subtotal').textContent = ars(sub);
+    document.getElementById('lbl-tax').textContent      = ars(tax);
+    document.getElementById('lbl-total').textContent    = ars(sub + tax);
+    document.getElementById('lbl-tax-pct').textContent  = pct % 1 === 0 ? pct.toFixed(0) : String(pct);
+}
+
+/* ─── Rows ───────────────────────────────── */
+function rowHtml(id) {
+    return (
+        '<td>' +
+            '<input class="form-control form-control-sm r-search" data-row="'+id+'" placeholder="Buscar..." autocomplete="off">' +
+            '<input type="hidden" class="r-pid" data-row="'+id+'">' +
+            '<small class="r-pname text-muted" data-row="'+id+'"></small>' +
+        '</td>' +
+        '<td>' +
+            '<select class="form-select form-select-sm r-pkg" data-row="'+id+'">' +
+                '<option value="">Unidad base</option>' +
+            '</select>' +
+            '<small class="r-pkg-hint text-muted" data-row="'+id+'" style="font-size:.72rem;"></small>' +
+        '</td>' +
+        '<td><input class="form-control form-control-sm r-qty" data-row="'+id+'" type="number" min="1" step="1" value="1"></td>' +
+        '<td><input class="form-control form-control-sm r-cost" data-row="'+id+'" type="number" min="0" step="0.01" placeholder="0"></td>' +
+        '<td><input class="form-control form-control-sm r-sale" data-row="'+id+'" type="number" min="0" step="0.01" placeholder="Opcional"></td>' +
+        '<td class="text-end align-middle r-sub" data-row="'+id+'">$0</td>' +
+        '<td class="align-middle">' +
+            '<button type="button" class="btn btn-sm btn-outline-danger py-0 r-del" data-row="'+id+'">'+
+                '<i class="fas fa-trash"></i>' +
+            '</button>' +
+        '</td>'
+    );
+}
+
+function populatePackagingSelect(rowId, product, selectedPkgId) {
+    const sel = document.querySelector('.r-pkg[data-row="'+rowId+'"]');
+    if (!sel) return;
+    sel.innerHTML = '<option value="">Unidad base</option>';
+    const pkgs = (product && product.packagings) || [];
+    pkgs.forEach(function(pk) {
+        const opt = document.createElement('option');
+        opt.value = pk.id;
+        opt.textContent = pk.type_display + ' — ' + pk.name + ' (x' + pk.units_quantity + ')';
+        opt.dataset.units = pk.units_quantity;
+        opt.dataset.price = pk.purchase_price || '';
+        opt.dataset.sale = pk.sale_price || '';
+        if (selectedPkgId && pk.id === selectedPkgId) opt.selected = true;
+        sel.appendChild(opt);
+    });
+    updatePkgHint(rowId);
+}
+
+function updatePkgHint(rowId) {
+    const sel = document.querySelector('.r-pkg[data-row="'+rowId+'"]');
+    const hint = document.querySelector('.r-pkg-hint[data-row="'+rowId+'"]');
+    if (!sel || !hint) return;
+    const opt = sel.options[sel.selectedIndex];
+    const units = opt ? parseInt(opt.dataset.units || '0', 10) : 0;
+    const qty = parseFloat(document.querySelector('.r-qty[data-row="'+rowId+'"]').value) || 0;
+    if (units > 1 && qty > 0) {
+        hint.textContent = '= ' + (qty*units).toLocaleString('es-AR') + ' unidades base';
+    } else {
+        hint.textContent = '';
+    }
+}
+
+function addRow() {
+    const id = ++rowCount;
+    rowProducts[id] = null;
+    const tr = document.createElement('tr');
+    tr.id = 'r' + id;
+    tr.innerHTML = rowHtml(id);
+    document.getElementById('items-body').appendChild(tr);
+    document.getElementById('no-rows-msg').style.display = 'none';
+    tr.querySelector('.r-search').focus();
+    recalc();
+}
+
+function delRow(id) {
+    const tr = document.getElementById('r'+id);
+    if (tr) tr.remove();
+    delete rowProducts[id];
+    if (!document.querySelector('#items-body tr')) {
+        document.getElementById('no-rows-msg').style.display = '';
+    }
+    recalc();
+}
+
+/* ─── Autocomplete ───────────────────────── */
+const drop = document.getElementById('ac-drop');
+let activeSearch = null, searchTimer = null;
+
+function closeDrop() { drop.style.display = 'none'; activeSearch = null; }
+
+function showDrop(input, results) {
+    activeSearch = input;
+    drop.innerHTML = '';
+    if (!results.length) {
+        drop.innerHTML = '<li class="list-group-item text-muted small">Sin resultados</li>';
+    } else {
+        results.forEach(p => {
+            const li = document.createElement('li');
+            li.className = 'list-group-item list-group-item-action py-2 px-3';
+            li.style.cursor = 'pointer';
+            li.innerHTML =
+                '<div class="fw-semibold">' + p.name + (p.barcode ? ' <small class="text-muted">'+p.barcode+'</small>' : '') + '</div>' +
+                '<small class="text-success">Costo: $' + parseFloat(p.cost_price).toLocaleString('es-AR') + '</small>' +
+                '<small class="text-muted ms-2">Venta: $' + parseFloat(p.sale_price).toLocaleString('es-AR') + '</small>';
+            li.addEventListener('mousedown', function(e) {
+                e.preventDefault();
+                const row = input.dataset.row;
+                rowProducts[row] = p;
+                input.value = p.name;
+                document.querySelector('.r-pid[data-row="'+row+'"]').value = p.id;
+                document.querySelector('.r-pname[data-row="'+row+'"]').textContent = '';
+                populatePackagingSelect(row, p, p.matched_packaging_id || null);
+                const costEl = document.querySelector('.r-cost[data-row="'+row+'"]');
+                const saleEl = document.querySelector('.r-sale[data-row="'+row+'"]');
+                // Autoprecio: si se detectó un packaging, usa su precio; si no, el del producto base
+                const sel = document.querySelector('.r-pkg[data-row="'+row+'"]');
+                const selOpt = sel ? sel.options[sel.selectedIndex] : null;
+                const autoPrice = selOpt && selOpt.dataset.price ? selOpt.dataset.price : p.cost_price;
+                const autoSale = selOpt && selOpt.dataset.sale ? selOpt.dataset.sale : p.sale_price;
+                if (!costEl.value) costEl.value = parseFloat(autoPrice) || '';
+                if (!saleEl.value) saleEl.value = parseFloat(autoSale) || '';
+                recalc();
+                closeDrop();
+            });
+            drop.appendChild(li);
+        });
+    }
+    const r = input.getBoundingClientRect();
+    drop.style.top    = (r.bottom + 2) + 'px';
+    drop.style.left   = r.left + 'px';
+    drop.style.width  = Math.max(300, r.width) + 'px';
+    drop.style.display = 'block';
+}
+
+function doSearch(input) {
+    const q = input.value.trim();
+    if (q.length < 2) { closeDrop(); return; }
+    fetch(SEARCH_URL + '?q=' + encodeURIComponent(q))
+        .then(function(r){ return r.json(); })
+        .then(function(d){ if (input.value.trim() === q) showDrop(input, d.results||[]); })
+        .catch(function(){ closeDrop(); });
+}
+
+/* ─── Event delegation ───────────────────── */
+document.getElementById('items-body').addEventListener('input', function(e) {
+    if (e.target.classList.contains('r-search')) {
+        document.querySelector('.r-pid[data-row="'+e.target.dataset.row+'"]').value = '';
+        clearTimeout(searchTimer);
+        searchTimer = setTimeout(function(){ doSearch(e.target); }, 300);
+    }
+    if (e.target.classList.contains('r-qty') || e.target.classList.contains('r-cost')) {
+        recalc();
+        if (e.target.classList.contains('r-qty')) updatePkgHint(e.target.dataset.row);
+    }
+});
+document.getElementById('items-body').addEventListener('change', function(e) {
+    if (e.target.classList.contains('r-pkg')) {
+        var row = e.target.dataset.row;
+        var opt = e.target.options[e.target.selectedIndex];
+        // Al cambiar empaque, sugerir costo y precio venta del empaque si están disponibles
+        var costEl = document.querySelector('.r-cost[data-row="'+row+'"]');
+        var saleEl = document.querySelector('.r-sale[data-row="'+row+'"]');
+        if (opt && opt.dataset.price && parseFloat(opt.dataset.price) > 0) {
+            costEl.value = parseFloat(opt.dataset.price);
+        }
+        if (opt && opt.dataset.sale && parseFloat(opt.dataset.sale) > 0) {
+            saleEl.value = parseFloat(opt.dataset.sale);
+        }
+        updatePkgHint(row);
+        recalc();
+    }
+});
+document.getElementById('items-body').addEventListener('focusout', function(e) {
+    if (e.target.classList.contains('r-search')) setTimeout(closeDrop, 200);
+});
+document.getElementById('items-body').addEventListener('click', function(e) {
+    var btn = e.target.closest('.r-del');
+    if (btn) delRow(btn.dataset.row);
+});
+document.getElementById('btn-add-row').addEventListener('click', addRow);
+document.getElementById('tax-percent').addEventListener('input', recalc);
+document.addEventListener('click', function(e){ if (!drop.contains(e.target)) closeDrop(); });
+
+/* ─── Barcode Scanner ─────────────────────── */
+(function() {
+    const scanInput = document.getElementById('barcode-scan-input');
+    let scanTimer = null;
+    let lastKeyTime = 0;
+    const SCANNER_SPEED_MS = 50; // keystrokes faster than 50ms = scanner
+
+    scanInput.addEventListener('keydown', function(e) {
+        const now = Date.now();
+        const delta = now - lastKeyTime;
+        lastKeyTime = now;
+
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            const code = scanInput.value.trim();
+            if (code.length >= 2) processBarcode(code);
+            scanInput.value = '';
+            return;
+        }
+
+        // If typing slowly (manual) just leave it as-is
+        // If scanner speed, set timer to auto-process after pause
+        if (delta < SCANNER_SPEED_MS) {
+            clearTimeout(scanTimer);
+            scanTimer = setTimeout(function() {
+                const code = scanInput.value.trim();
+                if (code.length >= 6) {
+                    processBarcode(code);
+                    scanInput.value = '';
+                }
+            }, 120);
+        }
+    });
+
+    function processBarcode(code) {
+        // Search by exact barcode
+        fetch(SEARCH_URL + '?q=' + encodeURIComponent(code) + '&barcode=1')
+            .then(function(r){ return r.json(); })
+            .then(function(d){
+                const results = d.results || [];
+                if (!results.length) {
+                    flashScanInput('danger', 'Código no encontrado: ' + code);
+                    return;
+                }
+                // Find exact match first, fallback to first result
+                const exact = results.find(function(p){ return p.barcode === code; }) || results[0];
+                addRowForProduct(exact);
+                flashScanInput('success', exact.name + ' agregado');
+            })
+            .catch(function(){ flashScanInput('danger', 'Error de conexión'); });
+    }
+
+    function addRowForProduct(product) {
+        // Buscar fila existente con MISMO producto Y mismo empaque detectado
+        var matchedPkgId = product.matched_packaging_id || null;
+        var existingRow = null;
+        document.querySelectorAll('#items-body tr').forEach(function(tr) {
+            var sameProd = tr.querySelector('.r-pid').value == product.id;
+            var pkgSel = tr.querySelector('.r-pkg');
+            var samePkg = (pkgSel ? (parseInt(pkgSel.value) || null) : null) === matchedPkgId;
+            if (sameProd && samePkg) existingRow = tr;
+        });
+
+        if (existingRow) {
+            var qtyInput = existingRow.querySelector('.r-qty');
+            qtyInput.value = (parseFloat(qtyInput.value) || 0) + 1;
+            recalc();
+            updatePkgHint(existingRow.querySelector('.r-pkg').dataset.row);
+            existingRow.classList.add('table-success');
+            setTimeout(function(){ existingRow.classList.remove('table-success'); }, 800);
+            return;
+        }
+
+        // Nueva fila
+        var id = ++rowCount;
+        rowProducts[id] = product;
+        var tr = document.createElement('tr');
+        tr.id = 'r' + id;
+        tr.innerHTML = rowHtml(id);
+        document.getElementById('items-body').appendChild(tr);
+        document.getElementById('no-rows-msg').style.display = 'none';
+
+        // Setear producto y packaging detectado
+        tr.querySelector('.r-search').value = product.name;
+        tr.querySelector('.r-pid').value = product.id;
+        populatePackagingSelect(id, product, matchedPkgId);
+
+        // Autoprecio: si hay empaque detectado, usar su precio; si no, el del producto base
+        var pkgSel = tr.querySelector('.r-pkg');
+        var selOpt = pkgSel.options[pkgSel.selectedIndex];
+        var autoCost = selOpt && selOpt.dataset.price ? selOpt.dataset.price : product.cost_price;
+        var autoSale = selOpt && selOpt.dataset.sale ? selOpt.dataset.sale : product.sale_price;
+        tr.querySelector('.r-cost').value = parseFloat(autoCost) || '';
+        tr.querySelector('.r-sale').value = parseFloat(autoSale) || '';
+
+        recalc();
+        tr.classList.add('table-success');
+        setTimeout(function(){ tr.classList.remove('table-success'); }, 800);
+    }
+
+    function flashScanInput(type, msg) {
+        scanInput.classList.remove('is-valid','is-invalid');
+        scanInput.classList.add(type === 'success' ? 'is-valid' : 'is-invalid');
+        scanInput.placeholder = msg;
+        setTimeout(function(){
+            scanInput.classList.remove('is-valid','is-invalid');
+            scanInput.placeholder = 'Escanear codigo...';
+        }, 2000);
+    }
+})();
+
+/* --- Crear orden --- */
+document.getElementById('btn-submit-oc').addEventListener('click', function() {
+    var errDiv    = document.getElementById('form-error');
+    var submitBtn = document.getElementById('btn-submit-oc');
+
+    function showErr(msg) {
+        errDiv.textContent = msg;
+        errDiv.style.display = '';
+        errDiv.scrollIntoView({behavior:'smooth', block:'nearest'});
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = '<i class="fas fa-save me-2"></i>Crear Orden de Compra';
+    }
+
+    errDiv.style.display = 'none';
+
+    var supplierId = document.getElementById('supplier-select').value;
+    if (!supplierId) { showErr('Selecciona un proveedor.'); return; }
+
+    var rows = document.querySelectorAll('#items-body tr');
+    if (!rows.length) { showErr('Agrega al menos un producto.'); return; }
+
+    var items = [];
+    var rowErr = '';
+    rows.forEach(function(tr, i) {
+        if (rowErr) return;
+        var pid  = tr.querySelector('.r-pid').value;
+        var pkg  = tr.querySelector('.r-pkg') ? tr.querySelector('.r-pkg').value : '';
+        var qty  = parseFloat(tr.querySelector('.r-qty').value);
+        var cost = parseFloat(tr.querySelector('.r-cost').value);
+        var sale = tr.querySelector('.r-sale').value;
+        if (!pid)             { rowErr = 'Fila '+(i+1)+': elegí un producto del buscador.'; return; }
+        if (!qty || qty < 1)  { rowErr = 'Fila '+(i+1)+': la cantidad debe ser mayor a 0.'; return; }
+        if (!cost || cost<=0) { rowErr = 'Fila '+(i+1)+': ingresá el costo.'; return; }
+        items.push({
+            product_id:    parseInt(pid),
+            packaging_id:  pkg ? parseInt(pkg) : null,
+            quantity:      qty,
+            unit_cost:     cost,
+            sale_price:    sale ? parseFloat(sale) : null
+        });
+    });
+
+    if (rowErr) { showErr(rowErr); return; }
+    if (!items.length) { showErr('Agrega al menos un producto válido.'); return; }
+
+    var payload = {
+        supplier_id: parseInt(supplierId),
+        order_date:  document.getElementById('order-date').value || null,
+        tax_percent: parseFloat(document.getElementById('tax-percent').value) || 0,
+        notes:       document.getElementById('order-notes').value,
+        items:       items
+    };
+
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Creando...';
+
+    var csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+
+    fetch(window.location.href, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': csrfToken
+        },
+        body: JSON.stringify(payload)
+    })
+    .then(function(resp) {
+        return resp.json().then(function(data) {
+            return { ok: resp.ok, data: data };
+        });
+    })
+    .then(function(result) {
+        if (result.ok && result.data.success) {
+            window.location.href = '{% url "purchase:purchase_list" %}';
+        } else {
+            showErr(result.data.error || 'Error al crear la orden.');
+        }
+    })
+    .catch(function(ex) {
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = '<i class="fas fa-save me-2"></i>Crear Orden de Compra';
+        showErr('Error al procesar la solicitud. Revisá la consola del navegador.');
+    });
+});
+</script>
+{% endblock %}

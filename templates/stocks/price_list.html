@@ -1,0 +1,116 @@
+{% extends 'base.html' %}
+{% load currency_filters %}
+
+{% block title %}Lista de Precios{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h3 mb-0">
+                <i class="fas fa-list-alt me-2"></i>Lista de Precios
+            </h1>
+            <p class="text-muted mb-0">Precios vigentes de productos</p>
+        </div>
+        <div>
+            <button onclick="window.print()" class="btn btn-outline-secondary me-2">
+                <i class="fas fa-print me-2"></i>Imprimir
+            </button>
+            <a href="{% url 'stocks:export_excel' %}" class="btn btn-success">
+                <i class="fas fa-file-excel me-2"></i>Exportar Excel
+            </a>
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <form method="get" class="row g-3">
+                <div class="col-md-4">
+                    <label class="form-label">Categoría</label>
+                    <select name="category" class="form-select" onchange="this.form.submit()">
+                        <option value="">Todas las categorías</option>
+                        {% for cat in categories %}
+                        <option value="{{ cat.pk }}" {% if selected_category == cat.pk|stringformat:"s" %}selected{% endif %}>
+                            {{ cat.name }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Price List -->
+    <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h5 class="card-title mb-0">
+                <i class="fas fa-tag me-2"></i>Productos y Precios
+            </h5>
+            <span class="badge bg-primary">{{ products|length }} productos</span>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-striped mb-0" id="price-table">
+                    <thead>
+                        <tr>
+                            <th>Código</th>
+                            <th>Producto</th>
+                            <th>Categoría</th>
+                            <th>Unidad</th>
+                            <th class="text-end">Precio</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for product in products %}
+                        <tr>
+                            <td>
+                                <code>{{ product.barcode|default:product.sku }}</code>
+                            </td>
+                            <td>
+                                <strong>{{ product.name }}</strong>
+                            </td>
+                            <td>
+                                {% if product.category %}
+                                <span class="badge" style="background-color: {{ product.category.color }}">
+                                    {{ product.category.name }}
+                                </span>
+                                {% else %}
+                                <span class="text-muted">-</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ product.unit_of_measure.abbreviation|default:"u" }}</td>
+                            <td class="text-end">
+                                <strong class="fs-5">{{ product.sale_price|currency }}</strong>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="5" class="text-center py-4">
+                                <i class="fas fa-inbox fa-2x text-muted mb-2"></i>
+                                <p class="text-muted mb-0">No hay productos</p>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+@media print {
+    .btn, form, .card-header .badge, nav, .sidebar {
+        display: none !important;
+    }
+    .card {
+        border: none !important;
+    }
+    .table {
+        font-size: 12px;
+    }
+}
+</style>
+{% endblock %}

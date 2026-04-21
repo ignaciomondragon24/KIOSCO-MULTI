@@ -1,0 +1,37 @@
+# Django Core
+Django>=4.2,<5.0
+gunicorn>=21.2.0
+djangorestframework>=3.14.0
+django-cors-headers>=4.3.0
+django-crispy-forms>=2.1
+crispy-bootstrap5>=2024.2
+django-widget-tweaks>=1.5.0
+django-extensions>=3.2.3
+whitenoise>=6.6.0
+
+# Database
+psycopg2-binary>=2.9.9
+dj-database-url>=2.1.0
+
+# PDF Generation
+reportlab>=4.0.0
+xhtml2pdf>=0.2.11
+
+# Excel Export
+openpyxl>=3.1.2
+
+# Image Processing
+Pillow>=10.2.0
+
+# Barcode & QR
+python-barcode>=0.15.1
+qrcode>=7.4.2
+
+# Environment Variables
+python-dotenv>=1.0.0
+
+# Google Gemini API
+google-genai>=1.0.0
+
+# HTTP Client (Mercado Pago API)
+requests>=2.31.0

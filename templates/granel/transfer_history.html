@@ -1,0 +1,78 @@
+{% extends 'base.html' %}
+{% load currency_filters %}
+
+{% block title %}Historial de Transferencias{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-3">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="h3 mb-0">
+            <i class="fas fa-exchange-alt me-2" style="color:var(--che-primary,#E91E8C);"></i>Historial de Transferencias
+        </h1>
+        <a href="{% url 'granel:dashboard' %}" class="btn btn-sm btn-outline-secondary">
+            <i class="fas fa-arrow-left me-1"></i>Volver
+        </a>
+    </div>
+
+    <!-- Filtro -->
+    <div class="card shadow-sm mb-3">
+        <div class="card-body py-2">
+            <form method="get" class="row g-2 align-items-end">
+                <div class="col-md-4">
+                    <label class="form-label small text-muted">Producto Granel</label>
+                    <select name="granel" class="form-select form-select-sm">
+                        <option value="">Todos</option>
+                        {% for g in granel_products %}
+                        <option value="{{ g.pk|unlocalize }}" {% if current_granel == g.pk|stringformat:'d' %}selected{% endif %}>{{ g.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <button type="submit" class="btn btn-sm w-100" style="background:var(--che-primary,#E91E8C);color:#fff;">
+                        <i class="fas fa-filter me-1"></i>Filtrar
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="card shadow-sm">
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover table-sm mb-0 align-middle">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Fecha</th>
+                            <th>Bulto Origen</th>
+                            <th>Granel Destino</th>
+                            <th class="text-end">Gramos</th>
+                            <th class="text-end">Costo/g</th>
+                            <th class="text-end">Costo Pond. Antes</th>
+                            <th class="text-end">Costo Pond. Despues</th>
+                            <th>Lote</th>
+                            <th>Usuario</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for t in transfers %}
+                        <tr>
+                            <td>{{ t.transferred_at|date:"d/m/Y H:i" }}</td>
+                            <td>{{ t.bulk_product.name }}</td>
+                            <td>{{ t.granel_product.name }}</td>
+                            <td class="text-end">{{ t.grams_transferred|floatformat:0 }}g</td>
+                            <td class="text-end">${{ t.bulk_cost_per_gram|floatformat:4 }}</td>
+                            <td class="text-end">${{ t.granel_weighted_cost_before|floatformat:4 }}</td>
+                            <td class="text-end">${{ t.granel_weighted_cost_after|floatformat:4 }}</td>
+                            <td>{% if t.source_batch %}#{{ t.source_batch.pk }}{% else %}-{% endif %}</td>
+                            <td>{{ t.transferred_by.get_short_name|default:"-" }}</td>
+                        </tr>
+                        {% empty %}
+                        <tr><td colspan="9" class="text-center text-muted py-3">Sin transferencias</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

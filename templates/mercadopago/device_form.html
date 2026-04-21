@@ -1,0 +1,126 @@
+{% extends 'base.html' %}
+
+{% block title %}Editar Dispositivo - {{ device.device_name }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .edit-card {
+        max-width: 600px;
+        margin: 0 auto;
+        border-radius: 12px;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+    }
+    .device-info {
+        background: #f8fafc;
+        border-radius: 10px;
+        padding: 1.5rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="mb-4">
+        <a href="{% url 'mercadopago:device_list' %}" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left"></i> Volver a Dispositivos
+        </a>
+    </div>
+
+    <div class="card edit-card">
+        <div class="card-header bg-white py-3">
+            <div class="d-flex align-items-center">
+                <i class="fas fa-mobile-alt fa-2x text-primary me-3"></i>
+                <div>
+                    <h4 class="mb-0">Editar Dispositivo</h4>
+                    <small class="text-muted">{{ device.device_name }}</small>
+                </div>
+            </div>
+        </div>
+        
+        <div class="card-body">
+            <!-- Device Info -->
+            <div class="device-info mb-4">
+                <div class="row">
+                    <div class="col-6">
+                        <small class="text-muted">ID del Dispositivo</small>
+                        <p class="mb-2"><code>{{ device.device_id }}</code></p>
+                    </div>
+                    <div class="col-6">
+                        <small class="text-muted">Número de Serie</small>
+                        <p class="mb-2">{{ device.serial_number|default:"-" }}</p>
+                    </div>
+                    <div class="col-6">
+                        <small class="text-muted">Estado</small>
+                        <p class="mb-0">
+                            <span class="badge {% if device.status == 'active' %}bg-success{% else %}bg-secondary{% endif %}">
+                                {{ device.get_status_display }}
+                            </span>
+                        </p>
+                    </div>
+                    <div class="col-6">
+                        <small class="text-muted">Modo</small>
+                        <p class="mb-0">
+                            <span class="badge bg-info">{{ device.operating_mode }}</span>
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <form method="post">
+                {% csrf_token %}
+                
+                <div class="mb-4">
+                    <label for="device_name" class="form-label">
+                        <strong>Nombre del Dispositivo</strong>
+                    </label>
+                    <input type="text" 
+                           class="form-control" 
+                           id="device_name" 
+                           name="device_name"
+                           value="{{ device.device_name }}"
+                           placeholder="Ej: Point Pro - Caja 1">
+                    <div class="form-text">
+                        Un nombre descriptivo para identificar el dispositivo
+                    </div>
+                </div>
+
+                <div class="mb-4">
+                    <label for="cash_register" class="form-label">
+                        <strong>Asignar a Caja Registradora</strong>
+                    </label>
+                    <select class="form-select" id="cash_register" name="cash_register">
+                        <option value="">-- Sin asignar --</option>
+                        {% for register in registers %}
+                        <option value="{{ register.id }}" 
+                                {% if device.cash_register_id == register.id %}selected{% endif %}>
+                            {{ register.name }}
+                            {% if register.pointdevice_set.exists and register.id != device.cash_register_id %}
+                                (Ya tiene dispositivo)
+                            {% endif %}
+                        </option>
+                        {% endfor %}
+                    </select>
+                    <div class="form-text">
+                        Selecciona la caja registradora que usará este dispositivo Point
+                    </div>
+                </div>
+
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle"></i>
+                    <strong>Importante:</strong> Cada caja registradora solo puede tener un dispositivo Point asignado.
+                    Cuando el cajero abra su turno en una caja, el sistema usará automáticamente el dispositivo asignado.
+                </div>
+
+                <div class="d-grid gap-2">
+                    <button type="submit" class="btn btn-primary btn-lg">
+                        <i class="fas fa-save"></i> Guardar Cambios
+                    </button>
+                    <a href="{% url 'mercadopago:device_list' %}" class="btn btn-outline-secondary">
+                        Cancelar
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

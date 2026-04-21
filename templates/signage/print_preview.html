@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Imprimir Carteles - CHE GOLOSO</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { background: #e8e8e8; font-family: Arial, sans-serif; }
+
+        .print-controls {
+            position: fixed; top: 0; left: 0; right: 0;
+            background: #2D1E5F; color: white; padding: 10px 20px;
+            display: flex; justify-content: space-between; align-items: center;
+            z-index: 1000;
+        }
+        .print-controls button {
+            padding: 8px 20px; border: none; border-radius: 4px;
+            font-size: 14px; cursor: pointer;
+        }
+        .btn-print { background: #28a745; color: white; }
+        .btn-print:hover { background: #218838; }
+        .btn-close-print { background: #6c757d; color: white; }
+
+        .print-pages-container {
+            padding: 60px 20px 20px;
+            display: flex; flex-direction: column; align-items: center; gap: 20px;
+        }
+
+        .print-page {
+            background: white;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .print-sign {
+            position: absolute;
+            overflow: hidden;
+        }
+
+        .cut-line-h, .cut-line-v {
+            position: absolute;
+            background: transparent;
+        }
+        .cut-line-h {
+            left: 0; right: 0; height: 0;
+            border-top: 0.5px dashed #ccc;
+        }
+        .cut-line-v {
+            top: 0; bottom: 0; width: 0;
+            border-left: 0.5px dashed #ccc;
+        }
+
+        @media print {
+            .print-controls { display: none !important; }
+            .print-pages-container { padding: 0; gap: 0; }
+            .print-page {
+                box-shadow: none;
+                page-break-after: always;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+            .print-page:last-child { page-break-after: auto; }
+            body { background: white; }
+            @page { margin: 0; size: A4 portrait; }
+        }
+    </style>
+</head>
+<body>
+    <div class="print-controls" id="printControls">
+        <span id="nestingLabel">Vista de Impresión - CHE GOLOSO</span>
+        <div style="display: flex; gap: 10px;">
+            <button class="btn-close-print" onclick="window.close()">Cerrar</button>
+            <button class="btn-print" onclick="window.print()">
+                <i class="fas fa-print"></i> Imprimir
+            </button>
+        </div>
+    </div>
+
+    <div class="print-pages-container" id="printPagesContainer">
+        <!-- Pages rendered here by JS -->
+    </div>
+
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        try {
+            const printData = JSON.parse(localStorage.getItem('signagePrintData') || '{}');
+            if (!printData.layout || !printData.items || !printData.items.length) {
+                document.getElementById('printPagesContainer').innerHTML =
+                    '<div style="text-align:center;padding:40px;color:#666;">No hay datos para imprimir. Volvé a la página de generación.</div>';
+                return;
+            }
+            renderPrintPages(printData);
+        } catch(e) {
+            document.getElementById('printPagesContainer').innerHTML =
+                '<div style="text-align:center;padding:40px;color:red;">Error: ' + e.message + '</div>';
+        }
+    });
+
+    function renderPrintPages(data) {
+        const { layout, items, widthMM, heightMM, paperSize, margin, gap } = data;
+        const PAPER = { A4: {w:210,h:297}, A3: {w:297,h:420}, letter: {w:216,h:279} };
+        const paper = PAPER[paperSize] || PAPER.A4;
+        const usableW = paper.w - 2 * margin;
+        const usableH = paper.h - 2 * margin;
+
+        const cols = Math.max(1, Math.floor((usableW + gap) / (widthMM + gap)));
+        const rows = Math.max(1, Math.floor((usableH + gap) / (heightMM + gap)));
+        const perPage = cols * rows;
+
+        // Dynamic @page size
+        const styleEl = document.createElement('style');
+        styleEl.textContent = `@media print { @page { margin: 0; size: ${paper.w}mm ${paper.h}mm; } }`;
+        document.head.appendChild(styleEl);
+
+        // Expand items by copies
+        const allSigns = [];
+        items.forEach(item => {
+            for (let c = 0; c < (item.copies || 1); c++) {
+                allSigns.push(item.data);
+            }
+        });
+
+        const totalPages = Math.ceil(allSigns.length / perPage);
+        const container = document.getElementById('printPagesContainer');
+        container.innerHTML = '';
+
+        // Update nesting info label
+        const label = document.getElementById('nestingLabel');
+        if (label) {
+            label.textContent = `${cols}×${rows} = ${perPage} carteles/hoja | ${totalPages} hoja(s) | ${allSigns.length} cartel(es)`;
+        }
+
+        for (let page = 0; page < totalPages; page++) {
+            const pageDiv = document.createElement('div');
+            pageDiv.className = 'print-page';
+            pageDiv.style.width = paper.w + 'mm';
+            pageDiv.style.height = paper.h + 'mm';
+
+            for (let i = 0; i < perPage; i++) {
+                const idx = page * perPage + i;
+                if (idx >= allSigns.length) break;
+
+                const row = Math.floor(i / cols);
+                const col = i % cols;
+                const x = margin + col * (widthMM + gap);
+                const y = margin + row * (heightMM + gap);
+
+                const signDiv = document.createElement('div');
+                signDiv.className = 'print-sign';
+                signDiv.style.left = x + 'mm';
+                signDiv.style.top = y + 'mm';
+                signDiv.style.width = widthMM + 'mm';
+                signDiv.style.height = heightMM + 'mm';
+
+                renderSign(signDiv, layout, allSigns[idx], widthMM, heightMM);
+                pageDiv.appendChild(signDiv);
+            }
+
+            // Add cut lines between signs
+            for (let c = 1; c < cols; c++) {
+                const lineX = margin + c * (widthMM + gap) - gap / 2;
+                const line = document.createElement('div');
+                line.className = 'cut-line-v';
+                line.style.left = lineX + 'mm';
+                pageDiv.appendChild(line);
+            }
+            for (let r = 1; r < rows; r++) {
+                const lineY = margin + r * (heightMM + gap) - gap / 2;
+                const line = document.createElement('div');
+                line.className = 'cut-line-h';
+                line.style.top = lineY + 'mm';
+                pageDiv.appendChild(line);
+            }
+
+            container.appendChild(pageDiv);
+        }
+    }
+
+    function renderSign(container, layout, data, widthMM, heightMM) {
+        container.style.background = layout.background_color || '#fff';
+        if (layout.border_width > 0) {
+            container.style.border = layout.border_width + 'mm solid ' + (layout.border_color || '#000');
+        }
+        container.style.position = 'absolute';
+        container.style.overflow = 'hidden';
+
+        (layout.elements || []).forEach(el => {
+            const div = document.createElement('div');
+            div.style.position = 'absolute';
+            div.style.left = el.x + 'mm';
+            div.style.top = el.y + 'mm';
+            div.style.width = el.width + 'mm';
+            div.style.height = el.height + 'mm';
+            div.style.overflow = 'hidden';
+
+            if (el.type === 'text' || el.type === 'variable') {
+                let text = el.type === 'variable' ? (data[el.variable] || '') : (el.content || '');
+                div.style.fontFamily = el.fontFamily || 'Arial';
+                div.style.fontWeight = el.fontWeight || 'normal';
+                div.style.fontStyle = el.fontStyle || 'normal';
+                div.style.textDecoration = el.textDecoration || 'none';
+                div.style.color = el.color || '#000';
+                div.style.textAlign = el.textAlign || 'center';
+                div.style.display = 'flex';
+                div.style.alignItems = el.verticalAlign === 'top' ? 'flex-start' :
+                                       el.verticalAlign === 'bottom' ? 'flex-end' : 'center';
+                div.style.justifyContent = el.textAlign === 'left' ? 'flex-start' :
+                                           el.textAlign === 'right' ? 'flex-end' : 'center';
+                if (el.backgroundColor && el.backgroundColor !== 'transparent') {
+                    div.style.backgroundColor = el.backgroundColor;
+                }
+
+                const span = document.createElement('span');
+                span.style.display = 'block';
+                span.style.width = '100%';
+                span.style.textAlign = el.textAlign || 'center';
+                span.style.lineHeight = '1.1';
+                span.style.wordBreak = 'break-word';
+                span.textContent = text;
+
+                if (el.autoScale && text) {
+                    const maxSize = el.fontSize || 14;
+                    const minSize = el.minFontSize || 6;
+
+                    span.style.fontSize = maxSize + 'pt';
+                    div.appendChild(span);
+
+                    // Use actual rendered container size for accurate measuring
+                    const cW = div.clientWidth || (el.width * 3.78);
+                    const cH = div.clientHeight || (el.height * 3.78);
+
+                    if (cW > 0 && (span.scrollWidth > cW + 1 || span.scrollHeight > cH + 1)) {
+                        // Binary search for optimal size
+                        let lo = minSize, hi = maxSize;
+                        while (hi - lo > 0.5) {
+                            const mid = (lo + hi) / 2;
+                            span.style.fontSize = mid + 'pt';
+                            if (span.scrollWidth <= cW + 1 && span.scrollHeight <= cH + 1) {
+                                lo = mid;
+                            } else {
+                                hi = mid;
+                            }
+                        }
+                        // Fine-tune
+                        let size = lo;
+                        while (size > minSize) {
+                            span.style.fontSize = size + 'pt';
+                            if (span.scrollWidth <= cW + 1 && span.scrollHeight <= cH + 1) break;
+                            size -= 0.25;
+                        }
+                        span.style.fontSize = Math.max(size, minSize) + 'pt';
+                    }
+                } else {
+                    span.style.fontSize = (el.fontSize || 14) + 'pt';
+                    div.appendChild(span);
+                }
+            } else if (el.type === 'shape') {
+                div.style.backgroundColor = el.backgroundColor || '#E91E8C';
+                if (el.borderWidth > 0) {
+                    div.style.border = el.borderWidth + 'mm solid ' + (el.borderColor || '#000');
+                }
+                div.style.borderRadius = (el.borderRadius || 0) + 'mm';
+            } else if (el.type === 'line') {
+                div.style.backgroundColor = 'transparent';
+                div.style.borderTop = (el.lineWidth || 1) + 'mm ' + (el.lineStyle || 'solid') + ' ' + (el.lineColor || '#000');
+                div.style.top = (el.y + el.height / 2) + 'mm';
+                div.style.height = '0';
+            } else if (el.type === 'image') {
+                const img = document.createElement('img');
+                img.src = el.src || '';
+                img.style.width = '100%';
+                img.style.height = '100%';
+                img.style.objectFit = 'contain';
+                div.appendChild(img);
+            }
+
+            container.appendChild(div);
+        });
+    }
+    </script>
+</body>
+</html>

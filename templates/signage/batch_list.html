@@ -1,0 +1,56 @@
+{% extends 'base.html' %}
+
+{% block title %}Historial de Carteles{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h3><i class="fas fa-history me-2"></i>Historial de Lotes</h3>
+            <p class="text-muted mb-0">Lotes de carteles generados anteriormente</p>
+        </div>
+        <a href="{% url 'signage:template_list' %}" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left me-1"></i>Volver a Plantillas
+        </a>
+    </div>
+
+    {% if batches %}
+    <div class="table-responsive">
+        <table class="table table-hover">
+            <thead class="table-light">
+                <tr>
+                    <th>#</th>
+                    <th>Nombre</th>
+                    <th>Plantilla</th>
+                    <th>Papel</th>
+                    <th>Total Carteles</th>
+                    <th>Creado por</th>
+                    <th>Fecha</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for batch in batches %}
+                <tr>
+                    <td>{{ batch.pk }}</td>
+                    <td>{{ batch.name }}</td>
+                    <td>
+                        <span class="badge bg-info">{{ batch.template.name }}</span>
+                    </td>
+                    <td>{{ batch.get_paper_size_display }}</td>
+                    <td><span class="badge bg-primary">{{ batch.total_signs }}</span></td>
+                    <td>{{ batch.created_by.get_short_name|default:"-" }}</td>
+                    <td>{{ batch.created_at|date:"d/m/Y H:i" }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="text-center py-5">
+        <i class="fas fa-history fa-3x text-muted mb-3 d-block opacity-25"></i>
+        <h5 class="text-muted">No hay lotes generados</h5>
+        <p class="text-muted">Los lotes aparecerán aquí cuando generes carteles desde una plantilla</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

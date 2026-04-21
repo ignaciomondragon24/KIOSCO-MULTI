@@ -1,0 +1,184 @@
+{% extends 'base.html' %}
+
+{% block title %}Abrir Bulto - Caramelera{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-3">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="h3 mb-0">
+            <i class="fas fa-box-open me-2" style="color:var(--che-primary,#E91E8C);"></i>Abrir Bulto
+        </h1>
+        <a href="{% url 'granel:dashboard' %}" class="btn btn-sm btn-outline-secondary">
+            <i class="fas fa-arrow-left me-1"></i>Volver
+        </a>
+    </div>
+
+    {% if warnings %}
+    {% for w in warnings %}
+    <div class="alert alert-warning">
+        <i class="fas fa-exclamation-triangle me-2"></i>{{ w }}
+    </div>
+    {% endfor %}
+    {% endif %}
+
+    <div class="row justify-content-center">
+        <div class="col-md-8 col-lg-6">
+            <div class="card shadow-sm">
+                <div class="card-header" style="background:var(--che-secondary,#2D1E5F);color:#fff;">
+                    <h5 class="mb-0"><i class="fas fa-exchange-alt me-2"></i>Transferir Bulto a Granel</h5>
+                </div>
+                <div class="card-body">
+                    <!-- Granel destino -->
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Producto Granel (destino)</label>
+                        <select id="granel-select" class="form-select">
+                            <option value="">-- Seleccionar --</option>
+                            {% for g in granel_products %}
+                            <option value="{{ g.pk }}" data-stock="{{ g.current_stock }}" data-cost="{{ g.weighted_avg_cost_per_gram }}" data-price-weight="{{ g.granel_price_weight_grams }}">
+                                {{ g.name }} (Stock: {{ g.current_stock|floatformat:0 }}g)
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <!-- Bulto origen -->
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Bolsa/Bulto a abrir (origen)</label>
+                        <select id="bulk-select" class="form-select">
+                            <option value="">-- Seleccionar --</option>
+                            {% for b in bulk_products %}
+                            <option value="{{ b.pk }}" data-weight="{{ b.weight_per_unit_grams }}" data-cost="{{ b.cost_price }}" data-stock="{{ b.current_stock }}">
+                                {{ b.name }} — {{ b.weight_per_unit_grams|floatformat:0 }}g — Stock: {{ b.current_stock|floatformat:0 }} unid — ${{ b.cost_price }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <!-- Notas -->
+                    <div class="mb-3">
+                        <label class="form-label">Notas (opcional)</label>
+                        <input type="text" id="transfer-notes" class="form-control" placeholder="Observaciones...">
+                    </div>
+
+                    <!-- Preview -->
+                    <div id="transfer-preview" class="alert alert-info d-none">
+                        <h6 class="alert-heading"><i class="fas fa-calculator me-1"></i>Preview del resultado</h6>
+                        <div class="row small">
+                            <div class="col-6">
+                                <strong>Gramos a transferir:</strong> <span id="preview-grams">-</span>g
+                            </div>
+                            <div class="col-6">
+                                <strong>Costo/g del bulto:</strong> $<span id="preview-cost-gram">-</span>
+                            </div>
+                            <div class="col-6 mt-1">
+                                <strong>Nuevo stock granel:</strong> <span id="preview-new-stock">-</span>g
+                            </div>
+                            <div class="col-6 mt-1">
+                                <strong>Nuevo costo ponderado:</strong> $<span id="preview-new-avg">-</span>/g
+                            </div>
+                        </div>
+                    </div>
+
+                    <button id="btn-transfer" class="btn w-100" style="background:var(--che-primary,#E91E8C);color:#fff;" disabled>
+                        <i class="fas fa-box-open me-2"></i>Abrir Bulto y Transferir
+                    </button>
+
+                    <div id="transfer-result" class="mt-3 d-none"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const granelSel = document.getElementById('granel-select');
+    const bulkSel = document.getElementById('bulk-select');
+    const preview = document.getElementById('transfer-preview');
+    const btn = document.getElementById('btn-transfer');
+    const result = document.getElementById('transfer-result');
+
+    function updatePreview() {
+        const gOpt = granelSel.selectedOptions[0];
+        const bOpt = bulkSel.selectedOptions[0];
+
+        if (!granelSel.value || !bulkSel.value) {
+            preview.classList.add('d-none');
+            btn.disabled = true;
+            return;
+        }
+
+        const gStock = parseFloat(gOpt.dataset.stock);
+        const gCost = parseFloat(gOpt.dataset.cost);
+        const bWeight = parseFloat(bOpt.dataset.weight);
+        const bCost = parseFloat(bOpt.dataset.cost);
+
+        const costPerGram = bWeight > 0 ? bCost / bWeight : 0;
+        const newStock = gStock + bWeight;
+        let newAvg;
+        if (gStock > 0) {
+            newAvg = (gStock * gCost + bWeight * costPerGram) / newStock;
+        } else {
+            newAvg = costPerGram;
+        }
+
+        document.getElementById('preview-grams').textContent = bWeight.toFixed(0);
+        document.getElementById('preview-cost-gram').textContent = costPerGram.toFixed(4);
+        document.getElementById('preview-new-stock').textContent = newStock.toFixed(0);
+        document.getElementById('preview-new-avg').textContent = newAvg.toFixed(4);
+
+        preview.classList.remove('d-none');
+        btn.disabled = false;
+    }
+
+    granelSel.addEventListener('change', updatePreview);
+    bulkSel.addEventListener('change', updatePreview);
+
+    btn.addEventListener('click', function() {
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Procesando...';
+
+        fetch('{% url "granel:api_transfer" %}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token }}'
+            },
+            body: JSON.stringify({
+                bulk_product_id: parseInt(bulkSel.value),
+                granel_product_id: parseInt(granelSel.value),
+                notes: document.getElementById('transfer-notes').value,
+            })
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                result.className = 'mt-3 alert alert-success';
+                result.innerHTML = `<i class="fas fa-check-circle me-2"></i>
+                    Transferidos <strong>${data.transfer.grams}g</strong>.
+                    Nuevo stock: <strong>${data.transfer.new_stock.toFixed(0)}g</strong>.
+                    Nuevo costo: <strong>$${data.transfer.new_avg_cost.toFixed(4)}/g</strong>`;
+                result.classList.remove('d-none');
+                // Reload after 2s to refresh selectors
+                setTimeout(() => location.reload(), 2000);
+            } else {
+                result.className = 'mt-3 alert alert-danger';
+                result.innerHTML = `<i class="fas fa-times-circle me-2"></i>${data.error}`;
+                result.classList.remove('d-none');
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-box-open me-2"></i>Abrir Bulto y Transferir';
+            }
+        })
+        .catch(err => {
+            result.className = 'mt-3 alert alert-danger';
+            result.innerHTML = `<i class="fas fa-times-circle me-2"></i>Error de conexion`;
+            result.classList.remove('d-none');
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-box-open me-2"></i>Abrir Bulto y Transferir';
+        });
+    });
+});
+</script>
+{% endblock %}

@@ -1,0 +1,732 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Imprimir Todo el Inventario - Cartelería{% endblock %}
+
+{% block extra_css %}
+<style>
+.gen-all-container { padding: 1rem 0; }
+
+/* === STEP 1: Category selection === */
+.cat-card {
+    border: 2px solid #e9ecef;
+    border-radius: 12px;
+    overflow: hidden;
+    background: white;
+    margin-bottom: 1rem;
+    transition: border-color 0.2s;
+}
+.cat-card.cat-selected { border-color: var(--cat-color, #2D1E5F); }
+.cat-header {
+    padding: 0.75rem 1rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    cursor: pointer;
+    user-select: none;
+    gap: 0.5rem;
+}
+.cat-header:hover { background: #fafafa; }
+.cat-color-dot {
+    width: 14px; height: 14px; border-radius: 50%;
+    display: inline-block; flex-shrink: 0;
+}
+.cat-header .badge-count {
+    font-size: 0.85rem;
+    padding: 0.25em 0.6em;
+    border-radius: 20px;
+    color: white;
+}
+.cat-body { padding: 0 1rem 0.75rem; display: none; }
+.cat-card.cat-selected .cat-body { display: block; }
+.product-table {
+    font-size: 0.85rem;
+    margin-bottom: 0;
+}
+.product-table th {
+    background: #f8f9fa;
+    font-weight: 600;
+    font-size: 0.78rem;
+    text-transform: uppercase;
+    color: #666;
+    position: sticky; top: 0; z-index: 1;
+}
+.product-table td { vertical-align: middle; }
+.product-table .cb-col { width: 36px; text-align: center; }
+.product-table .copies-col { width: 70px; }
+.product-table .copies-col input {
+    width: 55px; text-align: center;
+    border: 1px solid #dee2e6; border-radius: 4px;
+    padding: 2px 4px; font-size: 0.85rem;
+}
+.type-badge {
+    font-size: 0.68rem; padding: 2px 6px; border-radius: 4px;
+    color: white; font-weight: 600;
+    display: inline-block;
+}
+.print-settings { background: #f8f9fa; border-radius: 10px; padding: 1rem 1.25rem; }
+.print-settings label { font-size: 0.85rem; font-weight: 600; }
+.loading-overlay {
+    position: fixed; inset: 0; background: rgba(255,255,255,0.9);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 9999; flex-direction: column; gap: 1rem;
+}
+.loading-overlay .spinner-border { width: 3rem; height: 3rem; }
+.summary-box {
+    background: linear-gradient(135deg, #2D1E5F 0%, #E91E8C 100%);
+    color: white; border-radius: 12px; padding: 1rem 1.25rem;
+    display: flex; gap: 1.5rem; align-items: center; flex-wrap: wrap;
+}
+.summary-box .stat { text-align: center; }
+.summary-box .stat-num { font-size: 1.6rem; font-weight: 700; line-height: 1; }
+.summary-box .stat-label { font-size: 0.7rem; opacity: 0.85; }
+.cat-select-bar {
+    display: flex; gap: 0.5rem; flex-wrap: wrap;
+    margin-bottom: 1rem;
+}
+.cat-select-bar .btn { font-size: 0.82rem; }
+.bottom-bar {
+    position: fixed; bottom: 0; left: 0; right: 0; z-index: 1000;
+    background: white; border-top: 2px solid #e9ecef;
+    padding: 12px 24px;
+    display: flex; justify-content: space-between; align-items: center;
+    box-shadow: 0 -4px 12px rgba(0,0,0,0.1);
+}
+.bottom-bar .sel-info { font-size: 0.9rem; font-weight: 600; }
+
+/* === STEP 2: Edit items === */
+.edit-item-card {
+    border: 1px solid #e9ecef;
+    border-radius: 10px;
+    background: white;
+    margin-bottom: 0.75rem;
+    overflow: hidden;
+}
+.edit-item-header {
+    padding: 0.6rem 1rem;
+    background: #f8f9fa;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    cursor: pointer;
+    font-size: 0.9rem;
+}
+.edit-item-header:hover { background: #f0f0f0; }
+.edit-item-body {
+    padding: 0.75rem 1rem;
+    display: none;
+}
+.edit-item-body.show { display: block; }
+.edit-field-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.4rem;
+}
+.edit-field-row label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #666;
+    min-width: 120px;
+    text-transform: uppercase;
+    margin: 0;
+}
+.edit-field-row input {
+    font-size: 0.85rem;
+    padding: 3px 8px;
+}
+.sign-mini-preview {
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    overflow: hidden;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: white;
+}
+.step-indicator {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+    font-size: 0.85rem;
+}
+.step-indicator .step {
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-weight: 600;
+}
+.step-indicator .step.active { background: #E91E8C; color: white; }
+.step-indicator .step:not(.active) { background: #e9ecef; color: #999; }
+
+/* Extra bottom padding so content doesn't hide behind fixed bar */
+.gen-all-container { padding-bottom: 80px; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid gen-all-container">
+    <!-- Loading -->
+    <div class="loading-overlay" id="loadingOverlay">
+        <div class="spinner-border text-primary"></div>
+        <h5>Cargando inventario...</h5>
+    </div>
+
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <div>
+            <h4><i class="fas fa-print me-2" style="color: #E91E8C;"></i>Imprimir Inventario por Categoría</h4>
+            <div class="step-indicator mt-1">
+                <span class="step active" id="stepLabel1">1. Seleccionar</span>
+                <i class="fas fa-chevron-right text-muted" style="font-size:0.7rem;"></i>
+                <span class="step" id="stepLabel2">2. Editar</span>
+                <i class="fas fa-chevron-right text-muted" style="font-size:0.7rem;"></i>
+                <span class="step" id="stepLabel3">3. Imprimir</span>
+            </div>
+        </div>
+        <a href="{% url 'signage:template_list' %}" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left me-1"></i>Volver
+        </a>
+    </div>
+
+    <!-- ==================== STEP 1: SELECT ==================== -->
+    <div id="step1">
+        <!-- Summary -->
+        <div class="summary-box mb-3" id="summaryBox" style="display:none;">
+            <div class="stat"><div class="stat-num" id="statTotal">0</div><div class="stat-label">PRODUCTOS</div></div>
+            <div class="stat"><div class="stat-num" id="statCats">0</div><div class="stat-label">CATEGORÍAS</div></div>
+            <div class="stat"><div class="stat-num" id="statSelected">0</div><div class="stat-label">SELECCIONADOS</div></div>
+        </div>
+
+        <!-- Quick select bar -->
+        <div class="cat-select-bar" id="catSelectBar" style="display:none;">
+            <button class="btn btn-sm btn-outline-primary" id="btnSelectAllCats">
+                <i class="fas fa-check-double me-1"></i>Todas las categorías
+            </button>
+            <button class="btn btn-sm btn-outline-secondary" id="btnDeselectAllCats">
+                <i class="fas fa-times me-1"></i>Ninguna
+            </button>
+        </div>
+
+        <!-- Categories -->
+        <div id="categoriesContainer"></div>
+    </div>
+
+    <!-- ==================== STEP 2: EDIT ==================== -->
+    <div id="step2" style="display:none;">
+        <!-- Print Settings -->
+        <div class="print-settings mb-3">
+            <div class="row align-items-end g-3">
+                <div class="col-auto">
+                    <label class="form-label">Tamaño cartel</label>
+                    <select id="tplSize" class="form-select form-select-sm">
+                        {% for st, choices in template_choices.items %}
+                        {% for t in choices %}
+                        <option value="{{ t.pk }}" data-type="{{ st }}" data-w="{{ t.width_mm }}" data-h="{{ t.height_mm }}">{{ t.name }} ({{ t.size_label }})</option>
+                        {% endfor %}
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-auto">
+                    <label class="form-label">Papel</label>
+                    <select id="paperSize" class="form-select form-select-sm">
+                        <option value="A4" selected>A4</option>
+                        <option value="A3">A3</option>
+                        <option value="letter">Carta</option>
+                    </select>
+                </div>
+                <div class="col-auto">
+                    <label class="form-label">Margen (mm)</label>
+                    <input type="number" id="marginMM" class="form-control form-control-sm" value="5" min="0" max="30" style="width:70px;">
+                </div>
+                <div class="col-auto">
+                    <label class="form-label">Espaciado (mm)</label>
+                    <input type="number" id="gapMM" class="form-control form-control-sm" value="2" min="0" max="20" style="width:70px;">
+                </div>
+            </div>
+        </div>
+
+        <p class="text-muted mb-2" style="font-size:0.85rem;">
+            <i class="fas fa-info-circle me-1"></i>Hacé click en un producto para editar los datos del cartel. Los cambios se reflejan en la vista previa.
+        </p>
+
+        <div id="editContainer"></div>
+    </div>
+
+    <!-- Empty state -->
+    <div id="emptyState" style="display:none;" class="text-center py-5">
+        <i class="fas fa-box-open fa-4x text-muted mb-3 d-block opacity-25"></i>
+        <h5 class="text-muted">No hay productos activos con precio</h5>
+    </div>
+
+    <!-- Bottom Bar -->
+    <div class="bottom-bar" id="bottomBar" style="display:none;">
+        <div class="sel-info">
+            <span id="barCount">0</span> productos seleccionados
+        </div>
+        <div class="d-flex gap-2">
+            <button class="btn btn-outline-secondary" id="btnBack" style="display:none;">
+                <i class="fas fa-arrow-left me-1"></i>Volver a seleccionar
+            </button>
+            <button class="btn btn-primary" id="btnNext" disabled>
+                <i class="fas fa-arrow-right me-1"></i>Siguiente: Editar datos
+            </button>
+            <button class="btn btn-success" id="btnPrint" style="display:none;">
+                <i class="fas fa-print me-1"></i>Imprimir
+            </button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/signage-renderer.js' %}"></script>
+<script>
+(function() {
+    const TYPE_META = {
+        simple: { label: 'Precio', color: '#2D1E5F' },
+        promo:  { label: 'Promo', color: '#E91E8C' },
+        bulk:   { label: 'Bulto', color: '#C8A600' },
+        weight: { label: 'Peso', color: '#28a745' },
+    };
+
+    const TPL_IDS = {};
+    {% for st, choices in template_choices.items %}
+    TPL_IDS['{{ st }}'] = [
+        {% for t in choices %}
+        { id: {{ t.pk }}, name: '{{ t.name|escapejs }}', w: {{ t.width_mm }}, h: {{ t.height_mm }} },
+        {% endfor %}
+    ];
+    {% endfor %}
+
+    let allCategories = [];
+    let allLayouts = {};
+    let selectedItems = []; // {catIdx, idx, product_name, sign_type, data, copies}
+    const renderer = new SignRenderer();
+
+    // ==================== LOAD ====================
+    async function loadAll() {
+        const params = new URLSearchParams();
+        for (const [st, choices] of Object.entries(TPL_IDS)) {
+            if (choices.length) params.set('tpl_' + st, choices[0].id);
+        }
+
+        const resp = await fetch('{% url "signage:api_generate_all_data" %}?' + params.toString());
+        const json = await resp.json();
+        document.getElementById('loadingOverlay').style.display = 'none';
+
+        if (!json.success || !json.total_products) {
+            document.getElementById('emptyState').style.display = 'block';
+            return;
+        }
+
+        allCategories = json.categories;
+        allLayouts = json.layouts || {};
+
+        document.getElementById('summaryBox').style.display = 'flex';
+        document.getElementById('catSelectBar').style.display = 'flex';
+        document.getElementById('bottomBar').style.display = 'flex';
+        document.getElementById('statTotal').textContent = json.total_products;
+        document.getElementById('statCats').textContent = allCategories.length;
+
+        renderCategories();
+        updateGlobalCount();
+    }
+
+    // ==================== STEP 1: CATEGORIES ====================
+    function renderCategories() {
+        const container = document.getElementById('categoriesContainer');
+        container.innerHTML = '';
+
+        allCategories.forEach((cat, catIdx) => {
+            const items = cat.items;
+            if (!items.length) return;
+
+            const card = document.createElement('div');
+            card.className = 'cat-card';
+            card.dataset.catIdx = catIdx;
+            card.style.setProperty('--cat-color', cat.color || '#999');
+
+            const typeBreakdown = {};
+            items.forEach(it => {
+                typeBreakdown[it.sign_type] = (typeBreakdown[it.sign_type] || 0) + 1;
+            });
+            const typeBadges = Object.entries(typeBreakdown).map(([t, n]) => {
+                const m = TYPE_META[t] || { label: t, color: '#999' };
+                return `<span class="type-badge" style="background:${m.color}">${n} ${m.label}</span>`;
+            }).join(' ');
+
+            card.innerHTML = `
+                <div class="cat-header">
+                    <div class="d-flex align-items-center gap-2" style="min-width:0;">
+                        <input type="checkbox" class="cat-check form-check-input" data-cat-idx="${catIdx}" style="flex-shrink:0;">
+                        <span class="cat-color-dot" style="background:${cat.color || '#999'}"></span>
+                        <strong style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${cat.name}</strong>
+                        <span class="badge-count" style="background:${cat.color || '#999'}">${items.length}</span>
+                    </div>
+                    <div class="d-flex align-items-center gap-2">
+                        ${typeBadges}
+                        <i class="fas fa-chevron-down text-muted" style="font-size:0.8rem;"></i>
+                    </div>
+                </div>
+                <div class="cat-body">
+                    <div class="table-responsive" style="max-height:350px; overflow-y:auto;">
+                        <table class="table table-sm table-hover product-table mb-0">
+                            <thead>
+                                <tr>
+                                    <th class="cb-col"><input type="checkbox" class="check-all-cat" data-cat-idx="${catIdx}" checked></th>
+                                    <th>Producto</th>
+                                    <th>Tipo</th>
+                                    <th>Precio</th>
+                                    <th class="copies-col">Copias</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${items.map((item, idx) => {
+                                    const d = item.data;
+                                    const price = d.precio_unitario || d.precio_total || d.precio_1kg || d.precio_promo || '';
+                                    const promoLabel = d.etiqueta_promo
+                                        ? ` <span class="badge bg-danger" style="font-size:0.65rem;">${d.cantidad_promo}x</span>`
+                                        : '';
+                                    const tm = TYPE_META[item.sign_type] || { label: item.sign_type, color: '#999' };
+                                    return `<tr>
+                                        <td class="cb-col"><input type="checkbox" class="item-check" data-cat-idx="${catIdx}" data-idx="${idx}" checked></td>
+                                        <td>${item.product_name}${promoLabel}</td>
+                                        <td><span class="type-badge" style="background:${tm.color}">${tm.label}</span></td>
+                                        <td><strong>${price}</strong></td>
+                                        <td class="copies-col"><input type="number" class="item-copies" data-cat-idx="${catIdx}" data-idx="${idx}" value="1" min="1" max="99"></td>
+                                    </tr>`;
+                                }).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            `;
+            container.appendChild(card);
+        });
+
+        // --- Category Events ---
+
+        container.querySelectorAll('.cat-check').forEach(cb => {
+            cb.addEventListener('change', e => {
+                const idx = e.target.dataset.catIdx;
+                const card = container.querySelector(`.cat-card[data-cat-idx="${idx}"]`);
+                const checked = e.target.checked;
+                card.classList.toggle('cat-selected', checked);
+                card.querySelectorAll('.item-check').forEach(c => c.checked = checked);
+                const chAll = card.querySelector('.check-all-cat');
+                if (chAll) chAll.checked = checked;
+                updateGlobalCount();
+            });
+        });
+
+        container.querySelectorAll('.cat-header').forEach(h => {
+            h.addEventListener('click', e => {
+                if (e.target.closest('input')) return;
+                const card = h.closest('.cat-card');
+                const cb = card.querySelector('.cat-check');
+                if (!card.classList.contains('cat-selected')) {
+                    cb.checked = true;
+                    card.classList.add('cat-selected');
+                    card.querySelectorAll('.item-check').forEach(c => c.checked = true);
+                    const chAll = card.querySelector('.check-all-cat');
+                    if (chAll) chAll.checked = true;
+                } else {
+                    const body = card.querySelector('.cat-body');
+                    body.style.display = body.style.display === 'none' ? 'block' : (body.style.display === 'block' ? 'none' : 'block');
+                }
+                updateGlobalCount();
+            });
+        });
+
+        container.querySelectorAll('.check-all-cat').forEach(cb => {
+            cb.addEventListener('change', e => {
+                const idx = e.target.dataset.catIdx;
+                const card = container.querySelector(`.cat-card[data-cat-idx="${idx}"]`);
+                card.querySelectorAll('.item-check').forEach(c => c.checked = e.target.checked);
+                updateGlobalCount();
+            });
+        });
+
+        container.querySelectorAll('.item-check').forEach(cb => {
+            cb.addEventListener('change', e => {
+                const idx = e.target.dataset.catIdx;
+                const card = container.querySelector(`.cat-card[data-cat-idx="${idx}"]`);
+                const allChecks = card.querySelectorAll('.item-check');
+                const anyChecked = Array.from(allChecks).some(c => c.checked);
+                const allChecked = Array.from(allChecks).every(c => c.checked);
+                const chAll = card.querySelector('.check-all-cat');
+                if (chAll) chAll.checked = allChecked;
+                const catCb = card.querySelector('.cat-check');
+                catCb.checked = anyChecked;
+                card.classList.toggle('cat-selected', anyChecked);
+                updateGlobalCount();
+            });
+        });
+
+        document.getElementById('btnSelectAllCats').addEventListener('click', () => {
+            container.querySelectorAll('.cat-card').forEach(card => {
+                card.classList.add('cat-selected');
+                card.querySelector('.cat-check').checked = true;
+                card.querySelectorAll('.item-check').forEach(c => c.checked = true);
+                const chAll = card.querySelector('.check-all-cat');
+                if (chAll) chAll.checked = true;
+            });
+            updateGlobalCount();
+        });
+        document.getElementById('btnDeselectAllCats').addEventListener('click', () => {
+            container.querySelectorAll('.cat-card').forEach(card => {
+                card.classList.remove('cat-selected');
+                card.querySelector('.cat-check').checked = false;
+                card.querySelectorAll('.item-check').forEach(c => c.checked = false);
+                const chAll = card.querySelector('.check-all-cat');
+                if (chAll) chAll.checked = false;
+            });
+            updateGlobalCount();
+        });
+
+        // Navigation buttons
+        document.getElementById('btnNext').addEventListener('click', goToStep2);
+        document.getElementById('btnBack').addEventListener('click', goToStep1);
+        document.getElementById('btnPrint').addEventListener('click', printSelected);
+    }
+
+    function updateGlobalCount() {
+        const total = document.querySelectorAll('.item-check:checked').length;
+        document.getElementById('statSelected').textContent = total;
+        document.getElementById('barCount').textContent = total;
+        document.getElementById('btnNext').disabled = total === 0;
+    }
+
+    // ==================== STEP NAVIGATION ====================
+    function setStep(n) {
+        document.getElementById('stepLabel1').classList.toggle('active', n === 1);
+        document.getElementById('stepLabel2').classList.toggle('active', n === 2);
+        document.getElementById('stepLabel3').classList.toggle('active', n === 3);
+    }
+
+    function goToStep1() {
+        document.getElementById('step1').style.display = '';
+        document.getElementById('step2').style.display = 'none';
+        document.getElementById('btnNext').style.display = '';
+        document.getElementById('btnBack').style.display = 'none';
+        document.getElementById('btnPrint').style.display = 'none';
+        document.getElementById('summaryBox').style.display = 'flex';
+        document.getElementById('catSelectBar').style.display = 'flex';
+        setStep(1);
+        updateGlobalCount();
+    }
+
+    function goToStep2() {
+        // Collect selected items from step 1
+        selectedItems = [];
+        document.querySelectorAll('.item-check:checked').forEach(cb => {
+            const catIdx = parseInt(cb.dataset.catIdx);
+            const idx = parseInt(cb.dataset.idx);
+            const item = allCategories[catIdx].items[idx];
+            const copiesInput = document.querySelector(`.item-copies[data-cat-idx="${catIdx}"][data-idx="${idx}"]`);
+            const copies = copiesInput ? Math.max(1, parseInt(copiesInput.value) || 1) : 1;
+            selectedItems.push({
+                catIdx,
+                idx,
+                product_name: item.product_name,
+                sign_type: item.sign_type,
+                data: { ...item.data },  // clone so edits don't affect originals
+                copies,
+            });
+        });
+
+        if (!selectedItems.length) return;
+
+        document.getElementById('step1').style.display = 'none';
+        document.getElementById('step2').style.display = '';
+        document.getElementById('btnNext').style.display = 'none';
+        document.getElementById('btnBack').style.display = '';
+        document.getElementById('btnPrint').style.display = '';
+        document.getElementById('summaryBox').style.display = 'none';
+        document.getElementById('catSelectBar').style.display = 'none';
+        document.getElementById('barCount').textContent = selectedItems.length;
+        setStep(2);
+
+        renderEditList();
+        window.scrollTo(0, 0);
+    }
+
+    // ==================== STEP 2: EDIT ====================
+    function renderEditList() {
+        const container = document.getElementById('editContainer');
+        container.innerHTML = '';
+
+        selectedItems.forEach((item, i) => {
+            const tm = TYPE_META[item.sign_type] || { label: item.sign_type, color: '#999' };
+            const price = item.data.precio_unitario || item.data.precio_total || item.data.precio_1kg || item.data.precio_promo || '';
+
+            const card = document.createElement('div');
+            card.className = 'edit-item-card';
+            card.dataset.editIdx = i;
+
+            const fieldsHTML = Object.entries(item.data).map(([key, val]) => `
+                <div class="edit-field-row">
+                    <label>${key.replace(/_/g, ' ')}</label>
+                    <input type="text" class="form-control form-control-sm edit-field"
+                        data-edit-idx="${i}" data-key="${key}" value="${escapeHtml(String(val))}">
+                </div>
+            `).join('');
+
+            card.innerHTML = `
+                <div class="edit-item-header" data-edit-idx="${i}">
+                    <div class="d-flex align-items-center gap-2" style="min-width:0;">
+                        <span class="type-badge" style="background:${tm.color}">${tm.label}</span>
+                        <strong style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${escapeHtml(item.product_name)}</strong>
+                        <span class="text-muted" style="font-size:0.8rem;">${price}</span>
+                    </div>
+                    <div class="d-flex align-items-center gap-2">
+                        <span class="text-muted" style="font-size:0.8rem;">x${item.copies}</span>
+                        <div class="sign-mini-preview" id="miniPreview-${i}" style="width:60px; height:60px;"></div>
+                        <i class="fas fa-pen text-muted" style="font-size:0.8rem;"></i>
+                    </div>
+                </div>
+                <div class="edit-item-body" id="editBody-${i}">
+                    <div class="row">
+                        <div class="col-md-6">
+                            ${fieldsHTML}
+                            <div class="edit-field-row mt-2">
+                                <label>Copias</label>
+                                <input type="number" class="form-control form-control-sm edit-copies"
+                                    data-edit-idx="${i}" value="${item.copies}" min="1" max="99" style="width:70px;">
+                            </div>
+                        </div>
+                        <div class="col-md-6 d-flex align-items-center justify-content-center">
+                            <div class="sign-mini-preview" id="editPreview-${i}" style="max-width:200px;"></div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            container.appendChild(card);
+
+            // Render mini preview
+            renderMiniPreview(i);
+        });
+
+        // --- Edit Events ---
+        container.querySelectorAll('.edit-item-header').forEach(h => {
+            h.addEventListener('click', () => {
+                const idx = h.dataset.editIdx;
+                const body = document.getElementById(`editBody-${idx}`);
+                const wasOpen = body.classList.contains('show');
+                // Close all
+                container.querySelectorAll('.edit-item-body').forEach(b => b.classList.remove('show'));
+                if (!wasOpen) {
+                    body.classList.add('show');
+                    renderEditPreview(parseInt(idx));
+                }
+            });
+        });
+
+        container.querySelectorAll('.edit-field').forEach(inp => {
+            inp.addEventListener('input', e => {
+                const i = parseInt(e.target.dataset.editIdx);
+                const key = e.target.dataset.key;
+                selectedItems[i].data[key] = e.target.value;
+                renderMiniPreview(i);
+                renderEditPreview(i);
+            });
+        });
+
+        container.querySelectorAll('.edit-copies').forEach(inp => {
+            inp.addEventListener('change', e => {
+                const i = parseInt(e.target.dataset.editIdx);
+                selectedItems[i].copies = Math.max(1, parseInt(e.target.value) || 1);
+            });
+        });
+    }
+
+    const PX_PER_MM = 3.78;
+
+    function renderMiniPreview(i) {
+        const item = selectedItems[i];
+        const layoutInfo = allLayouts[item.sign_type];
+        if (!layoutInfo) return;
+        const el = document.getElementById(`miniPreview-${i}`);
+        if (!el) return;
+        el.innerHTML = '';
+        const maxDim = Math.max(layoutInfo.width_mm, layoutInfo.height_mm);
+        const scale = 56 / (maxDim * PX_PER_MM);
+        try {
+            renderer.render(el, layoutInfo.layout, item.data, layoutInfo.width_mm, layoutInfo.height_mm, scale);
+        } catch(e) { /* ignore render errors */ }
+    }
+
+    function renderEditPreview(i) {
+        const item = selectedItems[i];
+        const layoutInfo = allLayouts[item.sign_type];
+        if (!layoutInfo) return;
+        const el = document.getElementById(`editPreview-${i}`);
+        if (!el) return;
+        el.innerHTML = '';
+        const maxDim = Math.max(layoutInfo.width_mm, layoutInfo.height_mm);
+        const scale = 180 / (maxDim * PX_PER_MM);
+        try {
+            renderer.render(el, layoutInfo.layout, item.data, layoutInfo.width_mm, layoutInfo.height_mm, scale);
+        } catch(e) { /* ignore render errors */ }
+    }
+
+    function escapeHtml(str) {
+        const d = document.createElement('div');
+        d.textContent = str;
+        return d.innerHTML;
+    }
+
+    // ==================== PRINT ====================
+    function printSelected() {
+        const byType = {};
+        selectedItems.forEach(item => {
+            if (!byType[item.sign_type]) byType[item.sign_type] = [];
+            byType[item.sign_type].push({ data: item.data, copies: item.copies });
+        });
+
+        const types = Object.keys(byType);
+        if (!types.length) {
+            alert('No hay productos para imprimir.');
+            return;
+        }
+
+        const paperSize = document.getElementById('paperSize').value;
+        const margin = parseInt(document.getElementById('marginMM').value) || 5;
+        const gap = parseInt(document.getElementById('gapMM').value) || 2;
+
+        setStep(3);
+
+        let idx = 0;
+        function printNext() {
+            if (idx >= types.length) return;
+            const st = types[idx];
+            const layoutInfo = allLayouts[st];
+            if (!layoutInfo) { idx++; printNext(); return; }
+
+            const tplSelect = document.getElementById('tplSize');
+            let widthMM = layoutInfo.width_mm;
+            let heightMM = layoutInfo.height_mm;
+            let layout = layoutInfo.layout;
+
+            if (tplSelect) {
+                const opt = tplSelect.selectedOptions[0];
+                if (opt && opt.dataset.type === st) {
+                    widthMM = parseInt(opt.dataset.w) || widthMM;
+                    heightMM = parseInt(opt.dataset.h) || heightMM;
+                }
+            }
+
+            const printData = { layout, items: byType[st], widthMM, heightMM, paperSize, margin, gap };
+            localStorage.setItem('signagePrintData', JSON.stringify(printData));
+            window.open('{% url "signage:print_view" %}', '_blank');
+
+            idx++;
+            if (idx < types.length) setTimeout(printNext, 500);
+        }
+        printNext();
+    }
+
+    loadAll();
+})();
+</script>
+{% endblock %}

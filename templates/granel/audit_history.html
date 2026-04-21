@@ -1,0 +1,82 @@
+{% extends 'base.html' %}
+{% load currency_filters %}
+
+{% block title %}Historial de Mermas{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-3">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="h3 mb-0">
+            <i class="fas fa-clipboard-list me-2" style="color:var(--che-primary,#E91E8C);"></i>Historial de Mermas
+        </h1>
+        <div>
+            <a href="{% url 'granel:audit' %}" class="btn btn-sm btn-warning">
+                <i class="fas fa-plus me-1"></i>Nueva Auditoria
+            </a>
+            <a href="{% url 'granel:dashboard' %}" class="btn btn-sm btn-outline-secondary ms-1">
+                <i class="fas fa-arrow-left me-1"></i>Volver
+            </a>
+        </div>
+    </div>
+
+    <!-- Filtro -->
+    <div class="card shadow-sm mb-3">
+        <div class="card-body py-2">
+            <form method="get" class="row g-2 align-items-end">
+                <div class="col-md-4">
+                    <select name="granel" class="form-select form-select-sm">
+                        <option value="">Todos los productos</option>
+                        {% for g in granel_products %}
+                        <option value="{{ g.pk|unlocalize }}" {% if current_granel == g.pk|stringformat:'d' %}selected{% endif %}>{{ g.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <button type="submit" class="btn btn-sm w-100" style="background:var(--che-primary,#E91E8C);color:#fff;">Filtrar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="card shadow-sm">
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover table-sm mb-0 align-middle">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Fecha</th>
+                            <th>Producto</th>
+                            <th class="text-end">Teorico</th>
+                            <th class="text-end">Real</th>
+                            <th class="text-end">Diferencia</th>
+                            <th class="text-end">Merma %</th>
+                            <th>Motivo</th>
+                            <th>Ajustado</th>
+                            <th>Usuario</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for a in audits %}
+                        <tr>
+                            <td>{{ a.audited_at|date:"d/m/Y H:i" }}</td>
+                            <td>{{ a.granel_product.name }}</td>
+                            <td class="text-end">{{ a.theoretical_grams|floatformat:0 }}g</td>
+                            <td class="text-end">{{ a.actual_grams|floatformat:0 }}g</td>
+                            <td class="text-end {% if a.shrinkage_grams > 0 %}text-danger{% elif a.shrinkage_grams < 0 %}text-success{% endif %}">
+                                {{ a.shrinkage_grams|floatformat:0 }}g
+                            </td>
+                            <td class="text-end">{{ a.shrinkage_percent }}%</td>
+                            <td>{{ a.get_reason_display }}</td>
+                            <td>{% if a.stock_adjusted %}<i class="fas fa-check text-success"></i>{% else %}<i class="fas fa-times text-muted"></i>{% endif %}</td>
+                            <td>{{ a.audited_by.get_short_name|default:"-" }}</td>
+                        </tr>
+                        {% empty %}
+                        <tr><td colspan="9" class="text-center text-muted py-3">Sin auditorias</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

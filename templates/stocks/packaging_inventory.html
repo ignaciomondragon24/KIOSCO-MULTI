@@ -1,0 +1,131 @@
+{% extends 'base.html' %}
+{% load currency_filters %}
+
+{% block title %}Inventario de Empaques{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-3">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="h3 mb-0"><i class="fas fa-boxes-stacked me-2" style="color:var(--che-primary,#E91E8C);"></i>Inventario de Empaques</h1>
+    </div>
+
+    <!-- Filtros -->
+    <div class="card shadow-sm mb-4">
+        <div class="card-body">
+            <form method="get" class="row g-2 align-items-end">
+                <div class="col-md-3">
+                    <label class="form-label small text-muted">Categoría</label>
+                    <select name="category" class="form-select form-select-sm">
+                        <option value="">Todas</option>
+                        {% for cat in categories %}
+                        <option value="{{ cat.pk }}" {% if current_category == cat.pk|stringformat:'d' %}selected{% endif %}>{{ cat.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <div class="form-check">
+                        <input type="checkbox" name="has_packaging" value="1" class="form-check-input" id="fHasPkg" {% if current_has_packaging %}checked{% endif %}>
+                        <label class="form-check-label small" for="fHasPkg">Con empaques</label>
+                    </div>
+                </div>
+                <div class="col-md-2">
+                    <div class="form-check">
+                        <input type="checkbox" name="low_stock" value="1" class="form-check-input" id="fLow" {% if current_low_stock %}checked{% endif %}>
+                        <label class="form-check-label small" for="fLow">Stock bajo</label>
+                    </div>
+                </div>
+                <div class="col-md-2">
+                    <button type="submit" class="btn btn-sm w-100" style="background:var(--che-primary,#E91E8C);color:#fff;"><i class="fas fa-filter me-1"></i>Filtrar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Tabla -->
+    <div class="card shadow-sm">
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover table-sm mb-0 align-middle">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Producto</th>
+                            <th>Categoría</th>
+                            <th class="text-center">Unidades</th>
+                            <th class="text-center">Displays</th>
+                            <th class="text-center">Bultos</th>
+                            <th class="text-end">Total Equiv.</th>
+                            <th class="text-center">Alerta</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row in page_obj %}
+                        <tr>
+                            <td>
+                                <a href="{% url 'stocks:product_packaging' row.product.pk %}" class="text-decoration-none fw-semibold link-che-accent">
+                                    {{ row.product.name }}
+                                </a>
+                            </td>
+                            <td>
+                                {% if row.product.category %}
+                                <span class="badge" style="background:{{ row.product.category.color }};color:#fff;">{{ row.product.category.name }}</span>
+                                {% else %}<span class="text-muted">-</span>{% endif %}
+                            </td>
+                            <td class="text-center">
+                                {% if row.unit_stock != None %}
+                                <span class="{% if row.unit_alert %}text-danger fw-bold{% endif %}">{{ row.unit_stock|floatformat:0 }}</span>
+                                {% else %}<span class="text-muted">-</span>{% endif %}
+                            </td>
+                            <td class="text-center">
+                                {% if row.display_stock != None %}
+                                <span class="{% if row.display_alert %}text-danger fw-bold{% endif %}">{{ row.display_stock|floatformat:2 }}</span>
+                                {% else %}<span class="text-muted">-</span>{% endif %}
+                            </td>
+                            <td class="text-center">
+                                {% if row.bulk_stock != None %}
+                                <span class="{% if row.bulk_alert %}text-danger fw-bold{% endif %}">{{ row.bulk_stock|floatformat:2 }}</span>
+                                {% else %}<span class="text-muted">-</span>{% endif %}
+                            </td>
+                            <td class="text-end fw-semibold">{{ row.total_equiv|floatformat:0 }}</td>
+                            <td class="text-center">
+                                {% if row.has_alert %}
+                                <span class="badge bg-danger"><i class="fas fa-exclamation-triangle"></i></span>
+                                {% else %}
+                                <span class="badge bg-success"><i class="fas fa-check"></i></span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <a href="{% url 'stocks:product_packaging' row.product.pk %}" class="btn btn-sm btn-outline-secondary">
+                                    <i class="fas fa-cog"></i>
+                                </a>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr><td colspan="8" class="text-center text-muted py-4">No se encontraron productos con los filtros seleccionados.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Paginación -->
+    {% if page_obj.has_other_pages %}
+    <nav class="mt-3">
+        <ul class="pagination justify-content-center">
+            {% if page_obj.has_previous %}
+            <li class="page-item"><a class="page-link" href="?page={{ page_obj.previous_page_number }}&category={{ current_category|default:'' }}&has_packaging={{ current_has_packaging|default:'' }}&low_stock={{ current_low_stock|default:'' }}">«</a></li>
+            {% endif %}
+            {% for num in page_obj.paginator.page_range %}
+            <li class="page-item {% if page_obj.number == num %}active{% endif %}">
+                <a class="page-link" href="?page={{ num }}&category={{ current_category|default:'' }}&has_packaging={{ current_has_packaging|default:'' }}&low_stock={{ current_low_stock|default:'' }}">{{ num }}</a>
+            </li>
+            {% endfor %}
+            {% if page_obj.has_next %}
+            <li class="page-item"><a class="page-link" href="?page={{ page_obj.next_page_number }}&category={{ current_category|default:'' }}&has_packaging={{ current_has_packaging|default:'' }}&low_stock={{ current_low_stock|default:'' }}">»</a></li>
+            {% endif %}
+        </ul>
+    </nav>
+    {% endif %}
+</div>
+{% endblock %}

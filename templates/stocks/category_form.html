@@ -1,0 +1,164 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row justify-content-center">
+        <div class="col-lg-6">
+            <!-- Header -->
+            <div class="mb-4">
+                <h1 class="h3 mb-0">
+                    <i class="fas fa-tag me-2"></i>{{ title }}
+                </h1>
+                <nav aria-label="breadcrumb">
+                    <ol class="breadcrumb mb-0">
+                        <li class="breadcrumb-item"><a href="{% url 'stocks:category_list' %}">Categorías</a></li>
+                        <li class="breadcrumb-item active">{{ title }}</li>
+                    </ol>
+                </nav>
+            </div>
+
+            <!-- Form Card -->
+            <div class="card">
+                <div class="card-body">
+                    <form method="post">
+                        {% csrf_token %}
+                        
+                        <div class="mb-3">
+                            <label for="id_name" class="form-label">Nombre <span class="text-danger">*</span></label>
+                            <input type="text" 
+                                   class="form-control {% if form.name.errors %}is-invalid{% endif %}" 
+                                   id="id_name" 
+                                   name="name" 
+                                   value="{{ form.name.value|default:'' }}"
+                                   placeholder="Ej: Bebidas, Lácteos, Limpieza..."
+                                   required
+                                   autofocus>
+                            {% if form.name.errors %}
+                            <div class="invalid-feedback">{{ form.name.errors.0 }}</div>
+                            {% endif %}
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="id_description" class="form-label">Descripción</label>
+                            <textarea class="form-control" 
+                                      id="id_description" 
+                                      name="description" 
+                                      rows="3"
+                                      placeholder="Descripción de la categoría...">{{ form.description.value|default:'' }}</textarea>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="id_parent" class="form-label">Categoría Padre</label>
+                                <select class="form-select" id="id_parent" name="parent">
+                                    <option value="">Sin categoría padre</option>
+                                    {% for cat in form.parent.field.queryset %}
+                                        {% if cat.pk != category.pk %}
+                                        <option value="{{ cat.pk }}" {% if form.parent.value == cat.pk|stringformat:"s" %}selected{% endif %}>
+                                            {{ cat.name }}
+                                        </option>
+                                        {% endif %}
+                                    {% endfor %}
+                                </select>
+                                <small class="text-muted">Para crear una subcategoría</small>
+                            </div>
+                            
+                            <div class="col-md-6 mb-3">
+                                <label for="id_default_margin_percent" class="form-label">Margen por Defecto (%)</label>
+                                <div class="input-group">
+                                    <input type="number" 
+                                           class="form-control" 
+                                           id="id_default_margin_percent" 
+                                           name="default_margin_percent" 
+                                           value="{{ form.default_margin_percent.value|default:30 }}"
+                                           step="0.01"
+                                           min="0">
+                                    <span class="input-group-text">%</span>
+                                </div>
+                                <small class="text-muted">Margen predeterminado para productos nuevos</small>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="id_color" class="form-label">Color</label>
+                                <div class="input-group">
+                                    <input type="color" 
+                                           class="form-control form-control-color" 
+                                           id="id_color" 
+                                           name="color" 
+                                           value="{{ form.color.value|default:'#3498db' }}">
+                                    <input type="text" 
+                                           class="form-control" 
+                                           id="color_hex" 
+                                           value="{{ form.color.value|default:'#3498db' }}" 
+                                           readonly>
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label d-block">Estado</label>
+                                <div class="form-check form-switch mt-2">
+                                    <input class="form-check-input" 
+                                           type="checkbox" 
+                                           id="id_is_active" 
+                                           name="is_active"
+                                           {% if form.is_active.value != False %}checked{% endif %}>
+                                    <label class="form-check-label" for="id_is_active">Categoría Activa</label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Preview -->
+                        <div class="mb-4">
+                            <label class="form-label">Vista Previa</label>
+                            <div class="p-3 rounded border" id="preview-container">
+                                <span class="badge" id="preview-badge" style="background-color: #3498db;">
+                                    <i class="fas fa-tag me-1"></i>
+                                    <span id="preview-name">Nombre de categoría</span>
+                                </span>
+                            </div>
+                        </div>
+
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save me-2"></i>Guardar Categoría
+                            </button>
+                            <a href="{% url 'stocks:category_list' %}" class="btn btn-outline-secondary">
+                                <i class="fas fa-times me-2"></i>Cancelar
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const nameInput = document.getElementById('id_name');
+    const colorInput = document.getElementById('id_color');
+    const colorHex = document.getElementById('color_hex');
+    const previewBadge = document.getElementById('preview-badge');
+    const previewName = document.getElementById('preview-name');
+
+    nameInput.addEventListener('input', function() {
+        previewName.textContent = this.value || 'Nombre de categoría';
+    });
+
+    colorInput.addEventListener('input', function() {
+        colorHex.value = this.value;
+        previewBadge.style.backgroundColor = this.value;
+    });
+
+    // Initialize preview
+    if (nameInput.value) {
+        previewName.textContent = nameInput.value;
+    }
+    previewBadge.style.backgroundColor = colorInput.value;
+});
+</script>
+{% endblock %}

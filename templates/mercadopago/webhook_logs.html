@@ -1,0 +1,163 @@
+{% extends 'base.html' %}
+
+{% block title %}Logs de Webhooks{% endblock %}
+
+{% block extra_css %}
+<style>
+    .log-card {
+        border-radius: 12px;
+        border: none;
+        box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    .event-badge {
+        padding: 0.3rem 0.6rem;
+        border-radius: 8px;
+        font-size: 0.75rem;
+        font-weight: 500;
+        font-family: monospace;
+    }
+    .event-badge.payment { background: #dbeafe; color: #1e40af; }
+    .event-badge.point { background: #fef3c7; color: #92400e; }
+    .event-badge.default { background: #e5e7eb; color: #374151; }
+    .processed-badge {
+        padding: 0.25rem 0.5rem;
+        border-radius: 10px;
+        font-size: 0.7rem;
+    }
+    .processed-badge.yes { background: #d1fae5; color: #065f46; }
+    .processed-badge.no { background: #fee2e2; color: #991b1b; }
+    .json-preview {
+        background: #1f2937;
+        color: #e5e7eb;
+        padding: 0.5rem;
+        border-radius: 5px;
+        font-family: monospace;
+        font-size: 0.75rem;
+        max-height: 100px;
+        overflow: auto;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <a href="{% url 'mercadopago:dashboard' %}" class="btn btn-outline-secondary btn-sm mb-2">
+                <i class="fas fa-arrow-left"></i> Dashboard
+            </a>
+            <h2><i class="fas fa-history text-secondary"></i> Logs de Webhooks</h2>
+            <p class="text-muted mb-0">Historial de notificaciones recibidas de Mercado Pago</p>
+        </div>
+    </div>
+
+    <div class="card log-card">
+        <div class="card-body">
+            {% if logs %}
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Fecha</th>
+                            <th>Tipo de Evento</th>
+                            <th>Event ID</th>
+                            <th>Procesado</th>
+                            <th>Resultado</th>
+                            <th>IP</th>
+                            <th>Payload</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for log in logs %}
+                        <tr>
+                            <td>
+                                <small>{{ log.received_at|date:"d/m/Y" }}</small><br>
+                                <small class="text-muted">{{ log.received_at|date:"H:i:s" }}</small>
+                            </td>
+                            <td>
+                                <span class="event-badge {% if 'payment' in log.event_type %}payment{% elif 'point' in log.event_type %}point{% else %}default{% endif %}">
+                                    {{ log.event_type }}
+                                </span>
+                            </td>
+                            <td><code>{{ log.event_id|truncatechars:20 }}</code></td>
+                            <td>
+                                <span class="processed-badge {% if log.processed %}yes{% else %}no{% endif %}">
+                                    {% if log.processed %}Sí{% else %}No{% endif %}
+                                </span>
+                            </td>
+                            <td>
+                                <small>{{ log.processing_result|truncatechars:50 }}</small>
+                            </td>
+                            <td><small class="text-muted">{{ log.ip_address }}</small></td>
+                            <td>
+                                <button class="btn btn-sm btn-outline-secondary" type="button" 
+                                        data-bs-toggle="modal" data-bs-target="#modal{{ log.id }}">
+                                    <i class="fas fa-code"></i>
+                                </button>
+                                
+                                <!-- Modal -->
+                                <div class="modal fade" id="modal{{ log.id }}" tabindex="-1">
+                                    <div class="modal-dialog modal-lg">
+                                        <div class="modal-content">
+                                            <div class="modal-header">
+                                                <h5 class="modal-title">
+                                                    Webhook: {{ log.event_type }}
+                                                </h5>
+                                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                            </div>
+                                            <div class="modal-body">
+                                                <h6>Payload</h6>
+                                                <div class="json-preview" style="max-height: 300px;">
+                                                    <pre>{{ log.payload|safe }}</pre>
+                                                </div>
+                                                {% if log.headers %}
+                                                <h6 class="mt-3">Headers</h6>
+                                                <div class="json-preview" style="max-height: 200px;">
+                                                    <pre>{{ log.headers|safe }}</pre>
+                                                </div>
+                                                {% endif %}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="text-center py-5">
+                <i class="fas fa-history fa-4x text-muted mb-4"></i>
+                <h4>No hay logs de webhooks</h4>
+                <p class="text-muted">
+                    Los webhooks aparecerán aquí cuando Mercado Pago envíe notificaciones
+                </p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Info -->
+    <div class="card log-card mt-4">
+        <div class="card-body">
+            <h5><i class="fas fa-info-circle text-info"></i> Configuración de Webhooks</h5>
+            <p class="text-muted mb-2">
+                Configura la siguiente URL en tu 
+                <a href="https://www.mercadopago.com.ar/developers/panel/app" target="_blank">
+                    panel de desarrollador de Mercado Pago
+                </a>:
+            </p>
+            <code class="d-block p-3 bg-light rounded">
+                https://tudominio.com{% url 'mercadopago:webhook' %}
+            </code>
+            <p class="text-muted mt-2 mb-0">
+                <small>
+                    <i class="fas fa-exclamation-triangle text-warning"></i>
+                    Recuerda que tu servidor debe ser accesible desde Internet y usar HTTPS
+                </small>
+            </p>
+        </div>
+    </div>
+</div>
+{% endblock %}

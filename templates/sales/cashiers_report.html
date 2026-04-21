@@ -1,0 +1,129 @@
+{% extends 'base.html' %}
+{% load currency_filters %}
+
+{% block title %}Reporte por Cajeros{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h3 mb-0">
+                <i class="fas fa-users me-2"></i>Reporte por Cajeros
+            </h1>
+            <p class="text-muted mb-0">{{ start_date|date:"d/m/Y" }} - {{ end_date|date:"d/m/Y" }}</p>
+        </div>
+    </div>
+
+    <!-- Period Selector -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <form method="get" class="row g-3">
+                <div class="col-md-4">
+                    <label class="form-label">Desde</label>
+                    <input type="date" name="date_from" class="form-control" value="{{ start_date|date:'Y-m-d' }}">
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Hasta</label>
+                    <input type="date" name="date_to" class="form-control" value="{{ end_date|date:'Y-m-d' }}">
+                </div>
+                <div class="col-md-4 d-flex align-items-end">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-search me-1"></i> Generar Reporte
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Cashiers Cards -->
+    {% if cashiers %}
+    <div class="row">
+        {% for cashier in cashiers %}
+        <div class="col-md-6 col-lg-4 mb-4">
+            <div class="card h-100">
+                <div class="card-header d-flex align-items-center">
+                    <div class="rounded-circle bg-primary d-flex align-items-center justify-content-center me-3" 
+                         style="width: 50px; height: 50px;">
+                        <i class="fas fa-user text-white fa-lg"></i>
+                    </div>
+                    <div>
+                        <h5 class="card-title mb-0">
+                            {% if cashier.session__cash_shift__cashier__first_name %}
+                                {{ cashier.session__cash_shift__cashier__first_name }} {{ cashier.session__cash_shift__cashier__last_name }}
+                            {% else %}
+                                {{ cashier.session__cash_shift__cashier__username|default:"-" }}
+                            {% endif %}
+                        </h5>
+                        <small class="text-muted">@{{ cashier.session__cash_shift__cashier__username|default:"-" }}</small>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="row text-center">
+                        <div class="col-4">
+                            <h4 class="mb-0 text-primary">{{ cashier.count }}</h4>
+                            <small class="text-muted">Ventas</small>
+                        </div>
+                        <div class="col-4">
+                            <h4 class="mb-0 text-success">{{ cashier.total|currency }}</h4>
+                            <small class="text-muted">Total</small>
+                        </div>
+                        <div class="col-4">
+                            <h4 class="mb-0 text-info">{{ cashier.avg|currency }}</h4>
+                            <small class="text-muted">Promedio</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- Summary Table -->
+    <div class="card">
+        <div class="card-header">
+            <h5 class="card-title mb-0">
+                <i class="fas fa-table me-2"></i>Resumen
+            </h5>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-striped mb-0">
+                    <thead>
+                        <tr>
+                            <th>Cajero</th>
+                            <th class="text-end">Transacciones</th>
+                            <th class="text-end">Total</th>
+                            <th class="text-end">Promedio</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for cashier in cashiers %}
+                        <tr>
+                            <td>
+                                {% if cashier.session__cash_shift__cashier__first_name %}
+                                    {{ cashier.session__cash_shift__cashier__first_name }} {{ cashier.session__cash_shift__cashier__last_name }}
+                                {% else %}
+                                    {{ cashier.session__cash_shift__cashier__username|default:"-" }}
+                                {% endif %}
+                            </td>
+                            <td class="text-end">{{ cashier.count }}</td>
+                            <td class="text-end"><strong>{{ cashier.total|currency }}</strong></td>
+                            <td class="text-end">{{ cashier.avg|currency }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    {% else %}
+    <div class="card">
+        <div class="card-body text-center py-5">
+            <i class="fas fa-inbox fa-4x text-muted mb-3"></i>
+            <h4 class="text-muted">No hay datos para este período</h4>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

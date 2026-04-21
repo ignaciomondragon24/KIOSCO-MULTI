@@ -1,0 +1,348 @@
+{% extends 'base.html' %}
+{% load currency_filters %}
+
+{% block title %}Detalle de Pago - {{ intent.external_reference }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .detail-card {
+        border-radius: 12px;
+        border: none;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+    }
+    .intent-status {
+        padding: 0.5rem 1.2rem;
+        border-radius: 20px;
+        font-size: 0.9rem;
+        font-weight: 600;
+    }
+    .intent-status.approved { background: #d1fae5; color: #065f46; }
+    .intent-status.pending { background: #fef3c7; color: #92400e; }
+    .intent-status.processing { background: #dbeafe; color: #1e40af; }
+    .intent-status.rejected { background: #fee2e2; color: #991b1b; }
+    .intent-status.error { background: #fee2e2; color: #991b1b; }
+    .intent-status.cancelled { background: #e5e7eb; color: #374151; }
+    .amount-display {
+        font-size: 3rem;
+        font-weight: 700;
+        color: #1f2937;
+    }
+    .info-section {
+        background: #f8fafc;
+        border-radius: 10px;
+        padding: 1.5rem;
+        margin-bottom: 1rem;
+    }
+    .info-label {
+        font-size: 0.8rem;
+        color: #6b7280;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }
+    .info-value {
+        font-size: 1rem;
+        font-weight: 500;
+        color: #1f2937;
+    }
+    .card-icon {
+        font-size: 3rem;
+    }
+    .timeline {
+        position: relative;
+        padding-left: 30px;
+    }
+    .timeline::before {
+        content: '';
+        position: absolute;
+        left: 10px;
+        top: 0;
+        bottom: 0;
+        width: 2px;
+        background: #e5e7eb;
+    }
+    .timeline-item {
+        position: relative;
+        padding-bottom: 1rem;
+    }
+    .timeline-item::before {
+        content: '';
+        position: absolute;
+        left: -24px;
+        top: 5px;
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        background: #009ee3;
+    }
+    .timeline-item.success::before { background: #10b981; }
+    .timeline-item.error::before { background: #ef4444; }
+    .json-viewer {
+        background: #1f2937;
+        color: #e5e7eb;
+        padding: 1rem;
+        border-radius: 8px;
+        font-family: monospace;
+        font-size: 0.85rem;
+        max-height: 300px;
+        overflow: auto;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="mb-4">
+        <a href="{% url 'mercadopago:payment_intent_list' %}" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left"></i> Volver a la lista
+        </a>
+    </div>
+
+    <div class="card detail-card">
+        <div class="card-header bg-white py-4">
+            <div class="row align-items-center">
+                <div class="col-md-6">
+                    <p class="mb-1 text-muted">Referencia</p>
+                    <h4 class="mb-0"><code>{{ intent.external_reference }}</code></h4>
+                </div>
+                <div class="col-md-6 text-md-end">
+                    <span class="intent-status {{ intent.status }}">
+                        <i class="fas fa-{% if intent.status == 'approved' %}check-circle{% elif intent.status == 'pending' or intent.status == 'processing' %}clock{% elif intent.status == 'cancelled' %}ban{% else %}times-circle{% endif %}"></i>
+                        {{ intent.get_status_display }}
+                    </span>
+                </div>
+            </div>
+        </div>
+        
+        <div class="card-body">
+            <div class="row">
+                <!-- Left Column -->
+                <div class="col-lg-6">
+                    <!-- Amount -->
+                    <div class="text-center mb-4">
+                        <p class="text-muted mb-0">Monto</p>
+                        <div class="amount-display">{{ intent.amount|currency }}</div>
+                        {% if intent.installments > 1 %}
+                        <small class="text-muted">en {{ intent.installments }} cuotas</small>
+                        {% endif %}
+                    </div>
+
+                    <!-- Card Info -->
+                    {% if intent.card_brand %}
+                    <div class="info-section text-center">
+                        <div class="card-icon mb-2">
+                            {% if intent.card_brand == 'visa' %}
+                                <i class="fab fa-cc-visa text-primary"></i>
+                            {% elif intent.card_brand == 'mastercard' %}
+                                <i class="fab fa-cc-mastercard text-danger"></i>
+                            {% elif intent.card_brand == 'amex' %}
+                                <i class="fab fa-cc-amex text-info"></i>
+                            {% else %}
+                                <i class="fas fa-credit-card text-secondary"></i>
+                            {% endif %}
+                        </div>
+                        <p class="mb-0">
+                            <strong>{{ intent.card_brand|upper }}</strong>
+                            {% if intent.card_last_four %}
+                            <span class="text-muted">**** **** **** {{ intent.card_last_four }}</span>
+                            {% endif %}
+                        </p>
+                        <p class="text-muted mb-0">{{ intent.payment_method|default:"-" }}</p>
+                    </div>
+                    {% endif %}
+
+                    <!-- Actions -->
+                    {% if not intent.is_terminal_state %}
+                    <div class="d-grid gap-2 mb-4">
+                        <button id="btnCheckStatus" class="btn btn-primary">
+                            <i class="fas fa-sync-alt"></i> Actualizar Estado
+                        </button>
+                        <button id="btnCancel" class="btn btn-outline-danger">
+                            <i class="fas fa-times"></i> Cancelar Pago
+                        </button>
+                    </div>
+                    {% endif %}
+                </div>
+
+                <!-- Right Column -->
+                <div class="col-lg-6">
+                    <!-- Details -->
+                    <div class="info-section">
+                        <h6 class="mb-3"><i class="fas fa-info-circle text-info"></i> Detalles</h6>
+                        
+                        <div class="row mb-2">
+                            <div class="col-6">
+                                <span class="info-label">ID Interno</span>
+                                <p class="info-value mb-0"><small>{{ intent.id }}</small></p>
+                            </div>
+                            <div class="col-6">
+                                <span class="info-label">ID Mercado Pago</span>
+                                <p class="info-value mb-0"><small>{{ intent.mp_payment_intent_id|default:"-" }}</small></p>
+                            </div>
+                        </div>
+                        
+                        <div class="row mb-2">
+                            <div class="col-6">
+                                <span class="info-label">ID de Pago MP</span>
+                                <p class="info-value mb-0"><small>{{ intent.mp_payment_id|default:"-" }}</small></p>
+                            </div>
+                            <div class="col-6">
+                                <span class="info-label">Código Autorización</span>
+                                <p class="info-value mb-0">{{ intent.authorization_code|default:"-" }}</p>
+                            </div>
+                        </div>
+
+                        <div class="row mb-2">
+                            <div class="col-6">
+                                <span class="info-label">Dispositivo</span>
+                                <p class="info-value mb-0">{{ intent.device.device_name|default:"-" }}</p>
+                            </div>
+                            <div class="col-6">
+                                <span class="info-label">Cajero</span>
+                                <p class="info-value mb-0">
+                                    {{ intent.created_by.get_full_name|default:intent.created_by.username|default:"-" }}
+                                </p>
+                            </div>
+                        </div>
+
+                        {% if intent.pos_transaction %}
+                        <div class="row">
+                            <div class="col-12">
+                                <span class="info-label">Transacción POS</span>
+                                <p class="info-value mb-0">
+                                    <a href="#">
+                                        <i class="fas fa-receipt"></i> {{ intent.pos_transaction.ticket_number }}
+                                    </a>
+                                </p>
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
+
+                    <!-- Timeline -->
+                    <div class="info-section">
+                        <h6 class="mb-3"><i class="fas fa-history text-secondary"></i> Historial</h6>
+                        <div class="timeline">
+                            <div class="timeline-item">
+                                <small class="text-muted">{{ intent.created_at|date:"d/m/Y H:i:s" }}</small>
+                                <p class="mb-0">Intención creada</p>
+                            </div>
+                            {% if intent.sent_at %}
+                            <div class="timeline-item">
+                                <small class="text-muted">{{ intent.sent_at|date:"d/m/Y H:i:s" }}</small>
+                                <p class="mb-0">Enviado al Point</p>
+                            </div>
+                            {% endif %}
+                            {% if intent.status == 'approved' and intent.completed_at %}
+                            <div class="timeline-item success">
+                                <small class="text-muted">{{ intent.completed_at|date:"d/m/Y H:i:s" }}</small>
+                                <p class="mb-0 text-success"><strong>Pago aprobado</strong></p>
+                            </div>
+                            {% endif %}
+                            {% if intent.status == 'cancelled' and intent.completed_at %}
+                            <div class="timeline-item error">
+                                <small class="text-muted">{{ intent.completed_at|date:"d/m/Y H:i:s" }}</small>
+                                <p class="mb-0 text-danger"><strong>Cancelado</strong></p>
+                            </div>
+                            {% endif %}
+                            {% if intent.error_message %}
+                            <div class="timeline-item error">
+                                <small class="text-muted">{{ intent.updated_at|date:"d/m/Y H:i:s" }}</small>
+                                <p class="mb-0 text-danger">{{ intent.error_message }}</p>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <!-- Raw Response -->
+                    {% if intent.webhook_data %}
+                    <div class="info-section">
+                        <h6 class="mb-3">
+                            <i class="fas fa-code text-secondary"></i> Respuesta MP
+                            <button class="btn btn-sm btn-outline-secondary float-end" type="button" 
+                                    data-bs-toggle="collapse" data-bs-target="#rawResponse">
+                                Ver JSON
+                            </button>
+                        </h6>
+                        <div class="collapse" id="rawResponse">
+                            <div class="json-viewer">
+                                <pre>{{ intent.webhook_data|safe }}</pre>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const intentId = '{{ intent.id }}';
+
+// Check status
+const btnCheck = document.getElementById('btnCheckStatus');
+if (btnCheck) {
+    btnCheck.addEventListener('click', function() {
+        const btn = this;
+        const originalHtml = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Consultando...';
+        
+        fetch(`/mercadopago/intents/${intentId}/check/`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    location.reload();
+                } else {
+                    alert('Error: ' + (data.error || 'Error desconocido'));
+                }
+            })
+            .catch(error => {
+                alert('Error de conexión');
+            })
+            .finally(() => {
+                btn.disabled = false;
+                btn.innerHTML = originalHtml;
+            });
+    });
+}
+
+// Cancel
+const btnCancel = document.getElementById('btnCancel');
+if (btnCancel) {
+    btnCancel.addEventListener('click', function() {
+        if (!confirm('¿Estás seguro de cancelar este pago?')) return;
+        
+        const btn = this;
+        const originalHtml = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Cancelando...';
+        
+        fetch(`/mercadopago/intents/${intentId}/cancel/`, {
+            method: 'POST',
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'X-CSRFToken': '{{ csrf_token }}'
+            }
+        })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    location.reload();
+                } else {
+                    alert('Error: ' + data.message);
+                }
+            })
+            .catch(error => {
+                alert('Error de conexión');
+            })
+            .finally(() => {
+                btn.disabled = false;
+                btn.innerHTML = originalHtml;
+            });
+    });
+}
+</script>
+{% endblock %}

@@ -1,0 +1,364 @@
+{% extends 'base.html' %}
+{% load currency_filters %}
+
+{% block title %}{{ product.name }} - Detalle{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h3 mb-0">
+                <i class="fas fa-box me-2"></i>{{ product.name }}
+            </h1>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-0">
+                    <li class="breadcrumb-item"><a href="{% url 'stocks:product_list' %}">Productos</a></li>
+                    <li class="breadcrumb-item active">{{ product.name }}</li>
+                </ol>
+            </nav>
+        </div>
+        <div>
+            {% if is_admin %}
+            <a href="{% url 'stocks:product_packaging' product.pk %}" class="btn" style="background:var(--che-pink,#E91E8C);color:#fff;">
+                <i class="fas fa-boxes-stacked me-1"></i> Gestionar Empaques
+            </a>
+            {% endif %}
+            {% if is_cajero_manager %}
+            <a href="{% url 'stocks:product_edit' product.pk %}" class="btn btn-warning">
+                <i class="fas fa-edit me-1"></i> Editar
+            </a>
+            {% endif %}
+            {% if is_admin %}
+            <a href="{% url 'stocks:inventory_count' product.pk %}" class="btn btn-info">
+                <i class="fas fa-boxes me-1"></i> Conteo Físico
+            </a>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Product Info -->
+        <div class="col-lg-8">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-info-circle me-2"></i>Información del Producto
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <table class="table table-borderless">
+                                <tr>
+                                    <td class="text-muted">SKU:</td>
+                                    <td><strong>{{ product.sku }}</strong></td>
+                                </tr>
+                                <tr>
+                                    <td class="text-muted">Código de Barras:</td>
+                                    <td>
+                                        {% if product.barcode %}
+                                            <span class="badge bg-secondary">{{ product.barcode }}</span>
+                                        {% else %}
+                                            <span class="text-muted">Sin código</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td class="text-muted">Categoría:</td>
+                                    <td>
+                                        {% if product.category %}
+                                            <span class="badge" style="background-color: {{ product.category.color }}">
+                                                {{ product.category.name }}
+                                            </span>
+                                        {% else %}
+                                            <span class="text-muted">Sin categoría</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td class="text-muted">Unidad:</td>
+                                    <td>{{ product.unit_of_measure|default:"-" }}</td>
+                                </tr>
+                                <tr>
+                                    <td class="text-muted">Estado:</td>
+                                    <td>
+                                        {% if product.is_active %}
+                                            <span class="badge bg-success">Activo</span>
+                                        {% else %}
+                                            <span class="badge bg-danger">Inactivo</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                            </table>
+                        </div>
+                        <div class="col-md-6">
+                            <table class="table table-borderless">
+                                <tr>
+                                    <td class="text-muted">Precio de Compra:</td>
+                                    <td><strong>{{ product.purchase_price|currency }}</strong></td>
+                                </tr>
+                                <tr>
+                                    <td class="text-muted">Costo Promedio:</td>
+                                    <td><strong>{{ product.cost_price|currency }}</strong></td>
+                                </tr>
+                                <tr>
+                                    <td class="text-muted">Precio de Venta:</td>
+                                    <td><strong class="text-success fs-5">{{ product.sale_price|currency }}</strong></td>
+                                </tr>
+                                <tr>
+                                    <td class="text-muted">Margen:</td>
+                                    <td>
+                                        {% if product.cost_price > 0 %}
+                                            <span class="badge bg-info">{{ product.margin_percent|floatformat:1 }}%</span>
+                                        {% else %}
+                                            <span class="text-muted">-</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                            </table>
+                        </div>
+                    </div>
+                    
+                    {% if product.description %}
+                    <hr>
+                    <h6>Descripción</h6>
+                    <p class="text-muted">{{ product.description }}</p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Historial de Precios de Compra -->
+            <div class="card mb-4">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-receipt me-2"></i>Historial de Compras
+                    </h5>
+                    <a href="{% url 'stocks:product_costs' product.pk %}" class="btn btn-sm btn-outline-primary">
+                        <i class="fas fa-list me-1"></i>Ver Historial Completo
+                    </a>
+                </div>
+                <div class="card-body p-0">
+                    {% if recent_batches %}
+                    <div class="table-responsive">
+                        <table class="table table-hover table-sm mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Fecha</th>
+                                    <th>Proveedor</th>
+                                    <th>Orden</th>
+                                    <th class="text-end">Cant.</th>
+                                    <th class="text-end">Disponible</th>
+                                    <th class="text-end">Costo Unit.</th>
+                                    <th class="text-end">Margen</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for batch in recent_batches %}
+                                <tr class="{% if batch.is_depleted %}text-muted{% endif %}">
+                                    <td>{{ batch.purchased_at|date:"d/m/Y" }}</td>
+                                    <td>
+                                        <span class="fw-semibold">{{ batch.supplier_name|default:"-" }}</span>
+                                    </td>
+                                    <td>
+                                        {% if batch.purchase %}
+                                            <a href="{% url 'purchase:purchase_detail' batch.purchase.pk %}" class="small text-decoration-none">
+                                                {{ batch.purchase.order_number }}
+                                            </a>
+                                        {% else %}
+                                            <span class="text-muted small">-</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-end">{{ batch.quantity_purchased|floatformat:0 }}</td>
+                                    <td class="text-end">
+                                        {% if batch.is_depleted %}
+                                            <span class="badge bg-secondary">Agotado</span>
+                                        {% else %}
+                                            <span class="text-success fw-semibold">{{ batch.quantity_remaining|floatformat:0 }}</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-end fw-semibold">${{ batch.purchase_price|floatformat:2 }}</td>
+                                    <td class="text-end">
+                                        {% if batch.margin_if_sold_at_list is not None %}
+                                            {% if batch.margin_if_sold_at_list > 30 %}
+                                                <span class="badge bg-success">+{{ batch.margin_if_sold_at_list }}%</span>
+                                            {% elif batch.margin_if_sold_at_list > 10 %}
+                                                <span class="badge bg-warning text-dark">+{{ batch.margin_if_sold_at_list }}%</span>
+                                            {% elif batch.margin_if_sold_at_list > 0 %}
+                                                <span class="badge bg-danger">+{{ batch.margin_if_sold_at_list }}%</span>
+                                            {% else %}
+                                                <span class="badge bg-dark">{{ batch.margin_if_sold_at_list }}%</span>
+                                            {% endif %}
+                                        {% else %}-{% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="text-center py-4 text-muted">
+                        <i class="fas fa-receipt fa-2x mb-2 d-block opacity-50"></i>
+                        Sin compras registradas para este producto.
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Stock Movements -->
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-history me-2"></i>Ultimos Movimientos de Stock
+                    </h5>
+                    <a href="{% url 'stocks:product_movements' product.pk %}" class="btn btn-sm btn-outline-primary">
+                        <i class="fas fa-list me-1"></i>Ver Todos
+                    </a>
+                </div>
+                <div class="card-body p-0">
+                    {% if movements %}
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead>
+                                <tr>
+                                    <th>Fecha</th>
+                                    <th>Tipo</th>
+                                    <th class="text-end">Cantidad</th>
+                                    <th class="text-end">Stock Final</th>
+                                    <th>Usuario</th>
+                                    <th>Referencia</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for movement in movements %}
+                                <tr>
+                                    <td>{{ movement.created_at|date:"d/m/Y H:i" }}</td>
+                                    <td>
+                                        {% if movement.movement_type == 'IN' %}
+                                            <span class="badge bg-success">Entrada</span>
+                                        {% elif movement.movement_type == 'OUT' %}
+                                            <span class="badge bg-danger">Salida</span>
+                                        {% else %}
+                                            <span class="badge bg-info">Ajuste</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-end">
+                                        {% if movement.movement_type == 'IN' or movement.quantity > 0 %}
+                                            <span class="text-success">+{{ movement.quantity|floatformat:2 }}</span>
+                                        {% else %}
+                                            <span class="text-danger">{{ movement.quantity|floatformat:2 }}</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-end">{{ movement.stock_after|floatformat:2 }}</td>
+                                    <td>{% if movement.created_by %}{{ movement.created_by.get_full_name|default:movement.created_by.username }}{% else %}-{% endif %}</td>
+                                    <td>
+                                        <small class="text-muted">{{ movement.reference|default:"-" }}</small>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="text-center py-4">
+                        <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
+                        <p class="text-muted mb-0">No hay movimientos registrados</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Sidebar -->
+        <div class="col-lg-4">
+            <!-- Stock Card -->
+            <div class="card mb-4">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-boxes me-2"></i>Stock
+                    </h5>
+                </div>
+                <div class="card-body text-center">
+                    <h2 class="display-4 mb-0 {% if product.current_stock <= product.min_stock %}text-danger{% else %}text-success{% endif %}">
+                        {{ product.current_stock|floatformat:2 }}
+                    </h2>
+                    <p class="text-muted mb-3">{{ product.unit_of_measure.abbreviation|default:"unidades" }}</p>
+                    
+                    {% if product.current_stock <= product.min_stock %}
+                    <div class="alert alert-danger mb-0">
+                        <i class="fas fa-exclamation-triangle me-1"></i>
+                        Stock bajo el mínimo ({{ product.min_stock|floatformat:0 }})
+                    </div>
+                    {% elif product.current_stock == 0 %}
+                    <div class="alert alert-danger mb-0">
+                        <i class="fas fa-times-circle me-1"></i>
+                        Sin stock
+                    </div>
+                    {% else %}
+                    <div class="alert alert-success mb-0">
+                        <i class="fas fa-check-circle me-1"></i>
+                        Stock normal
+                    </div>
+                    {% endif %}
+                </div>
+                <div class="card-footer">
+                    <div class="row text-center">
+                        <div class="col-6">
+                            <small class="text-muted d-block">Mínimo</small>
+                            <strong>{{ product.min_stock|floatformat:0 }}</strong>
+                        </div>
+                        <div class="col-6">
+                            <small class="text-muted d-block">Máximo</small>
+                            <strong>{{ product.max_stock|floatformat:0|default:"-" }}</strong>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Quick Actions -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-bolt me-2"></i>Acciones Rápidas
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="d-grid gap-2">
+                        {% if is_admin %}
+                        <a href="{% url 'stocks:inventory_count' product.pk %}" class="btn btn-outline-primary">
+                            <i class="fas fa-plus-minus me-2"></i>Conteo Físico
+                        </a>
+                        {% endif %}
+                        {% if is_cajero_manager %}
+                        <a href="{% url 'stocks:product_edit' product.pk %}" class="btn btn-outline-warning">
+                            <i class="fas fa-edit me-2"></i>Editar Producto
+                        </a>
+                        {% if product.is_active %}
+                        <a href="{% url 'stocks:product_delete' product.pk %}" class="btn btn-outline-danger">
+                            <i class="fas fa-trash me-2"></i>Desactivar Producto
+                        </a>
+                        {% endif %}
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Meta Info -->
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-clock me-2"></i>Información de Sistema
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <small class="text-muted d-block">Creado</small>
+                    <p>{{ product.created_at|date:"d/m/Y H:i" }}</p>
+                    
+                    <small class="text-muted d-block">Última actualización</small>
+                    <p class="mb-0">{{ product.updated_at|date:"d/m/Y H:i" }}</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

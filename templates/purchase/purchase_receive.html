@@ -1,0 +1,119 @@
+{% extends 'base.html' %}
+{% load currency_filters %}
+
+{% block title %}Recibir {{ purchase.order_number }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header -->
+    <div class="mb-4">
+        <h1 class="h3 mb-0">
+            <i class="fas fa-truck-loading me-2"></i>Recibir Mercadería
+        </h1>
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb mb-0">
+                <li class="breadcrumb-item"><a href="{% url 'purchase:purchase_list' %}">Compras</a></li>
+                <li class="breadcrumb-item"><a href="{% url 'purchase:purchase_edit' purchase.pk %}">{{ purchase.order_number }}</a></li>
+                <li class="breadcrumb-item active">Recibir</li>
+            </ol>
+        </nav>
+    </div>
+
+    <div class="row">
+        <div class="col-lg-8">
+            <div class="card">
+                <div class="card-header bg-success text-white">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-box-open me-2"></i>Confirmar Recepción de Mercadería
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle me-2"></i>
+                        Al confirmar la recepción, se actualizará el stock de todos los productos incluidos en esta orden.
+                    </div>
+                    
+                    <h6>Detalle de la Orden: {{ purchase.order_number }}</h6>
+                    <p class="text-muted">
+                        Proveedor: <strong>{{ purchase.supplier.name }}</strong><br>
+                        Fecha de Pedido: {{ purchase.order_date|date:"d/m/Y" }}
+                    </p>
+                    
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>Producto</th>
+                                <th class="text-center">Cantidad</th>
+                                <th class="text-end">Costo Unit.</th>
+                                <th class="text-end">Subtotal</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in purchase.items.all %}
+                            <tr>
+                                <td>{{ item.product.name }}</td>
+                                <td class="text-center">{{ item.quantity }}</td>
+                                <td class="text-end">{{ item.unit_cost|currency }}</td>
+                                <td class="text-end">{{ item.subtotal|currency }}</td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="4" class="text-center text-muted">
+                                    No hay productos en esta orden
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                        <tfoot>
+                            <tr class="fw-bold">
+                                <td colspan="3" class="text-end">Total:</td>
+                                <td class="text-end">{{ purchase.total|currency }}</td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                    
+                    <form method="post">
+                        {% csrf_token %}
+                        <div class="d-flex gap-2">
+                            <button type="submit" class="btn btn-success">
+                                <i class="fas fa-check me-1"></i> Confirmar Recepción
+                            </button>
+                            <a href="{% url 'purchase:purchase_edit' purchase.pk %}" class="btn btn-secondary">
+                                <i class="fas fa-times me-1"></i> Cancelar
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Resumen</h5>
+                </div>
+                <div class="card-body">
+                    <ul class="list-group list-group-flush">
+                        <li class="list-group-item d-flex justify-content-between">
+                            <span>Productos:</span>
+                            <strong>{{ purchase.items.count }}</strong>
+                        </li>
+                        <li class="list-group-item d-flex justify-content-between">
+                            <span>Subtotal:</span>
+                            <strong>{{ purchase.subtotal|currency }}</strong>
+                        </li>
+                        <li class="list-group-item d-flex justify-content-between">
+                            <span>IVA:</span>
+                            <strong>{{ purchase.tax|currency }}</strong>
+                        </li>
+                        <li class="list-group-item d-flex justify-content-between">
+                            <span>Total:</span>
+                            <strong class="text-success">{{ purchase.total|currency }}</strong>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,144 @@
+{% extends 'base.html' %}
+{% load currency_filters %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row mb-4">
+        <div class="col">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="{% url 'purchase:purchase_list' %}">Compras</a></li>
+                    <li class="breadcrumb-item active">{{ purchase.order_number }}</li>
+                </ol>
+            </nav>
+            <div class="d-flex justify-content-between align-items-center">
+                <h2 class="mb-0">
+                    <i class="fas fa-file-invoice me-2"></i>{{ purchase.order_number }}
+                    {% if purchase.status == 'draft' %}
+                        <span class="badge bg-secondary">Borrador</span>
+                    {% elif purchase.status == 'ordered' %}
+                        <span class="badge bg-info">Pedido</span>
+                    {% elif purchase.status == 'received' %}
+                        <span class="badge bg-success">Recibido</span>
+                    {% elif purchase.status == 'cancelled' %}
+                        <span class="badge bg-danger">Cancelado</span>
+                    {% endif %}
+                </h2>
+                <div class="d-flex gap-2">
+                    {% if purchase.status == 'draft' or purchase.status == 'ordered' %}
+                    <a href="{% url 'purchase:purchase_receive' purchase.pk %}"
+                       class="btn btn-success">
+                        <i class="fas fa-truck-ramp-box me-2"></i>Recibir Mercadería
+                    </a>
+                    <a href="{% url 'purchase:purchase_cancel' purchase.pk %}"
+                       class="btn btn-outline-danger">
+                        <i class="fas fa-times me-1"></i>Cancelar
+                    </a>
+                    {% endif %}
+                    <a href="{% url 'purchase:purchase_list' %}" class="btn btn-outline-secondary">
+                        <i class="fas fa-arrow-left me-1"></i>Volver
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mb-4">
+        <div class="col-lg-6">
+            <div class="card mb-3">
+                <div class="card-header">
+                    <h5 class="mb-0">Información</h5>
+                </div>
+                <div class="card-body">
+                    <table class="table table-borderless">
+                        <tr>
+                            <td class="text-muted">Proveedor:</td>
+                            <td><strong>{{ purchase.supplier.name }}</strong></td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted">Fecha de Orden:</td>
+                            <td>{{ purchase.order_date|date:"d/m/Y" }}</td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted">Notas:</td>
+                            <td>{{ purchase.notes|default:"-" }}</td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted">Creado por:</td>
+                            <td>{{ purchase.created_by.get_full_name|default:purchase.created_by.username }}</td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Totales</h5>
+                </div>
+                <div class="card-body">
+                    <table class="table table-borderless mb-0">
+                        <tr>
+                            <td>Subtotal:</td>
+                            <td class="text-end">{{ purchase.subtotal|currency }}</td>
+                        </tr>
+                        <tr>
+                            <td>IVA ({{ purchase.tax_percent }}%):</td>
+                            <td class="text-end">{{ purchase.tax|currency }}</td>
+                        </tr>
+                        <tr class="fw-bold">
+                            <td>Total:</td>
+                            <td class="text-end fs-5">{{ purchase.total|currency }}</td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Productos</h5>
+                </div>
+                <div class="card-body">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>Producto</th>
+                                <th class="text-center">Cantidad</th>
+                                <th class="text-end">Costo Unit.</th>
+                                <th class="text-end">Precio Venta</th>
+                                <th class="text-end">Subtotal</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in items %}
+                            <tr>
+                                <td>
+                                    {{ item.product.name }}
+                                    {% if item.packaging %}
+                                    <br><small class="badge bg-secondary">{{ item.packaging.get_packaging_type_display }} · {{ item.packaging.name }} (x{{ item.packaging.units_quantity }})</small>
+                                    {% endif %}
+                                </td>
+                                <td class="text-center">
+                                    {{ item.quantity }}
+                                    {% if item.packaging and item.packaging.units_quantity > 1 %}
+                                    <br><small class="text-muted">= {{ item.quantity|add:0|stringformat:"d" }} × {{ item.packaging.units_quantity }} uds.</small>
+                                    {% endif %}
+                                </td>
+                                <td class="text-end">{{ item.unit_cost|currency }}</td>
+                                <td class="text-end">{% if item.sale_price %}{{ item.sale_price|currency }}{% else %}<span class="text-muted">—</span>{% endif %}</td>
+                                <td class="text-end">{{ item.subtotal|currency }}</td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="5" class="text-center text-muted">No hay productos en esta orden</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

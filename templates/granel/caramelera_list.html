@@ -1,0 +1,100 @@
+{% extends 'base.html' %}
+{% load currency_filters %}
+
+{% block title %}Carameleras{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-3">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="h3 mb-0">
+            <i class="fas fa-candy-cane me-2" style="color:var(--che-primary,#E91E8C);"></i>
+            Carameleras
+        </h1>
+        <div class="d-flex gap-2">
+            <a href="{% url 'granel:deposito_list' %}" class="btn btn-outline-secondary">
+                <i class="fas fa-warehouse me-1"></i>Depósito
+            </a>
+            <a href="{% url 'granel:caramelera_create' %}" class="btn btn-primary">
+                <i class="fas fa-plus me-1"></i>Nueva Caramelera
+            </a>
+        </div>
+    </div>
+
+    {% if not carameleras %}
+    <div class="alert alert-info">
+        <i class="fas fa-info-circle me-2"></i>
+        No hay carameleras configuradas. Crea la primera con el botón de arriba.
+    </div>
+    {% else %}
+    <div class="row g-3">
+        {% for c in carameleras %}
+        <div class="col-sm-6 col-lg-4">
+            <div class="card shadow-sm h-100">
+                <div class="card-header d-flex justify-content-between align-items-center"
+                     style="background:var(--che-secondary,#2D1E5F);color:#fff;">
+                    <span class="fw-semibold">
+                        <i class="fas fa-candy-cane me-1"></i>{{ c.nombre }}
+                    </span>
+                    {% if c.stock_gramos_actual > 0 %}
+                    <span class="badge bg-success">{{ c.stock_gramos_actual|floatformat:0 }}g</span>
+                    {% else %}
+                    <span class="badge bg-danger">Sin stock</span>
+                    {% endif %}
+                </div>
+                <div class="card-body">
+                    <table class="table table-sm table-borderless mb-0">
+                        <tr>
+                            <td class="text-muted small">Precio / 100g</td>
+                            <td class="text-end fw-bold">{{ c.precio_100g|currency_ar }}</td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted small">Precio / kg oferta</td>
+                            <td class="text-end">
+                                {% if c.precio_cuarto > 0 %}
+                                    {{ c.precio_cuarto|currency_ar }}
+                                {% else %}
+                                    <span class="text-muted">—</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted small">Costo ponderado/g</td>
+                            <td class="text-end text-muted small">
+                                {% if c.costo_ponderado_gramo > 0 %}
+                                    ${{ c.costo_ponderado_gramo|floatformat:4 }}/g
+                                {% else %}
+                                    <span class="text-muted">—</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted small">Margen est. 100g</td>
+                            <td class="text-end">
+                                {% if c.margen_100g != 0 %}
+                                    <span class="badge {% if c.margen_100g > 0 %}bg-success{% else %}bg-danger{% endif %}">
+                                        {{ c.margen_100g|floatformat:1 }}%
+                                    </span>
+                                {% else %}
+                                    <span class="text-muted">—</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                    </table>
+                </div>
+                <div class="card-footer bg-transparent d-flex gap-2">
+                    <a href="{% url 'granel:caramelera_detail' c.pk %}"
+                       class="btn btn-sm btn-success flex-fill">
+                        <i class="fas fa-box-open me-1"></i>Gestionar
+                    </a>
+                    <a href="{% url 'granel:caramelera_edit' c.pk %}"
+                       class="btn btn-sm btn-outline-primary">
+                        <i class="fas fa-edit"></i>
+                    </a>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,763 @@
+{% extends 'base.html' %}
+{% load currency_filters %}
+
+{% block title %}Configurar Empaques - {{ product.name }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .packaging-card {
+        transition: all 0.3s ease;
+        border: 2px solid transparent;
+    }
+    
+    .packaging-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+    }
+    
+    .packaging-card.configured {
+        border-color: #28a745;
+    }
+    
+    .packaging-card.not-configured {
+        border-style: dashed;
+        border-color: #dee2e6;
+    }
+    
+    .packaging-icon {
+        width: 80px;
+        height: 80px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto 1rem;
+        font-size: 2rem;
+    }
+    
+    .packaging-icon.unit {
+        background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+        color: white;
+    }
+    
+    .packaging-icon.display {
+        background: linear-gradient(135deg, #17a2b8 0%, #6f42c1 100%);
+        color: white;
+    }
+    
+    .packaging-icon.bulk {
+        background: linear-gradient(135deg, #007bff 0%, #6610f2 100%);
+        color: white;
+    }
+    
+    .hierarchy-flow {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 2rem 0;
+        flex-wrap: wrap;
+        gap: 1rem;
+    }
+    
+    .hierarchy-item {
+        text-align: center;
+        padding: 1rem;
+        background: #f8f9fa;
+        border-radius: 10px;
+        min-width: 120px;
+    }
+    
+    .hierarchy-arrow {
+        font-size: 2rem;
+        color: #6c757d;
+    }
+    
+    .price-display {
+        background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%);
+        border-radius: 8px;
+        padding: 0.75rem;
+        margin-top: 0.5rem;
+    }
+    
+    .form-section {
+        background: #f8f9fa;
+        border-radius: 10px;
+        padding: 1.5rem;
+        margin-bottom: 1rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1><i class="fas fa-boxes text-primary me-2"></i>Configurar Empaques</h1>
+            <p class="text-muted mb-0">
+                <strong>{{ product.name }}</strong> | SKU: {{ product.sku }}
+                {% if product.barcode %} | Código: {{ product.barcode }}{% endif %}
+            </p>
+        </div>
+        <div>
+            <a href="{% url 'stocks:product_detail' product.id %}" class="btn btn-outline-secondary">
+                <i class="fas fa-arrow-left me-2"></i>Volver al Producto
+            </a>
+        </div>
+    </div>
+
+    <!-- Jerarquía Visual -->
+    <div class="card shadow-sm mb-4">
+        <div class="card-body">
+            <h5 class="card-title text-center mb-3">
+                <i class="fas fa-sitemap me-2"></i>Estructura de Empaques
+            </h5>
+            <div class="hierarchy-flow">
+                <div class="hierarchy-item">
+                    <i class="fas fa-cube fa-2x text-success mb-2 d-block"></i>
+                    <strong>Unidad</strong>
+                    <small class="d-block text-muted">Base (1)</small>
+                </div>
+                <i class="fas fa-arrow-right hierarchy-arrow"></i>
+                <div class="hierarchy-item">
+                    <i class="fas fa-layer-group fa-2x text-info mb-2 d-block"></i>
+                    <strong>Display</strong>
+                    <small class="d-block text-muted" id="display-units">
+                        {% if display_pkg %}{{ display_pkg.units_per_display }} unidades{% else %}? unidades{% endif %}
+                    </small>
+                </div>
+                <i class="fas fa-arrow-right hierarchy-arrow"></i>
+                <div class="hierarchy-item">
+                    <i class="fas fa-box-open fa-2x text-primary mb-2 d-block"></i>
+                    <strong>Bulto</strong>
+                    <small class="d-block text-muted" id="bulk-units">
+                        {% if bulk_pkg %}{{ bulk_pkg.units_quantity }} unidades{% else %}? unidades{% endif %}
+                    </small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tarjetas de Empaques -->
+    <div class="row">
+        <!-- Unidad -->
+        <div class="col-md-4 mb-4">
+            <div class="card shadow-sm packaging-card h-100 {% if unit_pkg %}configured{% else %}not-configured{% endif %}">
+                <div class="card-body text-center">
+                    <div class="packaging-icon unit">
+                        <i class="fas fa-cube"></i>
+                    </div>
+                    <h4 class="card-title">Unidad</h4>
+                    <p class="text-muted">Producto individual (base)</p>
+                    
+                    {% if unit_pkg %}
+                        <div class="text-start">
+                            <dl class="row mb-0">
+                                <dt class="col-6">Código:</dt>
+                                <dd class="col-6"><code>{{ unit_pkg.barcode }}</code></dd>
+                                
+                                <dt class="col-6">Precio Compra:</dt>
+                                <dd class="col-6">{{ unit_pkg.purchase_price|currency_ar }}</dd>
+                                
+                                <dt class="col-6">Precio Venta:</dt>
+                                <dd class="col-6 text-success fw-bold">{{ unit_pkg.sale_price|currency_ar }}</dd>
+                                
+                                <dt class="col-6">Margen:</dt>
+                                <dd class="col-6"><span class="badge bg-success">{{ unit_pkg.margin_percent }}%</span></dd>
+                            </dl>
+                        </div>
+                        <hr>
+                        <div class="d-flex gap-2">
+                            <button class="btn btn-outline-primary btn-sm flex-grow-1" 
+                                    onclick="editPackaging('unit', {{ unit_pkg.id }})">
+                                <i class="fas fa-edit me-1"></i>Editar
+                            </button>
+                            <a href="{% url 'stocks:packaging_delete' unit_pkg.id %}" 
+                               class="btn btn-outline-danger btn-sm"
+                               onclick="return confirm('¿Eliminar este empaque?')">
+                                <i class="fas fa-trash"></i>
+                            </a>
+                        </div>
+                    {% else %}
+                        <p class="text-muted mb-3"><i class="fas fa-info-circle"></i> No configurado</p>
+                        <button class="btn btn-success w-100" onclick="createPackaging('unit')">
+                            <i class="fas fa-plus me-1"></i>Configurar Unidad
+                        </button>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Display -->
+        <div class="col-md-4 mb-4">
+            <div class="card shadow-sm packaging-card h-100 {% if display_pkg %}configured{% else %}not-configured{% endif %}">
+                <div class="card-body text-center">
+                    <div class="packaging-icon display">
+                        <i class="fas fa-layer-group"></i>
+                    </div>
+                    <h4 class="card-title">Display / Paquete</h4>
+                    <p class="text-muted">Contiene varias unidades</p>
+                    
+                    {% if display_pkg %}
+                        <div class="text-start">
+                            <dl class="row mb-0">
+                                <dt class="col-6">Código:</dt>
+                                <dd class="col-6"><code>{{ display_pkg.barcode }}</code></dd>
+                                
+                                <dt class="col-6">Unidades:</dt>
+                                <dd class="col-6"><strong>{{ display_pkg.units_per_display }}</strong></dd>
+                                
+                                <dt class="col-6">Precio Compra:</dt>
+                                <dd class="col-6">{{ display_pkg.purchase_price|currency_ar }}</dd>
+                                
+                                <dt class="col-6">Precio Venta:</dt>
+                                <dd class="col-6 text-success fw-bold">{{ display_pkg.sale_price|currency_ar }}</dd>
+                                
+                                <dt class="col-6">Margen:</dt>
+                                <dd class="col-6"><span class="badge bg-info">{{ display_pkg.margin_percent }}%</span></dd>
+                            </dl>
+                        </div>
+                        <hr>
+                        <div class="d-flex gap-2">
+                            <button class="btn btn-outline-primary btn-sm flex-grow-1" 
+                                    onclick="editPackaging('display', {{ display_pkg.id }})">
+                                <i class="fas fa-edit me-1"></i>Editar
+                            </button>
+                            <a href="{% url 'stocks:packaging_delete' display_pkg.id %}" 
+                               class="btn btn-outline-danger btn-sm"
+                               onclick="return confirm('¿Eliminar este empaque?')">
+                                <i class="fas fa-trash"></i>
+                            </a>
+                        </div>
+                    {% else %}
+                        <p class="text-muted mb-3"><i class="fas fa-info-circle"></i> No configurado</p>
+                        <button class="btn btn-info text-white w-100" onclick="createPackaging('display')">
+                            <i class="fas fa-plus me-1"></i>Configurar Display
+                        </button>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Bulto -->
+        <div class="col-md-4 mb-4">
+            <div class="card shadow-sm packaging-card h-100 {% if bulk_pkg %}configured{% else %}not-configured{% endif %}">
+                <div class="card-body text-center">
+                    <div class="packaging-icon bulk">
+                        <i class="fas fa-box-open"></i>
+                    </div>
+                    <h4 class="card-title">Bulto / Caja</h4>
+                    <p class="text-muted">Contiene varios displays</p>
+                    
+                    {% if bulk_pkg %}
+                        <div class="text-start">
+                            <dl class="row mb-0">
+                                <dt class="col-6">Código:</dt>
+                                <dd class="col-6"><code>{{ bulk_pkg.barcode }}</code></dd>
+                                
+                                <dt class="col-6">Displays:</dt>
+                                <dd class="col-6"><strong>{{ bulk_pkg.displays_per_bulk }}</strong></dd>
+                                
+                                <dt class="col-6">Units/Display:</dt>
+                                <dd class="col-6">{{ bulk_pkg.units_per_display }}</dd>
+                                
+                                <dt class="col-6">Total Unidades:</dt>
+                                <dd class="col-6"><strong class="text-primary">{{ bulk_pkg.units_quantity }}</strong></dd>
+                                
+                                <dt class="col-6">Precio Compra:</dt>
+                                <dd class="col-6">{{ bulk_pkg.purchase_price|currency_ar }}</dd>
+                                
+                                <dt class="col-6">Precio Venta:</dt>
+                                <dd class="col-6 text-success fw-bold">{{ bulk_pkg.sale_price|currency_ar }}</dd>
+                                
+                                <dt class="col-6">Margen:</dt>
+                                <dd class="col-6"><span class="badge bg-primary">{{ bulk_pkg.margin_percent }}%</span></dd>
+                            </dl>
+                        </div>
+                        <div class="price-display">
+                            <small class="text-muted">Precio por unidad:</small>
+                            <strong class="d-block text-success">{{ bulk_pkg.unit_sale_price|currency_ar }}</strong>
+                        </div>
+                        <hr>
+                        <div class="d-flex gap-2">
+                            <button class="btn btn-outline-primary btn-sm flex-grow-1" 
+                                    onclick="editPackaging('bulk', {{ bulk_pkg.id }})">
+                                <i class="fas fa-edit me-1"></i>Editar
+                            </button>
+                            <a href="{% url 'stocks:packaging_delete' bulk_pkg.id %}" 
+                               class="btn btn-outline-danger btn-sm"
+                               onclick="return confirm('¿Eliminar este empaque?')">
+                                <i class="fas fa-trash"></i>
+                            </a>
+                        </div>
+                    {% else %}
+                        <p class="text-muted mb-3"><i class="fas fa-info-circle"></i> No configurado</p>
+                        <button class="btn btn-primary w-100" onclick="createPackaging('bulk')">
+                            <i class="fas fa-plus me-1"></i>Configurar Bulto
+                        </button>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Instrucciones -->
+    <div class="card mt-4">
+        <div class="card-body">
+            <h6><i class="fas fa-info-circle text-info me-2"></i>¿Cómo funciona?</h6>
+            <div class="row">
+                <div class="col-md-4">
+                    <h6 class="text-success"><i class="fas fa-cube me-2"></i>Unidad</h6>
+                    <p class="small text-muted mb-0">
+                        El producto individual. El código de barras que se escanea cuando se vende una sola unidad.
+                    </p>
+                </div>
+                <div class="col-md-4">
+                    <h6 class="text-info"><i class="fas fa-layer-group me-2"></i>Display</h6>
+                    <p class="small text-muted mb-0">
+                        Un paquete que contiene varias unidades (ej: pack de 12). Tiene su propio código de barras.
+                    </p>
+                </div>
+                <div class="col-md-4">
+                    <h6 class="text-primary"><i class="fas fa-box-open me-2"></i>Bulto</h6>
+                    <p class="small text-muted mb-0">
+                        La caja grande que contiene varios displays. Es lo que se escanea al cargar stock.
+                    </p>
+                </div>
+            </div>
+            <hr>
+            <p class="mb-0 text-muted">
+                <i class="fas fa-lightbulb me-1"></i>
+                <strong>Ejemplo:</strong> Una caja de gomitas tiene 12 displays, cada display tiene 12 unidades = 144 unidades por bulto.
+                Al cargar 2 bultos, se suman automáticamente 288 unidades al stock.
+            </p>
+        </div>
+    </div>
+</div>
+
+<!-- Modal para crear/editar empaque -->
+<div class="modal fade" id="packagingModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <form method="post" id="packagingForm">
+                {% csrf_token %}
+                <div class="modal-header">
+                    <h5 class="modal-title" id="modalTitle">Configurar Empaque</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" name="packaging_type" id="packaging_type">
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label fw-bold">Código de Barras *</label>
+                                <div class="input-group">
+                                    <input type="text" name="barcode" id="pkg_barcode" class="form-control" 
+                                           required placeholder="Escanee o ingrese el código">
+                                    <button type="button" class="btn btn-outline-secondary" onclick="generateBarcode()">
+                                        <i class="fas fa-magic"></i>
+                                    </button>
+                                </div>
+                                <small class="text-muted">Código único para este empaque</small>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label fw-bold">Nombre del Empaque</label>
+                                <input type="text" name="name" id="pkg_name" class="form-control" 
+                                       placeholder="Ej: Bulto x 144">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Configuración específica por tipo -->
+                    <div class="form-section" id="quantitySection">
+                        <h6><i class="fas fa-calculator me-2"></i>Configuración de Cantidades</h6>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">Unidades por Display</label>
+                                    <input type="number" name="units_per_display" id="pkg_units_per_display" 
+                                           class="form-control" min="1" value="1">
+                                    <small class="text-muted">Cuántas unidades tiene cada display</small>
+                                </div>
+                            </div>
+                            <div class="col-md-6" id="displaysBulkGroup">
+                                <div class="mb-3">
+                                    <label class="form-label">Displays por Bulto</label>
+                                    <input type="number" name="displays_per_bulk" id="pkg_displays_per_bulk" 
+                                           class="form-control" min="1" value="1">
+                                    <small class="text-muted">Cuántos displays tiene cada bulto</small>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="alert alert-info">
+                            <i class="fas fa-info-circle me-2"></i>
+                            <strong>Total de unidades:</strong> <span id="totalUnitsPreview">1</span>
+                        </div>
+                    </div>
+                    
+                    <!-- Precios -->
+                    <div class="form-section">
+                        <h6><i class="fas fa-dollar-sign me-2"></i>Precios</h6>
+                        <div class="row">
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    <label class="form-label">Precio de Compra</label>
+                                    <div class="input-group">
+                                        <span class="input-group-text">$</span>
+                                        <input type="number" name="purchase_price" id="pkg_purchase_price" 
+                                               class="form-control" step="0.01" min="0" value="0">
+                                    </div>
+                                    <small class="text-muted">Costo del empaque completo</small>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    <label class="form-label">Precio de Venta</label>
+                                    <div class="input-group">
+                                        <span class="input-group-text">$</span>
+                                        <input type="number" name="direct_sale_price" id="pkg_sale_preview" 
+                                               class="form-control" step="0.01" min="0" placeholder="Ingrese o calcule">
+                                    </div>
+                                    <small class="text-muted">Precio de venta del empaque completo</small>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    <label class="form-label">Margen de Ganancia</label>
+                                    <div class="input-group">
+                                        <input type="number" name="margin_percent" id="pkg_margin_percent" 
+                                               class="form-control" step="0.01" min="0" value="30">
+                                        <span class="input-group-text">%</span>
+                                    </div>
+                                    <small class="text-muted">Se auto-calcula al poner precio</small>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row mt-2" id="derivedPricesPreview" style="display:none;">
+                            <div class="col-md-4">
+                                <div class="alert alert-success py-2 text-center mb-0">
+                                    <small class="text-muted d-block">Precio Venta Unidad</small>
+                                    <div class="input-group input-group-sm">
+                                        <span class="input-group-text">$</span>
+                                        <input type="number" id="unitPriceInput" class="form-control text-center fw-bold" step="0.01" min="0">
+                                    </div>
+                                    <small class="text-muted" id="unitMarginLabel"></small>
+                                </div>
+                            </div>
+                            <div class="col-md-4" id="displayPriceCol">
+                                <div class="alert alert-info py-2 text-center mb-0">
+                                    <small class="text-muted d-block">Precio Venta Display</small>
+                                    <div class="input-group input-group-sm">
+                                        <span class="input-group-text">$</span>
+                                        <input type="number" id="displayPriceInput" class="form-control text-center fw-bold" step="0.01" min="0">
+                                    </div>
+                                    <small class="text-muted" id="displayMarginLabel"></small>
+                                </div>
+                            </div>
+                            <div class="col-md-4" id="bulkPriceCol">
+                                <div class="alert alert-primary py-2 text-center mb-0">
+                                    <small class="text-muted d-block">Precio Venta Bulto</small>
+                                    <div class="input-group input-group-sm">
+                                        <span class="input-group-text">$</span>
+                                        <input type="number" id="bulkPriceInput" class="form-control text-center fw-bold" step="0.01" min="0">
+                                    </div>
+                                    <small class="text-muted" id="bulkMarginLabel"></small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Opciones -->
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-check">
+                                <input type="checkbox" name="is_default" id="pkg_is_default" class="form-check-input">
+                                <label class="form-check-label" for="pkg_is_default">
+                                    Usar por defecto en POS
+                                </label>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-check">
+                                <input type="checkbox" name="is_active" id="pkg_is_active" class="form-check-input" checked>
+                                <label class="form-check-label" for="pkg_is_active">
+                                    Activo
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save me-2"></i>Guardar Empaque
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const modal = new bootstrap.Modal(document.getElementById('packagingModal'));
+
+// Prevenir submit accidental cuando el scanner/usuario presiona Enter
+// dentro de un input (los lectores de codigo emiten Enter al final).
+document.getElementById('packagingForm').addEventListener('keydown', function(e) {
+    if (e.key === 'Enter' && e.target.tagName === 'INPUT' && e.target.type !== 'submit') {
+        e.preventDefault();
+    }
+});
+
+function createPackaging(type) {
+    // Reset form
+    document.getElementById('packagingForm').reset();
+    document.getElementById('packaging_type').value = type;
+    document.getElementById('pkg_is_active').checked = true;
+    
+    // Configure UI based on type
+    const titles = {
+        'unit': 'Configurar Unidad',
+        'display': 'Configurar Display',
+        'bulk': 'Configurar Bulto'
+    };
+    document.getElementById('modalTitle').textContent = titles[type];
+    
+    // Show/hide fields based on type
+    const quantitySection = document.getElementById('quantitySection');
+    const displaysBulkGroup = document.getElementById('displaysBulkGroup');
+    
+    if (type === 'unit') {
+        quantitySection.style.display = 'none';
+        document.getElementById('pkg_units_per_display').value = 1;
+        document.getElementById('pkg_displays_per_bulk').value = 1;
+    } else if (type === 'display') {
+        quantitySection.style.display = 'block';
+        displaysBulkGroup.style.display = 'none';
+        document.getElementById('pkg_displays_per_bulk').value = 1;
+    } else {
+        quantitySection.style.display = 'block';
+        displaysBulkGroup.style.display = 'block';
+    }
+    
+    // Set default name
+    const names = {
+        'unit': 'Unidad',
+        'display': 'Display',
+        'bulk': 'Bulto'
+    };
+    document.getElementById('pkg_name').value = names[type];
+    
+    updatePriceCalculations();
+    modal.show();
+}
+
+function editPackaging(type, id) {
+    // Fetch packaging data and pre-fill the modal
+    fetch(`/stocks/api/packaging/${id}/`)
+        .then(r => r.json())
+        .then(data => {
+            if (!data.success) return;
+            createPackaging(type);
+            document.getElementById('pkg_barcode').value = data.barcode || '';
+            document.getElementById('pkg_name').value = data.name || '';
+            document.getElementById('pkg_units_per_display').value = data.units_per_display || 1;
+            document.getElementById('pkg_displays_per_bulk').value = data.displays_per_bulk || 1;
+            document.getElementById('pkg_purchase_price').value = data.purchase_price || 0;
+            document.getElementById('pkg_margin_percent').value = data.margin_percent || 30;
+            document.getElementById('pkg_sale_preview').value = data.sale_price || '';
+            document.getElementById('pkg_is_default').checked = data.is_default;
+            document.getElementById('pkg_is_active').checked = data.is_active;
+            updatePriceCalculations();
+        })
+        .catch(err => console.error('Error loading packaging:', err));
+}
+
+function generateBarcode() {
+    fetch('{% url "stocks:generate_barcode" %}')
+        .then(response => response.json())
+        .then(data => {
+            document.getElementById('pkg_barcode').value = data.barcode;
+        });
+}
+
+// Actualizar cálculos de precio (costo + margen → venta)
+function updatePriceCalculations() {
+    const type = document.getElementById('packaging_type').value;
+    const unitsPerDisplay = parseInt(document.getElementById('pkg_units_per_display').value) || 1;
+    const displaysPerBulk = parseInt(document.getElementById('pkg_displays_per_bulk').value) || 1;
+    const purchasePrice = parseFloat(document.getElementById('pkg_purchase_price').value) || 0;
+    const marginPercent = parseFloat(document.getElementById('pkg_margin_percent').value) || 0;
+    
+    const totalUnits = unitsPerDisplay * displaysPerBulk;
+    document.getElementById('totalUnitsPreview').textContent = totalUnits;
+    
+    if (purchasePrice > 0) {
+        const salePrice = purchasePrice * (1 + marginPercent / 100);
+        document.getElementById('pkg_sale_preview').value = salePrice.toFixed(2);
+        updateDerivedPrices(type, salePrice, purchasePrice, totalUnits, unitsPerDisplay, displaysPerBulk, true);
+    } else {
+        document.getElementById('pkg_sale_preview').value = '';
+        document.getElementById('derivedPricesPreview').style.display = 'none';
+    }
+}
+
+// Calcular margen desde precio de venta (venta + costo → margen)
+function updateMarginFromSale() {
+    const type = document.getElementById('packaging_type').value;
+    const purchasePrice = parseFloat(document.getElementById('pkg_purchase_price').value) || 0;
+    const salePrice = parseFloat(document.getElementById('pkg_sale_preview').value) || 0;
+    const unitsPerDisplay = parseInt(document.getElementById('pkg_units_per_display').value) || 1;
+    const displaysPerBulk = parseInt(document.getElementById('pkg_displays_per_bulk').value) || 1;
+    const totalUnits = unitsPerDisplay * displaysPerBulk;
+    
+    if (purchasePrice > 0 && salePrice > 0) {
+        const margin = ((salePrice - purchasePrice) / purchasePrice) * 100;
+        document.getElementById('pkg_margin_percent').value = margin.toFixed(2);
+        updateDerivedPrices(type, salePrice, purchasePrice, totalUnits, unitsPerDisplay, displaysPerBulk, true);
+    }
+}
+
+let _updatingDerived = false;
+
+function updateDerivedPrices(type, salePrice, purchasePrice, totalUnits, unitsPerDisplay, displaysPerBulk, fromCalc) {
+    const preview = document.getElementById('derivedPricesPreview');
+    preview.style.display = 'flex';
+    
+    let unitPrice, displayPrice, bulkPrice;
+    let unitCost, displayCost, bulkCost;
+    
+    if (type === 'bulk') {
+        bulkPrice = salePrice;
+        bulkCost = purchasePrice;
+        displayPrice = displaysPerBulk > 0 ? salePrice / displaysPerBulk : salePrice;
+        displayCost = displaysPerBulk > 0 ? purchasePrice / displaysPerBulk : purchasePrice;
+        unitPrice = totalUnits > 0 ? salePrice / totalUnits : salePrice;
+        unitCost = totalUnits > 0 ? purchasePrice / totalUnits : purchasePrice;
+    } else if (type === 'display') {
+        displayPrice = salePrice;
+        displayCost = purchasePrice;
+        unitPrice = unitsPerDisplay > 0 ? salePrice / unitsPerDisplay : salePrice;
+        unitCost = unitsPerDisplay > 0 ? purchasePrice / unitsPerDisplay : purchasePrice;
+        bulkPrice = salePrice * displaysPerBulk;
+        bulkCost = purchasePrice * displaysPerBulk;
+    } else {
+        unitPrice = salePrice;
+        unitCost = purchasePrice;
+        displayPrice = salePrice * unitsPerDisplay;
+        displayCost = purchasePrice * unitsPerDisplay;
+        bulkPrice = salePrice * totalUnits;
+        bulkCost = purchasePrice * totalUnits;
+    }
+    
+    // Solo actualizar los inputs si viene del cálculo de margen (no de edición manual)
+    if (fromCalc) {
+        _updatingDerived = true;
+        document.getElementById('unitPriceInput').value = unitPrice.toFixed(2);
+        document.getElementById('displayPriceInput').value = displayPrice.toFixed(2);
+        document.getElementById('bulkPriceInput').value = bulkPrice.toFixed(2);
+        _updatingDerived = false;
+    }
+    
+    // Mostrar margen por nivel
+    const unitMargin = unitCost > 0 ? ((unitPrice - unitCost) / unitCost * 100) : 0;
+    const displayMargin = displayCost > 0 ? ((displayPrice - displayCost) / displayCost * 100) : 0;
+    const bulkMargin = bulkCost > 0 ? ((bulkPrice - bulkCost) / bulkCost * 100) : 0;
+    document.getElementById('unitMarginLabel').textContent = `Ganancia: ${unitMargin.toFixed(1)}%`;
+    document.getElementById('displayMarginLabel').textContent = `Ganancia: ${displayMargin.toFixed(1)}%`;
+    document.getElementById('bulkMarginLabel').textContent = `Ganancia: ${bulkMargin.toFixed(1)}%`;
+    
+    // Show/hide columns based on type
+    document.getElementById('displayPriceCol').style.display = type !== 'unit' ? 'block' : 'none';
+    document.getElementById('bulkPriceCol').style.display = type === 'bulk' ? 'block' : 'none';
+}
+
+// Cuando el usuario edita un precio derivado manualmente
+function onDerivedPriceEdit(level) {
+    if (_updatingDerived) return;
+    
+    const type = document.getElementById('packaging_type').value;
+    const purchasePrice = parseFloat(document.getElementById('pkg_purchase_price').value) || 0;
+    const unitsPerDisplay = parseInt(document.getElementById('pkg_units_per_display').value) || 1;
+    const displaysPerBulk = parseInt(document.getElementById('pkg_displays_per_bulk').value) || 1;
+    const totalUnits = unitsPerDisplay * displaysPerBulk;
+    
+    const unitPrice = parseFloat(document.getElementById('unitPriceInput').value) || 0;
+    const displayPrice = parseFloat(document.getElementById('displayPriceInput').value) || 0;
+    const bulkPrice = parseFloat(document.getElementById('bulkPriceInput').value) || 0;
+    
+    // Recalcular el precio de venta del empaque siendo editado
+    let newSalePrice;
+    if (type === 'bulk') {
+        if (level === 'unit') newSalePrice = unitPrice * totalUnits;
+        else if (level === 'display') newSalePrice = displayPrice * displaysPerBulk;
+        else newSalePrice = bulkPrice;
+    } else if (type === 'display') {
+        if (level === 'unit') newSalePrice = unitPrice * unitsPerDisplay;
+        else if (level === 'display') newSalePrice = displayPrice;
+        else newSalePrice = bulkPrice / displaysPerBulk;
+    } else {
+        if (level === 'unit') newSalePrice = unitPrice;
+        else if (level === 'display') newSalePrice = displayPrice / unitsPerDisplay;
+        else newSalePrice = bulkPrice / totalUnits;
+    }
+    
+    // Actualizar precio de venta del empaque y margen
+    document.getElementById('pkg_sale_preview').value = newSalePrice.toFixed(2);
+    if (purchasePrice > 0 && newSalePrice > 0) {
+        const margin = ((newSalePrice - purchasePrice) / purchasePrice) * 100;
+        document.getElementById('pkg_margin_percent').value = margin.toFixed(2);
+    }
+    
+    // Recalcular los otros niveles desde el nuevo precio de venta
+    updateDerivedPrices(type, newSalePrice, purchasePrice, totalUnits, unitsPerDisplay, displaysPerBulk, false);
+    
+    // Mostrar márgenes actualizados con los valores manuales
+    let unitCost, displayCost, bulkCost;
+    if (type === 'bulk') {
+        bulkCost = purchasePrice;
+        displayCost = displaysPerBulk > 0 ? purchasePrice / displaysPerBulk : purchasePrice;
+        unitCost = totalUnits > 0 ? purchasePrice / totalUnits : purchasePrice;
+    } else if (type === 'display') {
+        displayCost = purchasePrice;
+        unitCost = unitsPerDisplay > 0 ? purchasePrice / unitsPerDisplay : purchasePrice;
+        bulkCost = purchasePrice * displaysPerBulk;
+    } else {
+        unitCost = purchasePrice;
+        displayCost = purchasePrice * unitsPerDisplay;
+        bulkCost = purchasePrice * totalUnits;
+    }
+    
+    const uP = parseFloat(document.getElementById('unitPriceInput').value) || 0;
+    const dP = parseFloat(document.getElementById('displayPriceInput').value) || 0;
+    const bP = parseFloat(document.getElementById('bulkPriceInput').value) || 0;
+    const um = unitCost > 0 ? ((uP - unitCost) / unitCost * 100) : 0;
+    const dm = displayCost > 0 ? ((dP - displayCost) / displayCost * 100) : 0;
+    const bm = bulkCost > 0 ? ((bP - bulkCost) / bulkCost * 100) : 0;
+    document.getElementById('unitMarginLabel').textContent = `Ganancia: ${um.toFixed(1)}%`;
+    document.getElementById('displayMarginLabel').textContent = `Ganancia: ${dm.toFixed(1)}%`;
+    document.getElementById('bulkMarginLabel').textContent = `Ganancia: ${bm.toFixed(1)}%`;
+}
+
+// Event listeners para actualizar cálculos
+['pkg_units_per_display', 'pkg_displays_per_bulk', 'pkg_purchase_price', 'pkg_margin_percent'].forEach(id => {
+    document.getElementById(id).addEventListener('input', updatePriceCalculations);
+});
+document.getElementById('pkg_sale_preview').addEventListener('input', updateMarginFromSale);
+
+// Event listeners para precios derivados editables
+document.getElementById('unitPriceInput').addEventListener('input', () => onDerivedPriceEdit('unit'));
+document.getElementById('displayPriceInput').addEventListener('input', () => onDerivedPriceEdit('display'));
+document.getElementById('bulkPriceInput').addEventListener('input', () => onDerivedPriceEdit('bulk'));
+
+// Auto-focus en código de barras al abrir modal
+document.getElementById('packagingModal').addEventListener('shown.bs.modal', function() {
+    document.getElementById('pkg_barcode').focus();
+});
+</script>
+{% endblock %}

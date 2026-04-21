@@ -1,0 +1,293 @@
+{% extends 'base.html' %}
+{% load currency_filters %}
+
+{% block title %}Reportes - Dashboard{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h3 mb-0">
+                <i class="fas fa-chart-line me-2"></i>Reportes y Estadísticas
+            </h1>
+            <p class="text-muted mb-0">Dashboard de ventas - {{ today|date:"d/m/Y" }}</p>
+        </div>
+        <div>
+            <a href="{% url 'sales:export_excel' %}" class="btn btn-success me-2">
+                <i class="fas fa-file-excel me-1"></i> Exportar Excel
+            </a>
+            <a href="{% url 'sales:daily_report' %}" class="btn btn-primary">
+                <i class="fas fa-calendar-day me-1"></i> Reporte Diario
+            </a>
+        </div>
+    </div>
+
+    <!-- Stats Cards -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card bg-primary text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="text-uppercase mb-1">Ventas Hoy</h6>
+                            <h3 class="mb-0">{{ today_sales|currency }}</h3>
+                        </div>
+                        <i class="fas fa-dollar-sign fa-2x opacity-50"></i>
+                    </div>
+                    <small>{{ today_count }} transacciones</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-success text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="text-uppercase mb-1">Ventas del Mes</h6>
+                            <h3 class="mb-0">{{ month_sales|currency }}</h3>
+                        </div>
+                        <i class="fas fa-calendar fa-2x opacity-50"></i>
+                    </div>
+                    <small>{{ month_count }} transacciones</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-info text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="text-uppercase mb-1">Ticket Promedio</h6>
+                            <h3 class="mb-0">
+                                {% if today_count > 0 %}
+                                    {{ today_sales|divide:today_count|currency }}
+                                {% else %}
+                                    $0,00
+                                {% endif %}
+                            </h3>
+                        </div>
+                        <i class="fas fa-receipt fa-2x opacity-50"></i>
+                    </div>
+                    <small>Promedio de hoy</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-warning text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="text-uppercase mb-1">Transacciones</h6>
+                            <h3 class="mb-0">{{ today_count }}</h3>
+                        </div>
+                        <i class="fas fa-shopping-cart fa-2x opacity-50"></i>
+                    </div>
+                    <small>Realizadas hoy</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Top Products -->
+        <div class="col-lg-6 mb-4">
+            <div class="card h-100">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-trophy me-2"></i>Productos Más Vendidos (Hoy)
+                    </h5>
+                </div>
+                <div class="card-body p-0">
+                    {% if top_products %}
+                    <div class="table-responsive">
+                        <table class="table mb-0">
+                            <thead>
+                                <tr>
+                                    <th>#</th>
+                                    <th>Producto</th>
+                                    <th class="text-end">Cantidad</th>
+                                    <th class="text-end">Total</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for item in top_products %}
+                                <tr>
+                                    <td><span class="badge bg-primary">{{ forloop.counter }}</span></td>
+                                    <td>{{ item.product__name }}</td>
+                                    <td class="text-end">{{ item.total_qty|floatformat:0 }}</td>
+                                    <td class="text-end"><strong>{{ item.total_amount|currency }}</strong></td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="text-center py-4">
+                        <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
+                        <p class="text-muted mb-0">No hay ventas hoy</p>
+                    </div>
+                    {% endif %}
+                </div>
+                <div class="card-footer">
+                    <a href="{% url 'sales:products_report' %}" class="btn btn-sm btn-outline-primary">
+                        Ver reporte completo <i class="fas fa-arrow-right ms-1"></i>
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Payment Methods -->
+        <div class="col-lg-6 mb-4">
+            <div class="card h-100">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-credit-card me-2"></i>Ventas por Método de Pago (Hoy)
+                    </h5>
+                </div>
+                <div class="card-body p-0">
+                    {% if payment_stats %}
+                    <div class="table-responsive">
+                        <table class="table mb-0">
+                            <thead>
+                                <tr>
+                                    <th>Método</th>
+                                    <th class="text-end">Transacciones</th>
+                                    <th class="text-end">Total</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for item in payment_stats %}
+                                <tr>
+                                    <td>
+                                        <i class="{{ item.payment_method__icon|default:'fas fa-money-bill-wave' }} me-2" style="color: {{ item.payment_method__color|default:'#198754' }}"></i>
+                                        {{ item.payment_method__name|default:"Efectivo" }}
+                                    </td>
+                                    <td class="text-end">{{ item.count }}</td>
+                                    <td class="text-end"><strong>{{ item.total|currency }}</strong></td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="text-center py-4">
+                        <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
+                        <p class="text-muted mb-0">No hay datos de pagos</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Transactions -->
+    <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h5 class="card-title mb-0">
+                <i class="fas fa-history me-2"></i>Últimas Transacciones
+            </h5>
+            <a href="{% url 'sales:sale_list' %}" class="btn btn-sm btn-outline-primary">
+                Ver todas
+            </a>
+        </div>
+        <div class="card-body p-0">
+            {% if recent_transactions %}
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead>
+                        <tr>
+                            <th>Ticket</th>
+                            <th>Fecha/Hora</th>
+                            <th>Cajero</th>
+                            <th>Caja</th>
+                            <th class="text-end">Total</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for t in recent_transactions %}
+                        <tr>
+                            <td><code>{{ t.ticket_number }}</code></td>
+                            <td>{{ t.created_at|date:"d/m/Y H:i" }}</td>
+                            <td>
+                                {% if t.session.cash_shift.cashier %}
+                                {{ t.session.cash_shift.cashier.get_full_name|default:t.session.cash_shift.cashier.username }}
+                                {% else %}
+                                -
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if t.session.cash_shift.cash_register %}
+                                {{ t.session.cash_shift.cash_register.name }}
+                                {% else %}
+                                -
+                                {% endif %}
+                            </td>
+                            <td class="text-end"><strong>{{ t.total|currency }}</strong></td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="text-center py-4">
+                <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
+                <p class="text-muted mb-0">No hay transacciones recientes</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Quick Links -->
+    <div class="row mt-4">
+        <div class="col-md-2">
+            <a href="{% url 'sales:daily_report' %}" class="card text-center text-decoration-none">
+                <div class="card-body">
+                    <i class="fas fa-calendar-day fa-2x text-primary mb-2"></i>
+                    <h6>Reporte Diario</h6>
+                </div>
+            </a>
+        </div>
+        <div class="col-md-2">
+            <a href="{% url 'sales:period_report' %}" class="card text-center text-decoration-none">
+                <div class="card-body">
+                    <i class="fas fa-calendar-alt fa-2x text-success mb-2"></i>
+                    <h6>Por Período</h6>
+                </div>
+            </a>
+        </div>
+        <div class="col-md-2">
+            <a href="{% url 'sales:products_report' %}" class="card text-center text-decoration-none">
+                <div class="card-body">
+                    <i class="fas fa-box fa-2x text-info mb-2"></i>
+                    <h6>Por Producto</h6>
+                </div>
+            </a>
+        </div>
+        <div class="col-md-2">
+            <a href="{% url 'sales:categories_report' %}" class="card text-center text-decoration-none">
+                <div class="card-body">
+                    <i class="fas fa-tags fa-2x text-warning mb-2"></i>
+                    <h6>Por Categoría</h6>
+                </div>
+            </a>
+        </div>
+        <div class="col-md-2">
+            <a href="{% url 'sales:cashiers_report' %}" class="card text-center text-decoration-none">
+                <div class="card-body">
+                    <i class="fas fa-users fa-2x text-danger mb-2"></i>
+                    <h6>Por Cajero</h6>
+                </div>
+            </a>
+        </div>
+        <div class="col-md-2">
+            <a href="{% url 'sales:export_excel' %}" class="card text-center text-decoration-none">
+                <div class="card-body">
+                    <i class="fas fa-file-excel fa-2x text-success mb-2"></i>
+                    <h6>Exportar</h6>
+                </div>
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}

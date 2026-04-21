@@ -1,0 +1,121 @@
+{% extends 'base.html' %}
+{% load currency_filters %}
+
+{% block title %}Compras - CHE GOLOSO{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1><i class="fas fa-shopping-cart text-success me-2"></i>Compras</h1>
+        <a href="{% url 'purchase:purchase_create' %}" class="btn btn-primary">
+            <i class="fas fa-plus me-2"></i>Nueva Compra
+        </a>
+    </div>
+    
+    <!-- Filtros -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <form method="get" class="row g-3">
+                <div class="col-md-3">
+                    <label class="form-label">Proveedor</label>
+                    <select name="supplier" class="form-select">
+                        <option value="">Todos</option>
+                        {% for sup in suppliers %}
+                        <option value="{{ sup.pk }}" {% if sup.pk|stringformat:"s" == supplier %}selected{% endif %}>
+                            {{ sup.name }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Desde</label>
+                    <input type="date" name="date_from" class="form-control" value="{{ date_from }}">
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Hasta</label>
+                    <input type="date" name="date_to" class="form-control" value="{{ date_to }}">
+                </div>
+                <div class="col-md-2 d-flex align-items-end">
+                    <button type="submit" class="btn btn-secondary w-100">
+                        <i class="fas fa-search me-1"></i>Filtrar
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <!-- Total -->
+    <div class="alert alert-success mb-4">
+        <strong>Total de compras:</strong> {{ total|currency }}
+    </div>
+    
+    <!-- Lista de compras -->
+    <div class="card">
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>Fecha</th>
+                            <th>N° Factura</th>
+                            <th>Proveedor</th>
+                            <th>Ítems</th>
+                            <th class="text-end">Total</th>
+                            <th>Estado</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for purchase in purchases %}
+                        <tr>
+                            <td>{{ purchase.order_date|date:"d/m/Y"|default:"-" }}</td>
+                            <td>{{ purchase.order_number }}</td>
+                            <td>{{ purchase.supplier.name }}</td>
+                            <td>{{ purchase.items.count }} productos</td>
+                            <td class="text-end fw-bold text-success">{{ purchase.total|currency }}</td>
+                            <td>
+                                {% if purchase.status == 'draft' %}
+                                    <span class="badge bg-secondary">{{ purchase.get_status_display }}</span>
+                                {% elif purchase.status == 'ordered' %}
+                                    <span class="badge bg-info">{{ purchase.get_status_display }}</span>
+                                {% elif purchase.status == 'received' %}
+                                    <span class="badge bg-success">{{ purchase.get_status_display }}</span>
+                                {% elif purchase.status == 'cancelled' %}
+                                    <span class="badge bg-danger">{{ purchase.get_status_display }}</span>
+                                {% else %}
+                                    <span class="badge bg-secondary">{{ purchase.get_status_display }}</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <div class="btn-group btn-group-sm">
+                                    <a href="{% url 'purchase:purchase_detail' purchase.pk %}" class="btn btn-outline-secondary" title="Ver detalle">
+                                        <i class="fas fa-eye"></i>
+                                    </a>
+                                    {% if purchase.status == 'draft' or purchase.status == 'ordered' %}
+                                    <a href="{% url 'purchase:purchase_receive' purchase.pk %}"
+                                       class="btn btn-success" title="Recibir mercadería">
+                                        <i class="fas fa-truck-ramp-box me-1"></i>Recibir
+                                    </a>
+                                    <a href="{% url 'purchase:purchase_cancel' purchase.pk %}"
+                                       class="btn btn-outline-danger" title="Cancelar orden">
+                                        <i class="fas fa-times"></i>
+                                    </a>
+                                    {% endif %}
+                                </div>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="7" class="text-center text-muted py-4">
+                                <i class="fas fa-inbox fa-3x mb-3 d-block"></i>
+                                No hay compras registradas
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

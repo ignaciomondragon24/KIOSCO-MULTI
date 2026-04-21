@@ -1,0 +1,104 @@
+{% extends 'base.html' %}
+{% load currency_filters %}
+
+{% block title %}Reporte por Categorías{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h3 mb-0">
+                <i class="fas fa-tags me-2"></i>Reporte por Categorías
+            </h1>
+            <p class="text-muted mb-0">{{ start_date|date:"d/m/Y" }} - {{ end_date|date:"d/m/Y" }}</p>
+        </div>
+    </div>
+
+    <!-- Period Selector -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <form method="get" class="row g-3">
+                <div class="col-md-4">
+                    <label class="form-label">Desde</label>
+                    <input type="date" name="date_from" class="form-control" value="{{ start_date|date:'Y-m-d' }}">
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Hasta</label>
+                    <input type="date" name="date_to" class="form-control" value="{{ end_date|date:'Y-m-d' }}">
+                </div>
+                <div class="col-md-4 d-flex align-items-end">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-search me-1"></i> Generar Reporte
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Categories Table -->
+    <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h5 class="card-title mb-0">
+                <i class="fas fa-chart-pie me-2"></i>Ventas por Categoría
+            </h5>
+            <span class="badge bg-primary">Total: {{ total|currency }}</span>
+        </div>
+        <div class="card-body p-0">
+            {% if items %}
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead>
+                        <tr>
+                            <th>Categoría</th>
+                            <th class="text-end">Productos</th>
+                            <th class="text-end">Unidades</th>
+                            <th class="text-end">Total</th>
+                            <th class="text-end">%</th>
+                            <th style="width: 30%;">Participación</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in items %}
+                        <tr>
+                            <td>
+                                {% if item.product__category__name %}
+                                <span class="badge" style="background-color: {{ item.product__category__color|default:'#6c757d' }}">
+                                    {{ item.product__category__name }}
+                                </span>
+                                {% else %}
+                                <span class="text-muted">Sin categoría</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-end">{{ item.product_count }}</td>
+                            <td class="text-end">{{ item.total_qty|floatformat:0 }}</td>
+                            <td class="text-end"><strong>{{ item.total_amount|currency }}</strong></td>
+                            <td class="text-end">
+                                {% if total > 0 %}
+                                {{ item.total_amount|divide:total|multiply:100|floatformat:1 }}%
+                                {% else %}
+                                0%
+                                {% endif %}
+                            </td>
+                            <td>
+                                <div class="progress" style="height: 20px;">
+                                    <div class="progress-bar" role="progressbar" 
+                                         style="width: {% widthratio item.total_amount total 100 %}%; background-color: {{ item.product__category__color|default:'#6c757d' }};">
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="text-center py-5">
+                <i class="fas fa-inbox fa-4x text-muted mb-3"></i>
+                <h4 class="text-muted">No hay datos para este período</h4>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

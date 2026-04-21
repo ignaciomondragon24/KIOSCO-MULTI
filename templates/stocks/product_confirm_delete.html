@@ -1,0 +1,51 @@
+{% extends 'base.html' %}
+{% load currency_filters %}
+
+{% block title %}Desactivar Producto{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row justify-content-center">
+        <div class="col-lg-5">
+            <div class="card border-danger">
+                <div class="card-header bg-danger text-white">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-exclamation-triangle me-2"></i>Desactivar Producto
+                    </h5>
+                </div>
+                <div class="card-body text-center">
+                    <i class="fas fa-box-open fa-4x text-danger mb-3"></i>
+                    
+                    <h4 class="mb-3">¿Estás seguro de desactivar este producto?</h4>
+                    
+                    <div class="alert alert-secondary">
+                        <h5 class="mb-1">{{ product.name }}</h5>
+                        <small class="text-muted">
+                            SKU: {{ product.sku }}
+                            {% if product.barcode %} | Código: {{ product.barcode }}{% endif %}
+                        </small>
+                    </div>
+                    
+                    <p class="text-muted mb-4">
+                        El producto será marcado como inactivo y ya no aparecerá en el POS ni en las búsquedas de venta.
+                        <br>
+                        <strong>El stock y el historial se conservarán.</strong>
+                    </p>
+                    
+                    <form method="post">
+                        {% csrf_token %}
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-danger btn-lg">
+                                <i class="fas fa-ban me-2"></i>Sí, Desactivar Producto
+                            </button>
+                            <a href="{% url 'stocks:product_detail' product.pk %}" class="btn btn-outline-secondary">
+                                <i class="fas fa-arrow-left me-2"></i>Cancelar
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

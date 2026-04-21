@@ -1,0 +1,327 @@
+{% extends 'base.html' %}
+{% load currency_filters %}
+
+{% block title %}Cerrar Turno - Cierre Z - CHE GOLOSO{% endblock %}
+
+{% block extra_css %}
+<style>
+    .cash-counter {
+        background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+        border-radius: 15px;
+        padding: 30px;
+        color: white;
+    }
+    .cash-input-wrap {
+        background: rgba(255,255,255,0.05);
+        border-radius: 12px;
+        padding: 25px;
+        margin-top: 15px;
+    }
+    .cash-input {
+        width: 100%;
+        text-align: center;
+        font-size: 2.5rem;
+        font-family: var(--font-display);
+        font-weight: 700;
+        border: 2px solid rgba(255,255,255,0.2);
+        background: rgba(255,255,255,0.1);
+        color: white;
+        border-radius: 10px;
+        padding: 15px;
+    }
+    .cash-input:focus {
+        outline: none;
+        border-color: #00d2d3;
+        background: rgba(255,255,255,0.15);
+        box-shadow: 0 0 0 0.25rem rgba(0, 210, 211, 0.15);
+    }
+    .cash-hint {
+        font-size: .9rem;
+        opacity: .7;
+        margin-top: 10px;
+    }
+
+    .payment-method-card {
+        border-radius: 12px;
+        padding: 15px;
+        margin-bottom: 10px;
+        border-left: 5px solid;
+    }
+    .payment-method-card.cash {
+        background: linear-gradient(135deg, rgba(46, 213, 115, 0.1) 0%, rgba(39, 174, 96, 0.1) 100%);
+        border-color: #2ed573;
+    }
+    .payment-method-card.digital {
+        background: linear-gradient(135deg, rgba(0, 210, 211, 0.1) 0%, rgba(0, 151, 167, 0.1) 100%);
+        border-color: #00d2d3;
+    }
+    
+    .z-summary-card {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border-radius: 15px;
+        padding: 25px;
+    }
+    .z-summary-title {
+        font-family: var(--font-display);
+        font-size: 1.5rem;
+        margin-bottom: 20px;
+    }
+    
+    .difference-positive { color: #2ed573; }
+    .difference-negative { color: #ff4757; }
+    .difference-zero { color: #ffa502; }
+    
+    .quick-btn {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        border: none;
+        font-weight: bold;
+        cursor: pointer;
+        transition: transform 0.1s;
+    }
+    .quick-btn:active { transform: scale(0.95); }
+    .quick-btn.plus { background: #2ed573; color: white; }
+    .quick-btn.minus { background: #ff4757; color: white; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row mb-4">
+        <div class="col-12">
+            <h2 class="text-display">
+                <i class="fas fa-cash-register me-2 text-danger"></i>Cierre Z - Arqueo de Caja
+            </h2>
+            <p class="text-muted">
+                {{ shift.cash_register.code }} - {{ shift.cashier.get_full_name|default:shift.cashier.username }} 
+                | Apertura: {{ shift.opened_at|date:"d/m/Y H:i" }}
+            </p>
+        </div>
+    </div>
+
+    <form method="post" id="closeShiftForm">
+        {% csrf_token %}
+        
+        <div class="row">
+            <!-- Columna Izquierda: Efectivo contado -->
+            <div class="col-lg-5 mb-4">
+                <div class="cash-counter">
+                    <h5 class="text-heading mb-2">
+                        <i class="fas fa-money-bill-wave me-2"></i>Efectivo Contado
+                    </h5>
+                    <p class="mb-0 opacity-75">
+                        Contá la plata y poné el total directo acá. Si querés, usá una calculadora.
+                    </p>
+
+                    <div class="cash-input-wrap">
+                        <label for="id_actual_amount" class="form-label opacity-75 mb-2">Total en efectivo (pesos)</label>
+                        <input type="number" name="actual_amount" id="id_actual_amount"
+                               class="cash-input" min="0" step="0.01" value="0"
+                               inputmode="decimal" autocomplete="off" required>
+                        <div class="cash-hint">
+                            <i class="fas fa-lightbulb me-1"></i>
+                            Podés apoyarte en <strong id="expectedHint">$0</strong> (efectivo esperado según ventas) para comparar.
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Columna Central: Resumen por Método de Pago -->
+            <div class="col-lg-4 mb-4">
+                <div class="card h-100">
+                    <div class="card-header bg-primary text-white">
+                        <h5 class="mb-0">
+                            <i class="fas fa-chart-pie me-2"></i>Ventas por Método de Pago
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        {% for method in payment_methods %}
+                        <div class="payment-method-card {% if method.is_cash %}cash{% else %}digital{% endif %}">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <i class="{{ method.icon }} me-2" style="color: {{ method.color }}"></i>
+                                    <strong>{{ method.name }}</strong>
+                                </div>
+                                <div class="text-end">
+                                    <div class="fs-4 fw-bold" style="color: {{ method.color }}">
+                                        {{ method.total|currency_ar }}
+                                    </div>
+                                    <small class="text-muted">{{ method.count }} transacción{% if method.count != 1 %}es{% endif %}</small>
+                                </div>
+                            </div>
+                        </div>
+                        {% empty %}
+                        <p class="text-muted text-center">No hay ventas registradas</p>
+                        {% endfor %}
+                        
+                        <hr>
+                        
+                        <!-- Totales separados -->
+                        <div class="row text-center">
+                            <div class="col-6">
+                                <div class="p-3 bg-success bg-opacity-10 rounded">
+                                    <small class="text-muted d-block">Efectivo</small>
+                                    <strong class="text-success fs-5">{{ cash_total|currency_ar }}</strong>
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <div class="p-3 bg-info bg-opacity-10 rounded">
+                                    <small class="text-muted d-block">Digital</small>
+                                    <strong class="text-info fs-5">{{ non_cash_total|currency_ar }}</strong>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Columna Derecha: Resumen Z -->
+            <div class="col-lg-3 mb-4">
+                <div class="z-summary-card mb-4">
+                    <h5 class="z-summary-title">
+                        <i class="fas fa-receipt me-2"></i>Cierre Z
+                    </h5>
+
+                    <!-- Desglose de ventas por método de pago -->
+                    <div class="mb-3 pb-3" style="border-bottom: 1px solid rgba(255,255,255,0.2);">
+                        <small class="d-block opacity-75 mb-2">Ventas por Método</small>
+                        {% for method in payment_methods %}
+                        <div class="d-flex justify-content-between align-items-center mb-1" style="font-size: 0.9rem;">
+                            <span><i class="{{ method.icon }} me-1"></i>{{ method.name }}</span>
+                            <strong>{{ method.total|currency_ar }}</strong>
+                        </div>
+                        {% empty %}
+                        <small class="opacity-75 fst-italic">Sin ventas registradas</small>
+                        {% endfor %}
+                        <div class="d-flex justify-content-between align-items-center mt-2 pt-2" style="border-top: 1px solid rgba(255,255,255,0.15); font-size: 0.95rem;">
+                            <span class="fw-bold">Total Ventas</span>
+                            <strong>{{ total_sales|currency_ar }}</strong>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <small class="d-block opacity-75">Fondo Inicial</small>
+                        <strong class="fs-5">{{ shift.initial_amount|currency_ar }}</strong>
+                    </div>
+
+                    <div class="mb-3">
+                        <small class="d-block opacity-75">+ Ventas Efectivo</small>
+                        <strong class="fs-5 text-success">{{ cash_total|currency_ar }}</strong>
+                    </div>
+
+                    <div class="mb-3">
+                        <small class="d-block opacity-75">- Egresos Efectivo</small>
+                        <strong class="fs-5 text-danger">{{ cash_expense|currency_ar }}</strong>
+                    </div>
+                    
+                    <hr class="bg-white opacity-25">
+                    
+                    <div class="mb-3">
+                        <small class="d-block opacity-75">= Efectivo Esperado</small>
+                        <strong class="fs-3" id="expectedAmount" data-value="{{ expected }}">{{ expected|currency_ar }}</strong>
+                    </div>
+                    
+                    <hr class="bg-white opacity-25">
+                    
+                    <div class="mb-3">
+                        <small class="d-block opacity-75">Efectivo Contado</small>
+                        <strong class="fs-3" id="countedAmount">$0</strong>
+                    </div>
+                    
+                    <div class="p-3 rounded" id="differenceBox" style="background: rgba(255,255,255,0.1)">
+                        <small class="d-block opacity-75">Diferencia</small>
+                        <strong class="fs-2" id="differenceAmount">$0</strong>
+                        <small class="d-block" id="differenceText">Realizá el conteo</small>
+                    </div>
+                </div>
+                
+                <!-- Observaciones -->
+                <div class="card">
+                    <div class="card-body">
+                        <label for="id_notes" class="form-label">
+                            <i class="fas fa-sticky-note me-1"></i>Observaciones
+                        </label>
+                        <textarea name="notes" id="id_notes" class="form-control" rows="3" 
+                                  placeholder="Notas sobre el cierre..."></textarea>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Barra de acciones -->
+        <div class="row mt-4">
+            <div class="col-12">
+                <div class="card bg-light">
+                    <div class="card-body d-flex justify-content-between align-items-center">
+                        <a href="{% url 'cashregister:shift_detail' shift.pk %}" class="btn btn-outline-secondary btn-lg">
+                            <i class="fas fa-arrow-left me-1"></i>Volver
+                        </a>
+                        
+                        <div class="d-flex align-items-center">
+                            <div class="me-4 text-center">
+                                <small class="text-muted d-block">Total Ventas</small>
+                                <strong class="text-primary fs-4">{{ total_sales|currency_ar }}</strong>
+                            </div>
+                            <button type="submit" class="btn btn-danger btn-lg px-5" id="submitBtn">
+                                <i class="fas fa-stop-circle me-2"></i>Confirmar Cierre Z
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </form>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    const expectedAmount = parseFloat('{{ expected|default:0|unlocalize }}') || 0;
+
+    function formatCurrency(amount) {
+        return '$' + (amount || 0).toLocaleString('es-AR', {minimumFractionDigits: 0, maximumFractionDigits: 0});
+    }
+
+    function recalc() {
+        const counted = parseFloat(document.getElementById('id_actual_amount').value) || 0;
+        document.getElementById('countedAmount').textContent = formatCurrency(counted);
+
+        const difference = counted - expectedAmount;
+        const diffAmount = document.getElementById('differenceAmount');
+        const diffText = document.getElementById('differenceText');
+        const diffBox = document.getElementById('differenceBox');
+
+        diffAmount.textContent = formatCurrency(Math.abs(difference));
+
+        if (difference > 0) {
+            diffAmount.className = 'fs-2 difference-positive';
+            diffText.innerHTML = '<i class="fas fa-arrow-up me-1"></i>Sobrante';
+            diffText.className = 'd-block difference-positive';
+            diffBox.style.background = 'rgba(46, 213, 115, 0.2)';
+        } else if (difference < 0) {
+            diffAmount.className = 'fs-2 difference-negative';
+            diffText.innerHTML = '<i class="fas fa-arrow-down me-1"></i>Faltante';
+            diffText.className = 'd-block difference-negative';
+            diffBox.style.background = 'rgba(255, 71, 87, 0.2)';
+        } else {
+            diffAmount.className = 'fs-2 difference-zero';
+            diffText.innerHTML = '<i class="fas fa-check me-1"></i>¡Cuadra perfecto!';
+            diffText.className = 'd-block difference-zero';
+            diffBox.style.background = 'rgba(255, 165, 2, 0.2)';
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        const hint = document.getElementById('expectedHint');
+        if (hint) hint.textContent = formatCurrency(expectedAmount);
+
+        const input = document.getElementById('id_actual_amount');
+        input.addEventListener('input', recalc);
+        input.focus();
+        input.select();
+        recalc();
+    });
+</script>
+{% endblock %}

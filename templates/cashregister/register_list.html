@@ -1,0 +1,52 @@
+{% extends 'base.html' %}
+
+{% block title %}Cajas Registradoras - CHE GOLOSO{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1><i class="fas fa-cash-register text-success me-2"></i>Cajas Registradoras</h1>
+        <a href="{% url 'cashregister:register_create' %}" class="btn btn-primary">
+            <i class="fas fa-plus me-2"></i>Nueva Caja
+        </a>
+    </div>
+    
+    <div class="row">
+        {% for register in registers %}
+        <div class="col-md-4 col-lg-3 mb-4">
+            <div class="card h-100 {% if not register.is_active %}border-secondary{% endif %}">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <strong>{{ register.code }}</strong>
+                    {% if register.is_available %}
+                    <span class="badge bg-success">Disponible</span>
+                    {% else %}
+                    <span class="badge bg-warning">En uso</span>
+                    {% endif %}
+                </div>
+                <div class="card-body">
+                    <h5 class="card-title">{{ register.name }}</h5>
+                    <p class="text-muted mb-2">
+                        <i class="fas fa-map-marker-alt me-1"></i>
+                        {{ register.location|default:"Sin ubicación" }}
+                    </p>
+                    {% if not register.is_active %}
+                    <span class="badge bg-secondary">Inactiva</span>
+                    {% endif %}
+                </div>
+                <div class="card-footer bg-transparent">
+                    <small class="text-muted">Creada: {{ register.created_at|date:"d/m/Y" }}</small>
+                </div>
+            </div>
+        </div>
+        {% empty %}
+        <div class="col-12">
+            <div class="alert alert-info text-center">
+                <i class="fas fa-info-circle me-2"></i>
+                No hay cajas registradoras configuradas.
+                <a href="{% url 'cashregister:register_create' %}">Crear la primera caja</a>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}

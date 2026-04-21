@@ -1,0 +1,180 @@
+{% extends 'base.html' %}
+
+{% block title %}Auditoria de Merma{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-3">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="h3 mb-0">
+            <i class="fas fa-balance-scale me-2" style="color:var(--che-primary,#E91E8C);"></i>Auditoria de Merma
+        </h1>
+        <a href="{% url 'granel:dashboard' %}" class="btn btn-sm btn-outline-secondary">
+            <i class="fas fa-arrow-left me-1"></i>Volver
+        </a>
+    </div>
+
+    {% if warnings %}
+    {% for w in warnings %}
+    <div class="alert alert-warning">
+        <i class="fas fa-exclamation-triangle me-2"></i>{{ w }}
+    </div>
+    {% endfor %}
+    {% endif %}
+
+    <div class="row justify-content-center">
+        <div class="col-md-8 col-lg-6">
+            <div class="card shadow-sm">
+                <div class="card-header bg-warning bg-opacity-25">
+                    <h5 class="mb-0"><i class="fas fa-weight me-2"></i>Pesaje de Caramelera</h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Producto Granel</label>
+                        <select id="audit-granel" class="form-select">
+                            <option value="">-- Seleccionar --</option>
+                            {% for g in granel_products %}
+                            <option value="{{ g.pk }}" data-stock="{{ g.current_stock }}">
+                                {{ g.name }} — Stock teorico: {{ g.current_stock|floatformat:0 }}g
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Peso Real de la Caramelera (gramos)</label>
+                        <input type="number" id="audit-actual" class="form-control form-control-lg text-center"
+                               min="0" step="1" placeholder="Ej: 3500">
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Motivo probable</label>
+                        <select id="audit-reason" class="form-select">
+                            {% for code, label in reason_choices %}
+                            <option value="{{ code }}">{{ label }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Notas</label>
+                        <input type="text" id="audit-notes" class="form-control" placeholder="Observaciones...">
+                    </div>
+
+                    <!-- Preview -->
+                    <div id="audit-preview" class="alert d-none mb-3">
+                        <div class="row text-center">
+                            <div class="col-4">
+                                <div class="small text-muted">Teorico</div>
+                                <div class="fs-5" id="preview-theoretical">-</div>
+                            </div>
+                            <div class="col-4">
+                                <div class="small text-muted">Real</div>
+                                <div class="fs-5" id="preview-actual">-</div>
+                            </div>
+                            <div class="col-4">
+                                <div class="small text-muted">Diferencia</div>
+                                <div class="fs-5 fw-bold" id="preview-diff">-</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <button id="btn-audit" class="btn btn-warning w-100" disabled>
+                        <i class="fas fa-clipboard-check me-2"></i>Registrar Auditoria y Ajustar Stock
+                    </button>
+
+                    <div id="audit-result" class="mt-3 d-none"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const granelSel = document.getElementById('audit-granel');
+    const actualInput = document.getElementById('audit-actual');
+    const preview = document.getElementById('audit-preview');
+    const btn = document.getElementById('btn-audit');
+    const result = document.getElementById('audit-result');
+
+    function updatePreview() {
+        const opt = granelSel.selectedOptions[0];
+        const actual = parseFloat(actualInput.value);
+
+        if (!granelSel.value || isNaN(actual)) {
+            preview.classList.add('d-none');
+            btn.disabled = true;
+            return;
+        }
+
+        const theoretical = parseFloat(opt.dataset.stock);
+        const diff = theoretical - actual;
+
+        document.getElementById('preview-theoretical').textContent = theoretical.toFixed(0) + 'g';
+        document.getElementById('preview-actual').textContent = actual.toFixed(0) + 'g';
+
+        const diffEl = document.getElementById('preview-diff');
+        if (diff > 0) {
+            diffEl.textContent = `-${diff.toFixed(0)}g merma`;
+            diffEl.className = 'fs-5 fw-bold text-danger';
+            preview.className = 'alert alert-danger mb-3';
+        } else if (diff < 0) {
+            diffEl.textContent = `+${Math.abs(diff).toFixed(0)}g sobrante`;
+            diffEl.className = 'fs-5 fw-bold text-success';
+            preview.className = 'alert alert-success mb-3';
+        } else {
+            diffEl.textContent = '0g (exacto)';
+            diffEl.className = 'fs-5 fw-bold text-muted';
+            preview.className = 'alert alert-info mb-3';
+        }
+
+        preview.classList.remove('d-none');
+        btn.disabled = false;
+    }
+
+    granelSel.addEventListener('change', updatePreview);
+    actualInput.addEventListener('input', updatePreview);
+
+    btn.addEventListener('click', function() {
+        if (!confirm('Esto ajustara el stock del producto granel al peso real. Continuar?')) return;
+
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Procesando...';
+
+        fetch('{% url "granel:api_audit" %}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token }}'
+            },
+            body: JSON.stringify({
+                granel_product_id: parseInt(granelSel.value),
+                actual_grams: parseFloat(actualInput.value),
+                reason: document.getElementById('audit-reason').value,
+                notes: document.getElementById('audit-notes').value,
+            })
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                const a = data.audit;
+                result.className = 'mt-3 alert alert-success';
+                result.innerHTML = `<i class="fas fa-check-circle me-2"></i>
+                    Auditoria registrada. Merma: <strong>${a.shrinkage.toFixed(0)}g (${a.percent.toFixed(1)}%)</strong>.
+                    Stock ajustado a <strong>${a.actual.toFixed(0)}g</strong>.`;
+                result.classList.remove('d-none');
+                setTimeout(() => location.href = '{% url "granel:audit_history" %}', 2000);
+            } else {
+                result.className = 'mt-3 alert alert-danger';
+                result.innerHTML = `<i class="fas fa-times-circle me-2"></i>${data.error}`;
+                result.classList.remove('d-none');
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-clipboard-check me-2"></i>Registrar Auditoria y Ajustar Stock';
+            }
+        });
+    });
+});
+</script>
+{% endblock %}

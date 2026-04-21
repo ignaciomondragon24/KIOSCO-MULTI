@@ -1,0 +1,108 @@
+{% extends 'base.html' %}
+{% load currency_filters %}
+
+{% block title %}Registrar Movimiento - CHE GOLOSO{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="{% url 'cashregister:dashboard' %}">Caja</a></li>
+                    <li class="breadcrumb-item"><a href="{% url 'cashregister:shift_detail' shift.pk %}">Turno #{{ shift.pk }}</a></li>
+                    <li class="breadcrumb-item active">Movimiento</li>
+                </ol>
+            </nav>
+            
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-exchange-alt me-2"></i>Registrar Movimiento Manual
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle me-2"></i>
+                        <strong>Turno:</strong> {{ shift.cash_register.code }} - {{ shift.cashier.get_full_name|default:shift.cashier.username }}
+                    </div>
+                    
+                    <form method="post">
+                        {% csrf_token %}
+                        
+                        <div class="mb-3">
+                            <label for="id_movement_type" class="form-label">Tipo de Movimiento *</label>
+                            <select name="movement_type" id="id_movement_type" class="form-select" required>
+                                <option value="">Seleccione...</option>
+                                <option value="income" {% if form.movement_type.value == 'income' %}selected{% endif %}>
+                                    Ingreso (Entrada de dinero)
+                                </option>
+                                <option value="expense" {% if form.movement_type.value == 'expense' %}selected{% endif %}>
+                                    Egreso (Salida de dinero)
+                                </option>
+                            </select>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="id_payment_method" class="form-label">Método de Pago *</label>
+                            <select name="payment_method" id="id_payment_method" class="form-select" required>
+                                <option value="">Seleccione...</option>
+                                {% for method in form.payment_method.field.queryset %}
+                                <option value="{{ method.pk }}" {% if form.payment_method.value|stringformat:'d' == method.pk|stringformat:'d' %}selected{% endif %}>
+                                    {{ method.name }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="id_amount" class="form-label">Monto *</label>
+                            <div class="input-group">
+                                <span class="input-group-text">$</span>
+                                <input type="number" 
+                                       name="amount" 
+                                       id="id_amount" 
+                                       class="form-control text-end"
+                                       step="0.01" 
+                                       min="0.01"
+                                       value="{{ form.amount.value|default:'' }}"
+                                       required>
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="id_description" class="form-label">Descripción *</label>
+                            <input type="text" 
+                                   name="description" 
+                                   id="id_description" 
+                                   class="form-control"
+                                   value="{{ form.description.value|default:'' }}"
+                                   placeholder="Motivo del movimiento"
+                                   required>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="id_reference" class="form-label">Referencia</label>
+                            <input type="text" 
+                                   name="reference" 
+                                   id="id_reference" 
+                                   class="form-control"
+                                   value="{{ form.reference.value|default:'' }}"
+                                   placeholder="Número de factura, recibo, etc. (opcional)">
+                        </div>
+                        
+                        <div class="d-flex gap-2">
+                            <a href="{% url 'cashregister:shift_detail' shift.pk %}" class="btn btn-outline-secondary">
+                                <i class="fas fa-arrow-left me-1"></i>Cancelar
+                            </a>
+                            <button type="submit" class="btn btn-primary flex-grow-1">
+                                <i class="fas fa-save me-1"></i>Registrar Movimiento
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

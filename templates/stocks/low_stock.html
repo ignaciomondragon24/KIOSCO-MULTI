@@ -1,0 +1,115 @@
+{% extends 'base.html' %}
+{% load currency_filters %}
+
+{% block title %}Productos con Stock Bajo{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h3 mb-0">
+                <i class="fas fa-exclamation-triangle text-warning me-2"></i>Productos con Stock Bajo
+            </h1>
+            <p class="text-muted mb-0">Productos que necesitan reposición</p>
+        </div>
+        <a href="{% url 'stocks:product_list' %}" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left me-2"></i>Volver a Productos
+        </a>
+    </div>
+
+    {% if products %}
+    <!-- Alert Summary -->
+    <div class="alert alert-warning d-flex align-items-center mb-4">
+        <i class="fas fa-info-circle fa-2x me-3"></i>
+        <div>
+            <strong>{{ products|length }} producto(s)</strong> tienen stock igual o inferior al mínimo configurado.
+            Considera hacer un pedido a tus proveedores.
+        </div>
+    </div>
+
+    <!-- Products Table -->
+    <div class="card">
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead>
+                        <tr>
+                            <th>Producto</th>
+                            <th>Categoría</th>
+                            <th class="text-center">Stock Actual</th>
+                            <th class="text-center">Stock Mínimo</th>
+                            <th class="text-center">Diferencia</th>
+                            <th class="text-end">Precio Venta</th>
+                            <th class="text-center">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for product in products %}
+                        <tr>
+                            <td>
+                                <div>
+                                    <a href="{% url 'stocks:product_detail' product.pk %}" class="text-decoration-none fw-bold">
+                                        {{ product.name }}
+                                    </a>
+                                    <br>
+                                    <small class="text-muted">SKU: {{ product.sku }}</small>
+                                </div>
+                            </td>
+                            <td>
+                                {% if product.category %}
+                                <span class="badge" style="background-color: {{ product.category.color }}">
+                                    {{ product.category.name }}
+                                </span>
+                                {% else %}
+                                <span class="text-muted">-</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-center">
+                                {% if product.current_stock == 0 %}
+                                <span class="badge bg-danger fs-6">0</span>
+                                {% else %}
+                                <span class="text-warning fw-bold">{{ product.current_stock|floatformat:0 }}</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-center text-muted">
+                                {{ product.min_stock|floatformat:0 }}
+                            </td>
+                            <td class="text-center">
+                                {% with diff=product.current_stock|add:product.min_stock|floatformat:0 %}
+                                <span class="text-danger fw-bold">
+                                    -{{ product.min_stock|add:-1|floatformat:0|add:product.current_stock|floatformat:0 }}
+                                </span>
+                                {% endwith %}
+                            </td>
+                            <td class="text-end">
+                                {{ product.sale_price|currency }}
+                            </td>
+                            <td class="text-center">
+                                <a href="{% url 'purchase:purchase_create' %}" class="btn btn-sm btn-primary" title="Nueva Orden de Compra">
+                                    <i class="fas fa-cart-plus"></i>
+                                </a>
+                                <a href="{% url 'stocks:product_detail' product.pk %}" class="btn btn-sm btn-outline-secondary" title="Ver Detalle">
+                                    <i class="fas fa-eye"></i>
+                                </a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    {% else %}
+    <!-- Empty State -->
+    <div class="text-center py-5">
+        <i class="fas fa-check-circle fa-4x text-success mb-3"></i>
+        <h4 class="text-muted">¡Todo bien!</h4>
+        <p class="text-muted">No hay productos con stock bajo en este momento.</p>
+        <a href="{% url 'stocks:product_list' %}" class="btn btn-primary">
+            <i class="fas fa-box me-2"></i>Ver todos los productos
+        </a>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

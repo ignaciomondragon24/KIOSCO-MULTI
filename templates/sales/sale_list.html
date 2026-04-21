@@ -1,0 +1,115 @@
+{% extends 'base.html' %}
+{% load currency_filters %}
+
+{% block title %}Listado de Ventas{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h3 mb-0">
+                <i class="fas fa-list me-2"></i>Listado de Ventas
+            </h1>
+            <p class="text-muted mb-0">{{ count }} transacciones | Total: {{ total|currency }}</p>
+        </div>
+        <div>
+            <a href="{% url 'sales:export_excel' %}?date_from={{ date_from }}&date_to={{ date_to }}" class="btn btn-success">
+                <i class="fas fa-file-excel me-1"></i> Exportar
+            </a>
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <form method="get" class="row g-3">
+                <div class="col-md-4">
+                    <label class="form-label">Desde</label>
+                    <input type="date" name="date_from" class="form-control" value="{{ date_from }}">
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Hasta</label>
+                    <input type="date" name="date_to" class="form-control" value="{{ date_to }}">
+                </div>
+                <div class="col-md-4 d-flex align-items-end">
+                    <button type="submit" class="btn btn-primary me-2">
+                        <i class="fas fa-search me-1"></i> Filtrar
+                    </button>
+                    <a href="{% url 'sales:sale_list' %}" class="btn btn-outline-secondary">
+                        <i class="fas fa-redo"></i>
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Transactions Table -->
+    <div class="card">
+        <div class="card-body p-0">
+            {% if transactions %}
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead>
+                        <tr>
+                            <th>Ticket</th>
+                            <th>Fecha/Hora</th>
+                            <th>Cajero</th>
+                            <th>Caja</th>
+                            <th>Ítems</th>
+                            <th class="text-end">Subtotal</th>
+                            <th class="text-end">Descuento</th>
+                            <th class="text-end">Total</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for t in transactions %}
+                        <tr>
+                            <td><code>{{ t.ticket_number }}</code></td>
+                            <td>{{ t.created_at|date:"d/m/Y H:i" }}</td>
+                            <td>
+                                {% if t.session.cash_shift.cashier %}
+                                {{ t.session.cash_shift.cashier.get_full_name|default:t.session.cash_shift.cashier.username }}
+                                {% else %}
+                                -
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if t.session.cash_shift.cash_register %}
+                                {{ t.session.cash_shift.cash_register.name }}
+                                {% else %}
+                                -
+                                {% endif %}
+                            </td>
+                            <td>{{ t.items_count }}</td>
+                            <td class="text-end">{{ t.subtotal|currency }}</td>
+                            <td class="text-end">
+                                {% if t.discount_total > 0 %}
+                                <span class="text-danger">-{{ t.discount_total|currency }}</span>
+                                {% else %}
+                                -
+                                {% endif %}
+                            </td>
+                            <td class="text-end"><strong>{{ t.total|currency }}</strong></td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                    <tfoot class="table-dark">
+                        <tr>
+                            <td colspan="7" class="text-end"><strong>TOTAL:</strong></td>
+                            <td class="text-end"><strong>{{ total|currency }}</strong></td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+            {% else %}
+            <div class="text-center py-5">
+                <i class="fas fa-inbox fa-4x text-muted mb-3"></i>
+                <h4 class="text-muted">No hay transacciones</h4>
+                <p class="text-muted">Ajusta los filtros para ver resultados</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

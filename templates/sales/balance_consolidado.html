@@ -1,0 +1,264 @@
+{% extends 'base.html' %}
+{% load currency_filters %}
+
+{% block title %}Balance Consolidado - CHE GOLOSO{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="mb-1"><i class="fas fa-scale-balanced me-2" style="color:var(--che-primary,#E91E8C);"></i>Balance Consolidado</h2>
+            <p class="text-muted mb-0">
+                Ventas menos gastos operativos menos pérdidas al costo = neto del negocio. Las inversiones (Compras) se listan aparte sin restar.
+            </p>
+        </div>
+        <a href="{% url 'sales:dashboard' %}" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left me-1"></i>Volver
+        </a>
+    </div>
+
+    <!-- Filtro de periodo -->
+    <form method="get" class="card card-body mb-4">
+        <div class="row g-2 align-items-end">
+            <div class="col-md-3">
+                <label class="form-label small">Período</label>
+                <select name="period" class="form-select" onchange="this.form.submit()">
+                    <option value="today" {% if period == 'today' %}selected{% endif %}>Hoy</option>
+                    <option value="week" {% if period == 'week' %}selected{% endif %}>Últimos 7 días</option>
+                    <option value="month" {% if period == 'month' %}selected{% endif %}>Este mes</option>
+                    <option value="custom" {% if period == 'custom' %}selected{% endif %}>Personalizado</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label small">Desde</label>
+                <input type="date" name="date_from" class="form-control" value="{{ date_from|date:'Y-m-d' }}" {% if period != 'custom' %}disabled{% endif %}>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label small">Hasta</label>
+                <input type="date" name="date_to" class="form-control" value="{{ date_to|date:'Y-m-d' }}" {% if period != 'custom' %}disabled{% endif %}>
+            </div>
+            <div class="col-md-3">
+                <button type="submit" class="btn btn-primary w-100">
+                    <i class="fas fa-filter me-1"></i>Aplicar
+                </button>
+            </div>
+        </div>
+        <small class="text-muted mt-2">Mostrando: {{ date_from|date:'d/m/Y' }} → {{ date_to|date:'d/m/Y' }}</small>
+    </form>
+
+    <!-- Resumen grande arriba -->
+    <div class="row g-3 mb-4">
+        <div class="col-md-3">
+            <div class="card shadow-sm h-100 border-success border-opacity-25">
+                <div class="card-body">
+                    <div class="text-uppercase small text-muted mb-1">
+                        <i class="fas fa-cash-register me-1"></i>Ventas del período
+                    </div>
+                    <div class="display-6 fw-bold text-success">{{ total_sales|currency_ar }}</div>
+                    <small class="text-muted">{{ sales_count }} transacciones</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card shadow-sm h-100 border-danger border-opacity-25">
+                <div class="card-body">
+                    <div class="text-uppercase small text-muted mb-1">
+                        <i class="fas fa-receipt me-1"></i>Gastos operativos <span class="badge bg-danger bg-opacity-25 text-danger ms-1">restan</span>
+                    </div>
+                    <div class="display-6 fw-bold text-danger">{{ total_operating|currency_ar }}</div>
+                    <small class="text-muted">Sueldos, alquiler, servicios, etc.</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card shadow-sm h-100 border-warning border-opacity-50">
+                <div class="card-body">
+                    <div class="text-uppercase small text-muted mb-1">
+                        <i class="fas fa-triangle-exclamation me-1"></i>Pérdidas al costo <span class="badge bg-warning bg-opacity-25 text-warning-emphasis ms-1">restan</span>
+                    </div>
+                    <div class="display-6 fw-bold text-warning-emphasis">{{ total_losses|currency_ar }}</div>
+                    <small class="text-muted">Robo, vencido, dañado, consumo interno</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card shadow-sm h-100" style="border:2px solid var(--che-primary,#E91E8C);">
+                <div class="card-body">
+                    <div class="text-uppercase small text-muted mb-1">
+                        <i class="fas fa-scale-balanced me-1"></i>Neto Operativo
+                    </div>
+                    <div class="display-6 fw-bold" style="color:var(--che-primary,#E91E8C);">{{ neto_operativo|currency_ar }}</div>
+                    <small class="text-muted">Ventas − Gastos − Pérdidas</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-3 mb-4">
+        <!-- Gastos operativos desglosados -->
+        <div class="col-lg-6">
+            <div class="card h-100">
+                <div class="card-header bg-danger bg-opacity-10 d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0 text-danger"><i class="fas fa-minus-circle me-2"></i>Gastos Operativos (restan)</h5>
+                    <strong class="text-danger">− {{ total_operating|currency_ar }}</strong>
+                </div>
+                <div class="card-body p-0">
+                    {% if operating_by_cat %}
+                    <table class="table table-hover mb-0 align-middle">
+                        <thead class="table-light small">
+                            <tr>
+                                <th>Categoría</th>
+                                <th class="text-center">Registros</th>
+                                <th class="text-end">Total</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for row in operating_by_cat %}
+                            <tr>
+                                <td>
+                                    <span class="d-inline-block rounded-circle me-2" style="width:10px;height:10px;background:{{ row.category__color }};"></span>
+                                    {{ row.category__name }}
+                                </td>
+                                <td class="text-center">{{ row.count }}</td>
+                                <td class="text-end fw-bold">{{ row.total|currency_ar }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                    {% else %}
+                    <p class="text-muted text-center py-4 mb-0">Sin gastos operativos en el período.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Inversiones (no restan) -->
+        <div class="col-lg-6">
+            <div class="card h-100">
+                <div class="card-header bg-info bg-opacity-10 d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0 text-info-emphasis"><i class="fas fa-box me-2"></i>Inversión en mercadería (no resta)</h5>
+                    <strong class="text-info-emphasis">{{ total_investment|currency_ar }}</strong>
+                </div>
+                <div class="card-body p-0">
+                    {% if investment_by_cat %}
+                    <table class="table table-hover mb-0 align-middle">
+                        <thead class="table-light small">
+                            <tr>
+                                <th>Categoría</th>
+                                <th class="text-center">Registros</th>
+                                <th class="text-end">Total</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for row in investment_by_cat %}
+                            <tr>
+                                <td>
+                                    <span class="d-inline-block rounded-circle me-2" style="width:10px;height:10px;background:{{ row.category__color }};"></span>
+                                    {{ row.category__name }}
+                                </td>
+                                <td class="text-center">{{ row.count }}</td>
+                                <td class="text-end fw-bold">{{ row.total|currency_ar }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                    {% else %}
+                    <p class="text-muted text-center py-4 mb-0">Sin inversión registrada en el período.</p>
+                    {% endif %}
+                    <div class="p-3 small text-muted bg-light">
+                        <i class="fas fa-info-circle me-1"></i>
+                        Las categorías marcadas como <strong>inversión</strong> (como Compras de mercadería)
+                        <strong>no se restan</strong> del neto operativo: ese dinero se convierte en productos
+                        que se van a vender, por eso figura aparte.
+                        Para marcar/desmarcar una categoría como inversión, editala desde
+                        <a href="{% url 'expenses:category_list' %}">Categorías de Gastos</a>.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Pérdidas de mercadería -->
+    <div class="card mb-4">
+        <div class="card-header bg-warning bg-opacity-10 d-flex justify-content-between align-items-center">
+            <h5 class="mb-0 text-warning-emphasis">
+                <i class="fas fa-triangle-exclamation me-2"></i>Pérdidas de mercadería (restan del neto)
+            </h5>
+            <strong class="text-warning-emphasis">− {{ total_losses|currency_ar }}</strong>
+        </div>
+        <div class="card-body p-0">
+            {% if losses_by_reason %}
+            <table class="table table-hover mb-0 align-middle">
+                <thead class="table-light small">
+                    <tr>
+                        <th>Motivo</th>
+                        <th class="text-center">Movimientos</th>
+                        <th class="text-end">Cantidad total</th>
+                        <th class="text-end">Pérdida al costo</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in losses_by_reason %}
+                    <tr class="fw-semibold table-warning">
+                        <td>
+                            <button class="btn btn-sm btn-link text-decoration-none p-0 me-1"
+                                    type="button"
+                                    data-bs-toggle="collapse"
+                                    data-bs-target="#loss-detail-{{ forloop.counter }}"
+                                    aria-expanded="false">
+                                <i class="fas fa-chevron-right"></i>
+                            </button>
+                            {{ row.reference }}
+                        </td>
+                        <td class="text-center">{{ row.movement_count }}</td>
+                        <td class="text-end">{{ row.total_qty|floatformat:2 }}</td>
+                        <td class="text-end text-warning-emphasis">{{ row.total_cost|currency_ar }}</td>
+                    </tr>
+                    <tr class="collapse" id="loss-detail-{{ forloop.counter }}">
+                        <td colspan="4" class="p-0">
+                            <table class="table table-sm mb-0 small">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th style="padding-left:3rem;">Producto</th>
+                                        <th class="text-center">Movimientos</th>
+                                        <th class="text-end">Cantidad</th>
+                                        <th class="text-end">Pérdida al costo</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for item in row.products %}
+                                    <tr>
+                                        <td style="padding-left:3rem;">{{ item.product__name }}</td>
+                                        <td class="text-center">{{ item.movement_count }}</td>
+                                        <td class="text-end">{{ item.total_qty|floatformat:2 }}</td>
+                                        <td class="text-end">{{ item.total_cost|currency_ar }}</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+                <tfoot class="table-light fw-bold">
+                    <tr>
+                        <td colspan="3" class="text-end">Total pérdidas:</td>
+                        <td class="text-end text-warning-emphasis">{{ total_losses|currency_ar }}</td>
+                    </tr>
+                </tfoot>
+            </table>
+            {% else %}
+            <p class="text-muted text-center py-4 mb-0">Sin pérdidas registradas en el período.</p>
+            {% endif %}
+            <div class="p-3 small text-muted bg-light">
+                <i class="fas fa-info-circle me-1"></i>
+                Se contabiliza como pérdida cualquier ajuste de stock a la baja con motivo
+                <strong>Robo / Pérdida</strong>, <strong>Mercadería Dañada</strong>, <strong>Mercadería Vencida</strong>,
+                <strong>Consumo Interno</strong> o <strong>Conteo Físico</strong> con faltante.
+                Los ajustes por <em>Corrección de Error</em> y <em>Devolución</em> no cuentan como pérdida.
+                Hacé clic en el motivo para ver los productos.
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,178 @@
+{% extends 'base.html' %}
+
+{% block title %}Importar Excel{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h3 mb-0">
+                <i class="fas fa-file-excel me-2 text-success"></i>Importar Lista de Precios
+            </h1>
+            <p class="text-muted mb-0">Importá productos desde un archivo Excel (.xlsx)</p>
+        </div>
+        <a href="{% url 'stocks:product_list' %}" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left me-1"></i> Volver
+        </a>
+    </div>
+
+    {% if not preview %}
+    <!-- PASO 1: Subir archivo -->
+    <div class="card">
+        <div class="card-header">
+            <h5 class="card-title mb-0"><i class="fas fa-upload me-2"></i>Subir Archivo</h5>
+        </div>
+        <div class="card-body">
+            <div class="alert alert-info">
+                <h6><i class="fas fa-info-circle me-1"></i> Formato esperado del Excel:</h6>
+                <ul class="mb-0">
+                    <li><strong>Cada hoja</strong> del Excel se toma como una <strong>categoría</strong> distinta (el nombre de la hoja = nombre de categoría).</li>
+                    <li><strong>Primera fila</strong> = encabezados de columna.</li>
+                    <li><strong>Columnas reconocidas:</strong> Código de Barras, Código Interno (SKU), Nombre/Producto, Unidad de Medida, Margen (%), Precio de Costo, Precio de Venta.</li>
+                    <li>Si un producto ya existe (por código de barras o SKU), se <strong>actualizan</strong> sus precios.</li>
+                    <li>Si no existe, se <strong>crea</strong> como producto nuevo.</li>
+                </ul>
+            </div>
+
+            <form method="post" enctype="multipart/form-data">
+                {% csrf_token %}
+                <div class="mb-3">
+                    <label for="excel_file" class="form-label fw-bold">Archivo Excel</label>
+                    <input type="file" class="form-control" id="excel_file" name="excel_file" 
+                           accept=".xlsx,.xls" required>
+                    <div class="form-text">Formatos aceptados: .xlsx, .xls</div>
+                </div>
+                <button type="submit" name="preview" value="1" class="btn btn-primary btn-lg">
+                    <i class="fas fa-eye me-1"></i> Vista Previa
+                </button>
+            </form>
+        </div>
+    </div>
+
+    {% else %}
+    <!-- PASO 2: Preview y confirmar -->
+    <div class="alert alert-success">
+        <h5 class="mb-1"><i class="fas fa-check-circle me-1"></i> Archivo leído correctamente</h5>
+        <p class="mb-0">
+            Se encontraron <strong>{{ total_products }}</strong> productos en 
+            <strong>{{ total_categories }}</strong> categoría{{ total_categories|pluralize:"s" }}.
+        </p>
+    </div>
+
+    {% for sheet in preview %}
+    <div class="card mb-3">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h5 class="card-title mb-0">
+                <i class="fas fa-folder me-2 text-warning"></i>
+                {{ sheet.category_name }}
+            </h5>
+            <span class="badge bg-primary">{{ sheet.count }} producto{{ sheet.count|pluralize:"s" }}</span>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-sm table-striped mb-0">
+                    <thead class="table-dark">
+                        <tr>
+                            <th>#</th>
+                            <th>Nombre</th>
+                            <th>Cód. Barras</th>
+                            <th>SKU</th>
+                            <th>Unidad</th>
+                            <th class="text-end">Margen %</th>
+                            <th class="text-end">P. Costo</th>
+                            <th class="text-end">P. Venta</th>
+                            <th class="text-center">Estado</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in sheet.items %}
+                        <tr>
+                            <td>{{ forloop.counter }}</td>
+                            <td><strong>{{ item.nombre }}</strong></td>
+                            <td><code>{{ item.barcode|default:"-" }}</code></td>
+                            <td>{{ item.sku|default:"-" }}</td>
+                            <td>{{ item.unit|default:"-" }}</td>
+                            <td class="text-end">{{ item.margin|default:"-" }}</td>
+                            <td class="text-end">
+                                {% if item.purchase_price %}
+                                ${{ item.purchase_price }}
+                                {% else %}-{% endif %}
+                            </td>
+                            <td class="text-end">
+                                {% if item.sale_price %}
+                                <strong>${{ item.sale_price }}</strong>
+                                {% else %}-{% endif %}
+                            </td>
+                            <td class="text-center">
+                                {% if item.exists %}
+                                <span class="badge bg-warning text-dark">
+                                    <i class="fas fa-sync-alt me-1"></i>Actualizar
+                                </span>
+                                {% else %}
+                                <span class="badge bg-success">
+                                    <i class="fas fa-plus me-1"></i>Nuevo
+                                </span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+
+    <div class="d-flex flex-column gap-3 mb-4">
+        <form method="post" id="importForm">
+            {% csrf_token %}
+            <div class="card border-danger mb-3">
+                <div class="card-body">
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="flushCheck" name="flush" value="1">
+                        <label class="form-check-label fw-bold text-danger" for="flushCheck">
+                            <i class="fas fa-trash-alt me-1"></i> Borrar TODO el inventario antes de importar
+                        </label>
+                        <div class="form-text text-muted">
+                            Elimina todos los productos, categorías, unidades de medida, promociones, items de venta y compra existentes. 
+                            <strong class="text-danger">Esta acción no se puede deshacer.</strong>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="d-flex gap-2">
+                <button type="submit" name="confirm" value="1" class="btn btn-success btn-lg" id="btnConfirm">
+                    <i class="fas fa-check me-1"></i> Confirmar Importación ({{ total_products }} productos)
+                </button>
+                <a href="{% url 'stocks:import_excel' %}" class="btn btn-outline-secondary btn-lg">
+                    <i class="fas fa-times me-1"></i> Cancelar
+                </a>
+            </div>
+        </form>
+    </div>
+
+    <script>
+    document.getElementById('flushCheck').addEventListener('change', function() {
+        const btn = document.getElementById('btnConfirm');
+        if (this.checked) {
+            btn.classList.remove('btn-success');
+            btn.classList.add('btn-danger');
+            btn.innerHTML = '<i class="fas fa-exclamation-triangle me-1"></i> BORRAR TODO e Importar ({{ total_products }} productos)';
+        } else {
+            btn.classList.remove('btn-danger');
+            btn.classList.add('btn-success');
+            btn.innerHTML = '<i class="fas fa-check me-1"></i> Confirmar Importación ({{ total_products }} productos)';
+        }
+    });
+    document.getElementById('importForm').addEventListener('submit', function(e) {
+        if (document.getElementById('flushCheck').checked) {
+            if (!confirm('⚠️ ATENCIÓN: Esto va a BORRAR TODOS los productos, categorías, promociones e items de venta/compra existentes. ¿Estás seguro?')) {
+                e.preventDefault();
+            }
+        }
+    });
+    </script>
+
+    {% endif %}
+</div>
+{% endblock %}

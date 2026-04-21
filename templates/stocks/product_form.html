@@ -1,0 +1,650 @@
+{% extends 'base.html' %}
+{% load crispy_forms_tags currency_filters %}
+
+{% block title %}{{ title }} - CHE GOLOSO{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-{% if product %}edit{% else %}plus{% endif %} me-2"></i>{{ title }}
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <form method="post" enctype="multipart/form-data">
+                        {% csrf_token %}
+                        
+                        {% if form.errors %}
+                        <div class="alert alert-danger">
+                            <strong><i class="fas fa-exclamation-triangle me-1"></i>Por favor corregí los siguientes errores:</strong>
+                            <ul class="mb-0 mt-2">
+                            {% for field in form %}
+                                {% for error in field.errors %}
+                                <li><strong>{{ field.label }}:</strong> {{ error }}</li>
+                                {% endfor %}
+                            {% endfor %}
+                            {% for error in form.non_field_errors %}
+                                <li>{{ error }}</li>
+                            {% endfor %}
+                            </ul>
+                        </div>
+                        {% endif %}
+                        
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="id_name" class="form-label">Nombre del Producto *</label>
+                                    <input type="text" name="name" id="id_name" 
+                                           class="form-control" value="{{ form.name.value|default:'' }}" required>
+                                    {% if form.name.errors %}
+                                    <div class="text-danger small">{{ form.name.errors.0 }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="id_category" class="form-label">Categoría</label>
+                                    <select name="category" id="id_category" class="form-select">
+                                        <option value="">Sin categoría</option>
+                                        {% for cat in form.category.field.queryset %}
+                                        <option value="{{ cat.pk }}" {% if form.category.value|stringformat:'d' == cat.pk|stringformat:'d' %}selected{% endif %}>
+                                            {{ cat.name }}
+                                        </option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    <label for="id_sku" class="form-label">SKU</label>
+                                    <input type="text" name="sku" id="id_sku" 
+                                           class="form-control" value="{{ form.sku.value|default:'' }}"
+                                           placeholder="Código interno">
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    <label for="id_barcode" class="form-label">Código de Barras</label>
+                                    <div class="input-group">
+                                        <input type="text" name="barcode" id="id_barcode" 
+                                               class="form-control" value="{{ form.barcode.value|default:'' }}"
+                                               placeholder="EAN-13">
+                                        <button type="button" class="btn btn-outline-secondary" id="btn-generate-barcode" title="Generar código">
+                                            <i class="fas fa-magic"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    <label for="id_unit_of_measure" class="form-label">Unidad de Medida</label>
+                                    <select name="unit_of_measure" id="id_unit_of_measure" class="form-select">
+                                        {% for unit in form.unit_of_measure.field.queryset %}
+                                        <option value="{{ unit.pk }}" {% if form.unit_of_measure.value|stringformat:'d' == unit.pk|stringformat:'d' %}selected{% endif %}>
+                                            {{ unit.name }} ({{ unit.abbreviation }})
+                                        </option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <hr class="my-4">
+                        <h6 class="text-muted mb-3"><i class="fas fa-dollar-sign me-2"></i>Precios</h6>
+                        
+                        <div class="row">
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    <label for="id_cost_price" class="form-label">Precio de Costo *</label>
+                                    <div class="input-group">
+                                        <span class="input-group-text">$</span>
+                                        <input type="number" name="cost_price" id="id_cost_price"
+                                               class="form-control text-end{% if form.cost_price.errors %} is-invalid{% endif %}" step="1" min="0"
+                                               value="{{ form.cost_price.value|unlocalize|default:'0' }}" required>
+                                    </div>
+                                    {% if form.cost_price.errors %}<div class="text-danger small">{{ form.cost_price.errors.0 }}</div>{% endif %}
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    <label for="id_margin" class="form-label">Margen %</label>
+                                    <div class="input-group">
+                                        <input type="number" name="profit_margin" id="id_margin" 
+                                               class="form-control text-end" step="0.01" min="0"
+                                               value="{{ form.profit_margin.value|default:'30.00' }}">
+                                        <span class="input-group-text">%</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    <label for="id_sale_price" class="form-label">Precio de Venta *</label>
+                                    <div class="input-group">
+                                        <span class="input-group-text">$</span>
+                                        <input type="number" name="sale_price" id="id_sale_price"
+                                               class="form-control text-end" step="1" min="0"
+                                               value="{{ form.sale_price.value|unlocalize|default:'0' }}" required>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <hr class="my-4">
+                        <h6 class="text-muted mb-3"><i class="fas fa-boxes me-2"></i>Inventario</h6>
+                        
+                        <div class="row">
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    <label for="id_current_stock" class="form-label">Stock Actual</label>
+                                    <input type="number" name="current_stock" id="id_current_stock"
+                                           class="form-control text-end" step="1" min="0"
+                                           value="{{ form.current_stock.value|unlocalize|default:'0' }}"
+                                           {% if product %}readonly{% endif %}>
+                                    {% if product %}
+                                    <small class="text-muted">Usá "Conteo Físico" para modificar</small>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    <label for="id_min_stock" class="form-label">Stock Mínimo</label>
+                                    <input type="number" name="min_stock" id="id_min_stock"
+                                           class="form-control text-end" step="1" min="0"
+                                           value="{{ form.min_stock.value|unlocalize|default:'0' }}">
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    <label for="id_max_stock" class="form-label">Stock Máximo</label>
+                                    <input type="number" name="max_stock" id="id_max_stock"
+                                           class="form-control text-end" step="1" min="0"
+                                           value="{{ form.max_stock.value|unlocalize|default:'' }}">
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <hr class="my-4">
+                        <h6 class="text-muted mb-3">
+                            <i class="fas fa-warehouse me-2" style="color:#E91E8C;"></i>Depósito para Caramelera
+                        </h6>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-check mb-3">
+                                    <input type="checkbox" name="es_deposito_caramelera" id="id_es_deposito_caramelera"
+                                           class="form-check-input" value="true"
+                                           {% if form.es_deposito_caramelera.value %}checked{% endif %}>
+                                    <label class="form-check-label fw-semibold" for="id_es_deposito_caramelera">
+                                        Producto para Caramelera (bulto de depósito)
+                                    </label>
+                                    <div class="form-text">
+                                        Al activar esto, el producto aparece en el Depósito de Bultos y puede
+                                        abrirse hacia una caramelera. El precio de costo es el costo del bulto.
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div id="campos-caramelera" style="{% if not form.es_deposito_caramelera.value %}display:none{% endif %}">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="id_marca" class="form-label">Marca</label>
+                                        <input type="text" name="marca" id="id_marca"
+                                               class="form-control"
+                                               placeholder="Ej: Arcor, Stani..."
+                                               value="{{ form.marca.value|default:'' }}">
+                                        <div class="form-text">Útil para distinguir bultos del mismo tipo.</div>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="id_weight_per_unit_grams" class="form-label">Gramos por Unidad</label>
+                                        <div class="input-group">
+                                            <input type="number" name="weight_per_unit_grams" id="id_weight_per_unit_grams"
+                                                   class="form-control text-end" step="1" min="1"
+                                                   value="{{ form.weight_per_unit_grams.value|default:'' }}"
+                                                   placeholder="Ej: 2000">
+                                            <span class="input-group-text">g</span>
+                                        </div>
+                                        <div class="form-text">Cuántos gramos tiene cada bolsa/unidad.</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <hr class="my-4">
+                        <h6 class="text-muted mb-3"><i class="fas fa-cogs me-2"></i>Opciones</h6>
+                        
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-check mb-3">
+                                    <input type="checkbox" name="is_active" id="id_is_active"
+                                           class="form-check-input" value="true"
+                                           {% if form.is_active.value != False %}checked{% endif %}>
+                                    <label class="form-check-label" for="id_is_active">
+                                        Producto Activo
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-check mb-3">
+                                    <input type="checkbox" name="is_quick_access" id="id_is_quick_access"
+                                           class="form-check-input" value="true"
+                                           {% if form.is_quick_access.value %}checked{% endif %}>
+                                    <label class="form-check-label" for="id_is_quick_access">
+                                        Mostrar en Acceso Rápido (POS)
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="id_description" class="form-label">Descripción</label>
+                            <textarea name="description" id="id_description" 
+                                      class="form-control" rows="3">{{ form.description.value|default:'' }}</textarea>
+                        </div>
+
+                        <!-- Packaging: solo desde edit del producto (Gestor de Empaques).
+                             En create mode ni se muestra — user termina y despues configura. -->
+                        <hr class="my-4">
+                        {% if product %}
+                        <div class="d-flex align-items-center justify-content-between mb-3">
+                            <h6 class="text-muted mb-0"><i class="fas fa-boxes-stacked me-2"></i>Empaques</h6>
+                            <a href="{% url 'stocks:product_packaging' product.pk %}" class="btn btn-sm" style="background:#E91E8C;color:#fff;">
+                                <i class="fas fa-arrow-right me-1"></i>Gestionar Empaques
+                            </a>
+                        </div>
+                        <p class="text-muted small">Para configurar empaques (unidad, display, bulto), usa el Gestor de Empaques dedicado.</p>
+                        {% else %}
+                        <div class="alert alert-info small">
+                            <i class="fas fa-info-circle me-1"></i>
+                            Al guardar, se crea la <b>unidad</b> del producto. Luego configurá display y bulto desde <b>Gestionar Empaques</b> en la edicion.
+                        </div>
+                        {% comment %}legacy inline packaging section — retenida en comment para referencia historica{% endcomment %}
+                        {% if False %}
+                        <div class="collapse" id="packagingSection">
+                            <div class="row mb-3">
+                                <div class="col-md-6">
+                                    <label class="form-label">Unidades por Display</label>
+                                    <input type="number" name="pkg_units_per_display" id="id_pkg_units_per_display"
+                                           class="form-control" min="1" value="1">
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label">Displays por Bulto</label>
+                                    <input type="number" name="pkg_displays_per_bulk" id="id_pkg_displays_per_bulk"
+                                           class="form-control" min="1" value="1">
+                                </div>
+                            </div>
+
+                            <!-- Unit Packaging -->
+                            <div class="card mb-3 border">
+                                <div class="card-header bg-light py-2">
+                                    <div class="form-check">
+                                        <input type="checkbox" name="has_unit" id="id_has_unit"
+                                               class="form-check-input" value="1">
+                                        <label class="form-check-label fw-bold" for="id_has_unit">
+                                            <i class="fas fa-cube me-1"></i>Unidad
+                                        </label>
+                                    </div>
+                                </div>
+                                <div class="card-body" id="unit_fields" style="display:none">
+                                    <div class="row">
+                                        <div class="col-md-6 mb-2">
+                                            <label class="form-label small">Codigo de Barras</label>
+                                            <input type="text" name="unit_barcode" class="form-control form-control-sm"
+                                                   placeholder="EAN-13 unidad">
+                                        </div>
+                                        <div class="col-md-6 mb-2">
+                                            <label class="form-label small">Nombre</label>
+                                            <input type="text" name="unit_name" class="form-control form-control-sm"
+                                                   placeholder="Ej: Unidad">
+                                        </div>
+                                        <div class="col-md-4 mb-2">
+                                            <label class="form-label small">Precio Compra</label>
+                                            <div class="input-group input-group-sm">
+                                                <span class="input-group-text">$</span>
+                                                <input type="number" name="unit_purchase_price" id="id_unit_purchase"
+                                                       class="form-control text-end pkg-price" data-pkg="unit"
+                                                       step="0.01" min="0" value="0">
+                                            </div>
+                                        </div>
+                                        <div class="col-md-4 mb-2">
+                                            <label class="form-label small">Precio Venta</label>
+                                            <div class="input-group input-group-sm">
+                                                <span class="input-group-text">$</span>
+                                                <input type="number" name="unit_sale_price" id="id_unit_sale"
+                                                       class="form-control text-end pkg-price" data-pkg="unit"
+                                                       step="0.01" min="0" value="0">
+                                            </div>
+                                        </div>
+                                        <div class="col-md-4 mb-2">
+                                            <label class="form-label small">Margen %</label>
+                                            <div class="input-group input-group-sm">
+                                                <input type="number" name="unit_margin_percent" id="id_unit_margin"
+                                                       class="form-control text-end" step="0.01" value="0">
+                                                <span class="input-group-text">%</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Display Packaging -->
+                            <div class="card mb-3 border">
+                                <div class="card-header bg-light py-2">
+                                    <div class="form-check">
+                                        <input type="checkbox" name="has_display" id="id_has_display"
+                                               class="form-check-input" value="1">
+                                        <label class="form-check-label fw-bold" for="id_has_display">
+                                            <i class="fas fa-box me-1"></i>Display
+                                        </label>
+                                    </div>
+                                </div>
+                                <div class="card-body" id="display_fields" style="display:none">
+                                    <div class="row">
+                                        <div class="col-md-6 mb-2">
+                                            <label class="form-label small">Codigo de Barras</label>
+                                            <input type="text" name="display_barcode" class="form-control form-control-sm"
+                                                   placeholder="EAN-13 del display">
+                                        </div>
+                                        <div class="col-md-6 mb-2">
+                                            <label class="form-label small">Nombre</label>
+                                            <input type="text" name="display_name" class="form-control form-control-sm"
+                                                   placeholder="Ej: Display x 12">
+                                        </div>
+                                        <div class="col-md-4 mb-2">
+                                            <label class="form-label small">Precio Compra</label>
+                                            <div class="input-group input-group-sm">
+                                                <span class="input-group-text">$</span>
+                                                <input type="number" name="display_purchase_price" id="id_display_purchase"
+                                                       class="form-control text-end pkg-price" data-pkg="display"
+                                                       step="0.01" min="0" value="0">
+                                            </div>
+                                        </div>
+                                        <div class="col-md-4 mb-2">
+                                            <label class="form-label small">Precio Venta</label>
+                                            <div class="input-group input-group-sm">
+                                                <span class="input-group-text">$</span>
+                                                <input type="number" name="display_sale_price" id="id_display_sale"
+                                                       class="form-control text-end pkg-price" data-pkg="display"
+                                                       step="0.01" min="0" value="0">
+                                            </div>
+                                        </div>
+                                        <div class="col-md-4 mb-2">
+                                            <label class="form-label small">Margen %</label>
+                                            <div class="input-group input-group-sm">
+                                                <input type="number" name="display_margin_percent" id="id_display_margin"
+                                                       class="form-control text-end" step="0.01" value="0">
+                                                <span class="input-group-text">%</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Bulk Packaging -->
+                            <div class="card mb-3 border">
+                                <div class="card-header bg-light py-2">
+                                    <div class="form-check">
+                                        <input type="checkbox" name="has_bulk" id="id_has_bulk"
+                                               class="form-check-input" value="1">
+                                        <label class="form-check-label fw-bold" for="id_has_bulk">
+                                            <i class="fas fa-boxes-stacked me-1"></i>Bulto
+                                        </label>
+                                    </div>
+                                </div>
+                                <div class="card-body" id="bulk_fields" style="display:none">
+                                    <div class="row">
+                                        <div class="col-md-6 mb-2">
+                                            <label class="form-label small">Codigo de Barras</label>
+                                            <input type="text" name="bulk_barcode" class="form-control form-control-sm"
+                                                   placeholder="EAN-13 del bulto">
+                                        </div>
+                                        <div class="col-md-6 mb-2">
+                                            <label class="form-label small">Nombre</label>
+                                            <input type="text" name="bulk_name" class="form-control form-control-sm"
+                                                   placeholder="Ej: Bulto x 144">
+                                        </div>
+                                        <div class="col-md-4 mb-2">
+                                            <label class="form-label small">Precio Compra</label>
+                                            <div class="input-group input-group-sm">
+                                                <span class="input-group-text">$</span>
+                                                <input type="number" name="bulk_purchase_price" id="id_bulk_purchase"
+                                                       class="form-control text-end pkg-price" data-pkg="bulk"
+                                                       step="0.01" min="0" value="0">
+                                            </div>
+                                        </div>
+                                        <div class="col-md-4 mb-2">
+                                            <label class="form-label small">Precio Venta</label>
+                                            <div class="input-group input-group-sm">
+                                                <span class="input-group-text">$</span>
+                                                <input type="number" name="bulk_sale_price" id="id_bulk_sale"
+                                                       class="form-control text-end pkg-price" data-pkg="bulk"
+                                                       step="0.01" min="0" value="0">
+                                            </div>
+                                        </div>
+                                        <div class="col-md-4 mb-2">
+                                            <label class="form-label small">Margen %</label>
+                                            <div class="input-group input-group-sm">
+                                                <input type="number" name="bulk_margin_percent" id="id_bulk_margin"
+                                                       class="form-control text-end" step="0.01" value="0">
+                                                <span class="input-group-text">%</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endif %}{# cierra {% if False %} legacy packaging section #}
+                        {% endif %}{# cierra {% if product %} #}
+
+                        <hr class="my-4">
+
+                        <div class="d-flex gap-2">
+                            <a href="{% url 'stocks:product_list' %}" class="btn btn-outline-secondary">
+                                <i class="fas fa-arrow-left me-1"></i>Cancelar
+                            </a>
+                            <button type="submit" class="btn btn-primary flex-grow-1">
+                                <i class="fas fa-save me-1"></i>Guardar Producto
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Prevent Enter key from submitting form (barcode scanners send Enter after scan)
+    document.querySelector('form').addEventListener('keydown', function(e) {
+        if (e.key === 'Enter' && e.target.tagName !== 'TEXTAREA' && e.target.type !== 'submit') {
+            e.preventDefault();
+        }
+    });
+
+    // Bidirectional price/margin calculation
+    const costInput = document.getElementById('id_cost_price');
+    const marginInput = document.getElementById('id_margin');
+    const saleInput = document.getElementById('id_sale_price');
+
+    costInput.addEventListener('input', calculateSalePrice);
+    marginInput.addEventListener('input', calculateSalePrice);
+    saleInput.addEventListener('input', calculateMargin);
+    
+    function calculateSalePrice() {
+        const cost = parseFloat(costInput.value) || 0;
+        const margin = parseFloat(marginInput.value) || 0;
+        if (cost > 0) {
+            const salePrice = cost * (1 + margin / 100);
+            saleInput.value = salePrice.toFixed(2);
+        }
+    }
+
+    function calculateMargin() {
+        const cost = parseFloat(costInput.value) || 0;
+        const sale = parseFloat(saleInput.value) || 0;
+        if (cost > 0 && sale > 0) {
+            const margin = ((sale - cost) / cost) * 100;
+            marginInput.value = margin.toFixed(2);
+        }
+    }
+    
+    // Generate barcode
+    document.getElementById('btn-generate-barcode').addEventListener('click', async function() {
+        try {
+            const response = await fetch('{% url "stocks:generate_barcode" %}');
+            const data = await response.json();
+            if (data.barcode) {
+                document.getElementById('id_barcode').value = data.barcode;
+            }
+        } catch (error) {
+            console.error('Error generating barcode:', error);
+        }
+    });
+
+    // Packaging toggle (only in create mode). Cascada bidireccional:
+    // bulk <-> display <-> unit. Nunca escribe 0 sobre un valor manual.
+    if (document.getElementById('id_has_unit')) {
+        document.getElementById('id_has_unit').addEventListener('change', function() {
+            document.getElementById('unit_fields').style.display = this.checked ? '' : 'none';
+            if (this.checked) cascadeFromQuantities();
+        });
+        document.getElementById('id_has_display').addEventListener('change', function() {
+            document.getElementById('display_fields').style.display = this.checked ? '' : 'none';
+            if (this.checked) cascadeFromQuantities();
+        });
+        document.getElementById('id_has_bulk').addEventListener('change', function() {
+            document.getElementById('bulk_fields').style.display = this.checked ? '' : 'none';
+            if (this.checked) cascadeFromQuantities();
+        });
+
+        // Bidirectional margin <-> sale price calculation
+        function calcMarginFromPrices(prefix) {
+            const purchase = parseFloat(document.getElementById('id_' + prefix + '_purchase').value) || 0;
+            const sale = parseFloat(document.getElementById('id_' + prefix + '_sale').value) || 0;
+            const marginEl = document.getElementById('id_' + prefix + '_margin');
+            if (purchase > 0 && sale > 0) {
+                marginEl.value = (((sale - purchase) / purchase) * 100).toFixed(2);
+            } else {
+                marginEl.value = '0.00';
+            }
+        }
+
+        function calcSaleFromMargin(prefix) {
+            const purchase = parseFloat(document.getElementById('id_' + prefix + '_purchase').value) || 0;
+            const margin = parseFloat(document.getElementById('id_' + prefix + '_margin').value) || 0;
+            const saleEl = document.getElementById('id_' + prefix + '_sale');
+            if (purchase > 0) {
+                saleEl.value = (purchase * (1 + margin / 100)).toFixed(2);
+            }
+        }
+
+        // Flag para evitar loops entre las cascadas (unit↔display↔bulk).
+        var _cascading = false;
+
+        function getQtys() {
+            return {
+                unitsPerDisplay: parseInt(document.getElementById('id_pkg_units_per_display').value) || 1,
+                displaysPerBulk: parseInt(document.getElementById('id_pkg_displays_per_bulk').value) || 1,
+            };
+        }
+
+        function isChecked(id) {
+            var el = document.getElementById(id);
+            return el && el.checked;
+        }
+
+        // Cascada: solo escribe al destino si esta vacio (== 0). Unit es fuente de verdad.
+        function setIfEmpty(id, value) {
+            var el = document.getElementById(id);
+            var current = parseFloat(el.value) || 0;
+            if (current > 0) return false;
+            el.value = value.toFixed(2);
+            return true;
+        }
+
+        function cascadeFromBulk() {
+            if (_cascading) return;
+            var bulkPurchase = parseFloat(document.getElementById('id_bulk_purchase').value) || 0;
+            if (bulkPurchase <= 0) return;
+            var q = getQtys();
+            var totalUnits = q.displaysPerBulk * q.unitsPerDisplay;
+            _cascading = true;
+            if (isChecked('id_has_display') && setIfEmpty('id_display_purchase', bulkPurchase / q.displaysPerBulk)) {
+                calcMarginFromPrices('display');
+            }
+            if (isChecked('id_has_unit') && setIfEmpty('id_unit_purchase', bulkPurchase / totalUnits)) {
+                calcMarginFromPrices('unit');
+            }
+            _cascading = false;
+        }
+
+        function cascadeFromUnit() {
+            if (_cascading) return;
+            var unitPurchase = parseFloat(document.getElementById('id_unit_purchase').value) || 0;
+            if (unitPurchase <= 0) return;
+            var q = getQtys();
+            _cascading = true;
+            if (isChecked('id_has_display') && setIfEmpty('id_display_purchase', unitPurchase * q.unitsPerDisplay)) {
+                calcMarginFromPrices('display');
+            }
+            if (isChecked('id_has_bulk') && setIfEmpty('id_bulk_purchase', unitPurchase * q.unitsPerDisplay * q.displaysPerBulk)) {
+                calcMarginFromPrices('bulk');
+            }
+            _cascading = false;
+        }
+
+        function cascadeFromDisplay() {
+            if (_cascading) return;
+            var displayPurchase = parseFloat(document.getElementById('id_display_purchase').value) || 0;
+            if (displayPurchase <= 0) return;
+            var q = getQtys();
+            _cascading = true;
+            if (isChecked('id_has_unit') && setIfEmpty('id_unit_purchase', displayPurchase / q.unitsPerDisplay)) {
+                calcMarginFromPrices('unit');
+            }
+            if (isChecked('id_has_bulk') && setIfEmpty('id_bulk_purchase', displayPurchase * q.displaysPerBulk)) {
+                calcMarginFromPrices('bulk');
+            }
+            _cascading = false;
+        }
+
+        function cascadeFromQuantities() {
+            var unit = parseFloat(document.getElementById('id_unit_purchase').value) || 0;
+            var display = parseFloat(document.getElementById('id_display_purchase').value) || 0;
+            var bulk = parseFloat(document.getElementById('id_bulk_purchase').value) || 0;
+            if (unit > 0) { cascadeFromUnit(); }
+            else if (display > 0) { cascadeFromDisplay(); }
+            else if (bulk > 0) { cascadeFromBulk(); }
+        }
+
+        ['unit', 'display', 'bulk'].forEach(function(prefix) {
+            const purchaseEl = document.getElementById('id_' + prefix + '_purchase');
+            const saleEl = document.getElementById('id_' + prefix + '_sale');
+            const marginEl = document.getElementById('id_' + prefix + '_margin');
+            if (saleEl) saleEl.addEventListener('input', function() { calcMarginFromPrices(prefix); });
+            if (marginEl) marginEl.addEventListener('input', function() { calcSaleFromMargin(prefix); });
+            calcMarginFromPrices(prefix);
+        });
+
+        document.getElementById('id_bulk_purchase').addEventListener('input', function() { cascadeFromBulk(); calcMarginFromPrices('bulk'); });
+        document.getElementById('id_unit_purchase').addEventListener('input', function() { cascadeFromUnit(); calcMarginFromPrices('unit'); });
+        document.getElementById('id_display_purchase').addEventListener('input', function() { cascadeFromDisplay(); calcMarginFromPrices('display'); });
+        document.getElementById('id_pkg_displays_per_bulk').addEventListener('input', cascadeFromQuantities);
+        document.getElementById('id_pkg_units_per_display').addEventListener('input', cascadeFromQuantities);
+    }
+
+    // Toggle caramelera deposit fields
+    document.getElementById('id_es_deposito_caramelera').addEventListener('change', function() {
+        document.getElementById('campos-caramelera').style.display = this.checked ? '' : 'none';
+    });
+</script>
+{% endblock %}

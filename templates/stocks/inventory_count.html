@@ -1,0 +1,168 @@
+{% extends 'base.html' %}
+{% load currency_filters %}
+
+{% block title %}Conteo Físico - {{ product.name }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row justify-content-center">
+        <div class="col-lg-6">
+            <!-- Header -->
+            <div class="mb-4">
+                <h1 class="h3 mb-0">
+                    <i class="fas fa-clipboard-check me-2" style="color:var(--che-primary,#E91E8C);"></i>Conteo Físico
+                </h1>
+                <nav aria-label="breadcrumb">
+                    <ol class="breadcrumb mb-0">
+                        <li class="breadcrumb-item"><a href="{% url 'stocks:product_list' %}">Productos</a></li>
+                        <li class="breadcrumb-item"><a href="{% url 'stocks:product_detail' product.pk %}">{{ product.name }}</a></li>
+                        <li class="breadcrumb-item active">Conteo Físico</li>
+                    </ol>
+                </nav>
+            </div>
+
+            <div class="alert alert-info">
+                <i class="fas fa-info-circle me-2"></i>
+                <strong>Conteo Físico:</strong> usá esta pantalla para corregir el stock cuando contás físicamente y encontrás una diferencia.
+                Para ingresar mercadería nueva, usá una <a href="{% url 'purchase:purchase_create' %}">Orden de Compra</a>.
+            </div>
+
+            <!-- Product Info Card -->
+            <div class="card mb-4">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-shrink-0">
+                            <div class="rounded-circle bg-primary d-flex align-items-center justify-content-center" style="width: 60px; height: 60px;">
+                                <i class="fas fa-box fa-2x text-white"></i>
+                            </div>
+                        </div>
+                        <div class="flex-grow-1 ms-3">
+                            <h5 class="mb-1">{{ product.name }}</h5>
+                            <p class="text-muted mb-0">
+                                SKU: {{ product.sku }}
+                                {% if product.barcode %} | Código: {{ product.barcode }}{% endif %}
+                            </p>
+                        </div>
+                        <div class="text-end">
+                            <h4 class="mb-0 {% if product.current_stock <= product.min_stock %}text-danger{% else %}text-success{% endif %}">
+                                {{ product.current_stock|floatformat:2 }}
+                            </h4>
+                            <small class="text-muted">Stock en Sistema</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Conteo Form -->
+            <div class="card">
+                <div class="card-header" style="background:var(--che-secondary,#2D1E5F);color:#fff;">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-clipboard-list me-2"></i>Registrar Conteo
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <form method="post">
+                        {% csrf_token %}
+
+                        <div class="mb-3">
+                            <label for="id_new_quantity" class="form-label fw-bold">Cantidad Contada Físicamente <span class="text-danger">*</span></label>
+                            <div class="input-group input-group-lg">
+                                <input type="number"
+                                       class="form-control text-center"
+                                       id="id_new_quantity"
+                                       name="new_quantity"
+                                       value="{{ form.new_quantity.value|default:product.current_stock }}"
+                                       step="0.001"
+                                       min="0"
+                                       required
+                                       autofocus>
+                                <span class="input-group-text">{{ product.unit_of_measure.abbreviation|default:"u" }}</span>
+                            </div>
+                            <small class="text-muted">Stock actual en sistema: <strong>{{ product.current_stock|floatformat:3 }}</strong></small>
+                        </div>
+
+                        <!-- Preview -->
+                        <div class="alert" id="preview-alert" style="display:none;">
+                            <div class="row text-center">
+                                <div class="col-4">
+                                    <div class="text-muted small">En sistema</div>
+                                    <div class="fw-bold">{{ product.current_stock|floatformat:2 }}</div>
+                                </div>
+                                <div class="col-4">
+                                    <div class="text-muted small">Diferencia</div>
+                                    <div class="fw-bold" id="diff-value"></div>
+                                </div>
+                                <div class="col-4">
+                                    <div class="text-muted small">Nuevo stock</div>
+                                    <div class="fw-bold" id="final-value"></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="id_reason" class="form-label fw-bold">Motivo <span class="text-danger">*</span></label>
+                            <select class="form-select" id="id_reason" name="reason" required>
+                                <option value="">Seleccionar motivo...</option>
+                                <option value="conteo_fisico">Conteo Físico / Inventario</option>
+                                <option value="mercaderia_danada">Mercadería Dañada</option>
+                                <option value="mercaderia_vencida">Mercadería Vencida</option>
+                                <option value="robo_perdida">Robo / Pérdida</option>
+                                <option value="devolucion">Devolución</option>
+                                <option value="correccion_error">Corrección de Error</option>
+                                <option value="consumo_interno">Consumo Interno</option>
+                                <option value="otro">Otro</option>
+                            </select>
+                        </div>
+
+                        <div class="mb-4">
+                            <label for="id_notes" class="form-label">Notas Adicionales</label>
+                            <textarea class="form-control" id="id_notes" name="notes" rows="2" placeholder="Detalles del conteo..."></textarea>
+                        </div>
+
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-lg" style="background:var(--che-primary,#E91E8C);color:#fff;">
+                                <i class="fas fa-check me-2"></i>Confirmar Conteo
+                            </button>
+                            <a href="{% url 'stocks:product_detail' product.pk %}" class="btn btn-outline-secondary">
+                                <i class="fas fa-times me-2"></i>Cancelar
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const currentStock = {{ product.current_stock }};
+    const quantityInput = document.getElementById('id_new_quantity');
+    const previewAlert = document.getElementById('preview-alert');
+    const diffValue = document.getElementById('diff-value');
+    const finalValue = document.getElementById('final-value');
+
+    function updatePreview() {
+        const newQuantity = parseFloat(quantityInput.value) || 0;
+        const difference = newQuantity - currentStock;
+
+        if (Math.abs(difference) > 0.001) {
+            previewAlert.style.display = 'block';
+            if (difference > 0) {
+                previewAlert.className = 'alert alert-success';
+                diffValue.innerHTML = `<span class="text-success">+${difference.toFixed(3)}</span>`;
+            } else {
+                previewAlert.className = 'alert alert-warning';
+                diffValue.innerHTML = `<span class="text-danger">${difference.toFixed(3)}</span>`;
+            }
+            finalValue.textContent = newQuantity.toFixed(3);
+        } else {
+            previewAlert.style.display = 'none';
+        }
+    }
+
+    quantityInput.addEventListener('input', updatePreview);
+    updatePreview();
+});
+</script>
+{% endblock %}

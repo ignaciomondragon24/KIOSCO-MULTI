@@ -1,0 +1,209 @@
+{% extends 'base.html' %}
+{% load currency_filters %}
+
+{% block title %}{% if product %}Movimientos - {{ product.name }}{% else %}Movimientos / Kardex{% endif %}{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="mb-0">
+                <i class="fas fa-exchange-alt me-2"></i>{% if product %}Movimientos de {{ product.name }}{% else %}Movimientos / Kardex{% endif %}
+            </h2>
+            {% if product %}
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-0">
+                    <li class="breadcrumb-item"><a href="{% url 'stocks:product_list' %}">Productos</a></li>
+                    <li class="breadcrumb-item"><a href="{% url 'stocks:product_detail' product.pk %}">{{ product.name }}</a></li>
+                    <li class="breadcrumb-item active">Movimientos</li>
+                </ol>
+            </nav>
+            {% endif %}
+        </div>
+        {% if product %}
+        <a href="{% url 'stocks:product_detail' product.pk %}" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left me-1"></i>Volver al Producto
+        </a>
+        {% endif %}
+    </div>
+
+    <!-- Filters -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <form method="get" class="row g-3">
+                {% if not product %}
+                <div class="col-md-3">
+                    <div class="input-group">
+                        <span class="input-group-text"><i class="fas fa-search"></i></span>
+                        <input type="text" class="form-control" name="search"
+                               placeholder="Buscar producto..."
+                               value="{{ search }}">
+                    </div>
+                </div>
+                {% endif %}
+                <div class="col-md-2">
+                    <select name="type" class="form-select">
+                        <option value="">Todos los tipos</option>
+                        {% for code, label in movement_types %}
+                        <option value="{{ code }}" {% if selected_type == code %}selected{% endif %}>{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <input type="text" class="form-control" name="reason"
+                           placeholder="Motivo (Robo, Rotura...)"
+                           value="{{ reason_filter }}"
+                           title="Busca en motivo y notas">
+                </div>
+                <div class="col-md-2">
+                    <input type="date" class="form-control" name="date_from"
+                           value="{{ date_from }}" placeholder="Desde">
+                </div>
+                <div class="col-md-2">
+                    <input type="date" class="form-control" name="date_to"
+                           value="{{ date_to }}" placeholder="Hasta">
+                </div>
+                <div class="col-auto">
+                    <button type="submit" class="btn btn-outline-primary">Filtrar</button>
+                    <a href="{% if product %}{% url 'stocks:product_movements' product.pk %}{% else %}{% url 'stocks:movement_list' %}{% endif %}" class="btn btn-outline-secondary">Limpiar</a>
+                </div>
+            </form>
+
+            <!-- Atajos rápidos por motivo -->
+            <div class="mt-3 d-flex flex-wrap gap-2 align-items-center">
+                <small class="text-muted me-2">Buscar por motivo:</small>
+                {% for key, label in reason_shortcuts %}
+                <a href="?reason={{ key }}{% if selected_type %}&type={{ selected_type }}{% endif %}{% if date_from %}&date_from={{ date_from }}{% endif %}{% if date_to %}&date_to={{ date_to }}{% endif %}"
+                   class="badge text-decoration-none {% if reason_filter == key %}bg-primary{% else %}bg-light text-dark border{% endif %}">
+                    {% if key == 'Robo' %}<i class="fas fa-mask me-1"></i>{% endif %}
+                    {% if key == 'Dañada' %}<i class="fas fa-heart-broken me-1"></i>{% endif %}
+                    {% if key == 'Vencida' %}<i class="fas fa-calendar-times me-1"></i>{% endif %}
+                    {% if key == 'Conteo' %}<i class="fas fa-clipboard-check me-1"></i>{% endif %}
+                    {% if key == 'Consumo' %}<i class="fas fa-utensils me-1"></i>{% endif %}
+                    {{ label }}
+                </a>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Movements Table -->
+    <div class="card">
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead>
+                        <tr>
+                            <th>Fecha</th>
+                            {% if not product %}<th>Producto</th>{% endif %}
+                            <th>Tipo</th>
+                            <th class="text-end">Cantidad</th>
+                            <th class="text-end">Stock Anterior</th>
+                            <th class="text-end">Stock Posterior</th>
+                            <th>Referencia</th>
+                            <th>Usuario</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for m in movements %}
+                        <tr>
+                            <td><small>{{ m.created_at|date:"d/m/Y H:i" }}</small></td>
+                            {% if not product %}
+                            <td>
+                                <a href="{% url 'stocks:product_movements' m.product.pk %}" class="fw-bold">{{ m.product.name }}</a>
+                                <br>
+                                <small class="text-muted">
+                                    SKU: {{ m.product.sku }}{% if m.product.barcode %} · Cód: {{ m.product.barcode }}{% endif %}
+                                </small>
+                            </td>
+                            {% endif %}
+                            <td>
+                                {% if m.movement_type == 'purchase' or m.movement_type == 'transfer_in' or m.movement_type == 'return_in' or m.movement_type == 'adjustment_in' %}
+                                    <span class="badge bg-success">{{ m.get_movement_type_display }}</span>
+                                {% elif m.movement_type == 'sale' or m.movement_type == 'transfer_out' or m.movement_type == 'return_out' or m.movement_type == 'adjustment_out' %}
+                                    <span class="badge bg-danger">{{ m.get_movement_type_display }}</span>
+                                {% else %}
+                                    <span class="badge bg-warning text-dark">{{ m.get_movement_type_display }}</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-end">
+                                {% if m.quantity > 0 %}
+                                    <span class="text-success">+{{ m.quantity|floatformat:2 }}</span>
+                                {% else %}
+                                    <span class="text-danger">{{ m.quantity|floatformat:2 }}</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-end">{{ m.stock_before|floatformat:2 }}</td>
+                            <td class="text-end">{{ m.stock_after|floatformat:2 }}</td>
+                            <td>
+                                {% if m.reference %}
+                                    {% if 'Robo' in m.reference or 'Pérdida' in m.reference %}
+                                        <span class="badge bg-dark"><i class="fas fa-mask me-1"></i>{{ m.reference }}</span>
+                                    {% elif 'Dañada' in m.reference or 'Daño' in m.reference %}
+                                        <span class="badge bg-warning text-dark"><i class="fas fa-heart-broken me-1"></i>{{ m.reference }}</span>
+                                    {% elif 'Vencida' in m.reference %}
+                                        <span class="badge bg-warning text-dark"><i class="fas fa-calendar-times me-1"></i>{{ m.reference }}</span>
+                                    {% elif 'Conteo' in m.reference %}
+                                        <span class="badge bg-info"><i class="fas fa-clipboard-check me-1"></i>{{ m.reference }}</span>
+                                    {% elif 'Consumo' in m.reference %}
+                                        <span class="badge bg-secondary"><i class="fas fa-utensils me-1"></i>{{ m.reference }}</span>
+                                    {% else %}
+                                        <span class="text-muted">{{ m.reference }}</span>
+                                    {% endif %}
+                                {% else %}
+                                    <small class="text-muted">-</small>
+                                {% endif %}
+                                {% if m.notes %}
+                                <br>
+                                <small class="text-muted fst-italic">"{{ m.notes|truncatechars:80 }}"</small>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <small>{% if m.created_by %}{{ m.created_by.get_full_name|default:m.created_by.username }}{% else %}-{% endif %}</small>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="{% if product %}7{% else %}8{% endif %}" class="text-center py-5 text-muted">
+                                <i class="fas fa-inbox fa-3x mb-3"></i>
+                                <p>No se encontraron movimientos</p>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Pagination -->
+    {% if movements.has_other_pages %}
+    <nav aria-label="Paginacion" class="mt-3">
+        <ul class="pagination justify-content-center">
+            {% if movements.has_previous %}
+            <li class="page-item">
+                <a class="page-link" href="?page={{ movements.previous_page_number }}&search={{ search }}&type={{ selected_type }}&reason={{ reason_filter }}&date_from={{ date_from }}&date_to={{ date_to }}">
+                    <i class="fas fa-chevron-left"></i>
+                </a>
+            </li>
+            {% endif %}
+            {% for num in movements.paginator.page_range %}
+            <li class="page-item {% if movements.number == num %}active{% endif %}">
+                <a class="page-link" href="?page={{ num }}&search={{ search }}&type={{ selected_type }}&reason={{ reason_filter }}&date_from={{ date_from }}&date_to={{ date_to }}">
+                    {{ num }}
+                </a>
+            </li>
+            {% endfor %}
+            {% if movements.has_next %}
+            <li class="page-item">
+                <a class="page-link" href="?page={{ movements.next_page_number }}&search={{ search }}&type={{ selected_type }}&reason={{ reason_filter }}&date_from={{ date_from }}&date_to={{ date_to }}">
+                    <i class="fas fa-chevron-right"></i>
+                </a>
+            </li>
+            {% endif %}
+        </ul>
+    </nav>
+    {% endif %}
+</div>
+{% endblock %}

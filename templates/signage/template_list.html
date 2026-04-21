@@ -1,0 +1,146 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Cartelería - Plantillas{% endblock %}
+
+{% block extra_css %}
+<style>
+.sign-catalog { padding: 1.5rem 0; }
+.type-section { margin-bottom: 2.5rem; }
+.type-header {
+    display: flex; align-items: center; gap: 0.75rem;
+    margin-bottom: 1rem; padding-bottom: 0.5rem;
+    border-bottom: 2px solid #dee2e6;
+}
+.type-icon {
+    width: 40px; height: 40px; border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    color: white; font-size: 1.1rem;
+}
+.template-card {
+    border: 2px solid #e9ecef;
+    border-radius: 12px;
+    overflow: hidden;
+    transition: all 0.2s ease;
+    background: white;
+    height: 100%;
+}
+.template-card:hover {
+    border-color: #E91E8C;
+    box-shadow: 0 4px 20px rgba(233, 30, 140, 0.15);
+    transform: translateY(-2px);
+}
+.template-preview {
+    background: #f0f0f0;
+    padding: 1.2rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 160px;
+    border-bottom: 1px solid #e9ecef;
+}
+.template-preview > div {
+    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+}
+.template-info {
+    padding: 0.75rem 1rem;
+}
+.template-info h6 {
+    margin-bottom: 0.25rem;
+    font-weight: 700;
+    color: #333;
+}
+.template-size {
+    font-size: 0.8rem;
+    color: #888;
+}
+.template-actions {
+    padding: 0.5rem 1rem 0.75rem;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid sign-catalog">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h3><i class="fas fa-tags me-2" style="color: #E91E8C;"></i>Cartelería</h3>
+            <p class="text-muted mb-0">Elegí una plantilla y generá carteles para tus productos</p>
+        </div>
+        <div class="d-flex gap-2">
+            <a href="{% url 'signage:generate_all' %}" class="btn btn-success">
+                <i class="fas fa-print me-1"></i>Imprimir Todo el Inventario
+            </a>
+            <a href="{% url 'signage:batch_list' %}" class="btn btn-outline-secondary">
+                <i class="fas fa-history me-1"></i>Historial
+            </a>
+        </div>
+    </div>
+
+    {% for group in grouped %}
+    <div class="type-section">
+        <div class="type-header">
+            <div class="type-icon" style="background: {{ group.color }};">
+                <i class="fas {{ group.icon }}"></i>
+            </div>
+            <div>
+                <h5 class="mb-0">{{ group.label }}</h5>
+            </div>
+        </div>
+        <div class="row g-3">
+            {% for tpl in group.templates %}
+            <div class="col-xl-3 col-lg-4 col-md-6">
+                <div class="template-card">
+                    <div class="template-preview">
+                        <div class="sign-render" id="preview-{{ tpl.pk }}"
+                             data-layout='{{ tpl.layout_json|escapejs }}'
+                             data-width="{{ tpl.width_mm }}" data-height="{{ tpl.height_mm }}"
+                             data-type="{{ tpl.sign_type }}">
+                        </div>
+                    </div>
+                    <div class="template-info">
+                        <h6>{{ tpl.name }}</h6>
+                        <span class="template-size">{{ tpl.size_label }}</span>
+                    </div>
+                    <div class="template-actions">
+                        <a href="{% url 'signage:generate' pk=tpl.pk %}" class="btn btn-sm btn-success w-100">
+                            <i class="fas fa-print me-1"></i>Generar Carteles
+                        </a>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% empty %}
+    <div class="text-center py-5">
+        <i class="fas fa-tags fa-4x text-muted mb-3 d-block opacity-25"></i>
+        <h5 class="text-muted">No hay plantillas disponibles</h5>
+    </div>
+    {% endfor %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/signage-renderer.js' %}"></script>
+<script>
+(function() {
+    const renderer = new SignRenderer();
+    document.querySelectorAll('.sign-render').forEach(el => {
+        try {
+            const raw = el.dataset.layout;
+            const layout = JSON.parse(raw);
+            const w = parseInt(el.dataset.width);
+            const h = parseInt(el.dataset.height);
+            const type = el.dataset.type;
+            if (!layout.elements || !layout.elements.length) return;
+            const sampleData = renderer.getSampleData(type);
+            const maxW = 220;
+            const maxH = 130;
+            const scale = Math.min(maxW / (w * 3.78), maxH / (h * 3.78), 2.5);
+            renderer.render(el, layout, sampleData, w, h, scale);
+        } catch(e) { console.warn('Preview error:', e); }
+    });
+})();
+</script>
+{% endblock %}

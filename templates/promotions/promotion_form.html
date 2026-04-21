@@ -1,0 +1,713 @@
+{% extends 'base.html' %}
+{% load currency_filters l10n %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .promo-type-card {
+        cursor: pointer;
+        transition: all 0.2s;
+        border: 2px solid transparent;
+    }
+    .promo-type-card:hover {
+        border-color: var(--bs-primary);
+        transform: translateY(-2px);
+    }
+    .promo-type-card.selected {
+        border-color: var(--bs-primary);
+        background-color: rgba(var(--bs-primary-rgb), 0.1);
+    }
+    .promo-type-card .icon {
+        font-size: 2rem;
+        margin-bottom: 0.5rem;
+    }
+    .config-section {
+        display: none;
+    }
+    .config-section.active {
+        display: block;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header -->
+    <div class="mb-4">
+        <h1 class="h3 mb-0">
+            <i class="fas fa-percent me-2"></i>{{ title }}
+        </h1>
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb mb-0">
+                <li class="breadcrumb-item"><a href="{% url 'promotions:promotion_list' %}">Promociones</a></li>
+                <li class="breadcrumb-item active">{{ title }}</li>
+            </ol>
+        </nav>
+    </div>
+
+    <form method="post" id="promotionForm">
+        {% csrf_token %}
+        
+        <div class="row">
+            <!-- Main Form -->
+            <div class="col-lg-8">
+                <!-- Basic Info -->
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">
+                            <i class="fas fa-info-circle me-2"></i>Información Básica
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <label for="id_name" class="form-label">Nombre de la Promoción <span class="text-danger">*</span></label>
+                            <input type="text" 
+                                   class="form-control {% if form.name.errors %}is-invalid{% endif %}" 
+                                   id="id_name" 
+                                   name="name" 
+                                   value="{{ form.name.value|default:'' }}"
+                                   placeholder="Ej: 2x1 en Gaseosas, 20% en Lácteos..."
+                                   required>
+                            {% if form.name.errors %}
+                            <div class="invalid-feedback">{{ form.name.errors.0 }}</div>
+                            {% endif %}
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="id_description" class="form-label">Descripción</label>
+                            <textarea class="form-control" 
+                                      id="id_description" 
+                                      name="description" 
+                                      rows="2"
+                                      placeholder="Descripción de la promoción para referencia interna...">{{ form.description.value|default:'' }}</textarea>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Promotion Type -->
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">
+                            <i class="fas fa-tag me-2"></i>Tipo de Promoción
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row g-3 mb-4">
+                            <div class="col-md-4">
+                                <div class="card promo-type-card h-100 text-center p-3" data-type="nxm">
+                                    <div class="icon text-primary"><i class="fas fa-clone"></i></div>
+                                    <h6>NxM</h6>
+                                    <small class="text-muted">2x1, 3x2, etc.</small>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="card promo-type-card h-100 text-center p-3" data-type="nx_fixed_price">
+                                    <div class="icon text-success"><i class="fas fa-dollar-sign"></i></div>
+                                    <h6>N por $X</h6>
+                                    <small class="text-muted">2x$500, 3x$1000</small>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="card promo-type-card h-100 text-center p-3" data-type="second_unit">
+                                    <div class="icon text-warning"><i class="fas fa-percent"></i></div>
+                                    <h6>2da Unidad</h6>
+                                    <small class="text-muted">% descuento</small>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="card promo-type-card h-100 text-center p-3" data-type="quantity_discount">
+                                    <div class="icon text-secondary"><i class="fas fa-boxes"></i></div>
+                                    <h6>Por Cantidad</h6>
+                                    <small class="text-muted">Lleva X paga Y</small>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="card promo-type-card h-100 text-center p-3" data-type="combo">
+                                    <div class="icon text-info"><i class="fas fa-cubes"></i></div>
+                                    <h6>Combo</h6>
+                                    <small class="text-muted">Precio fijo</small>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="card promo-type-card h-100 text-center p-3" data-type="simple_discount">
+                                    <div class="icon text-danger"><i class="fas fa-tags"></i></div>
+                                    <h6>Descuento %</h6>
+                                    <small class="text-muted">Porcentual</small>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <input type="hidden" name="promo_type" id="id_promo_type" value="{{ form.promo_type.value|default:'' }}" required>
+
+                        {% localize off %}
+                        <!-- NxM Config -->
+                        <div class="config-section" id="config-nxm">
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">Cantidad a Llevar</label>
+                                    <input type="number" class="form-control" name="buy_quantity"
+                                           value="{{ form.quantity_required.value|default:2 }}" min="2">
+                                    <small class="text-muted">Ej: para 2x1, poner 2</small>
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">Cantidad a Pagar</label>
+                                    <input type="number" class="form-control" name="pay_quantity"
+                                           value="{{ form.quantity_charged.value|default:1 }}" min="1">
+                                    <small class="text-muted">Ej: para 2x1, poner 1</small>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- N por Precio Fijo Config -->
+                        <div class="config-section" id="config-nx_fixed_price">
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">Cantidad de Unidades</label>
+                                    <input type="number" class="form-control" name="nx_quantity"
+                                           value="{{ form.quantity_required.value|default:2 }}" min="2">
+                                    <small class="text-muted">Ej: 2 para "2 por $500"</small>
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">Precio Final</label>
+                                    <div class="input-group">
+                                        <span class="input-group-text">$</span>
+                                        <input type="number" class="form-control" name="nx_fixed_price"
+                                               value="{{ form.final_price.value|default:'' }}" step="1" min="1">
+                                    </div>
+                                    <small class="text-muted">Ej: 500 para "2 por $500"</small>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Second Unit Config -->
+                        <div class="config-section" id="config-second_unit">
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">Descuento 2da Unidad (%)</label>
+                                    <div class="input-group">
+                                        <input type="number" class="form-control" name="second_unit_discount"
+                                               value="{{ form.second_unit_discount.value|default:50 }}" min="1" max="100" step="1">
+                                        <span class="input-group-text">%</span>
+                                    </div>
+                                    <small class="text-muted">Ej: 50 para "2da al 50%"</small>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Quantity Discount Config -->
+                        <div class="config-section" id="config-quantity_discount">
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">Cantidad Mínima</label>
+                                    <input type="number" class="form-control" name="min_quantity"
+                                           value="{{ form.min_quantity.value|default:3 }}" min="1">
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">Descuento (%)</label>
+                                    <div class="input-group">
+                                        <input type="number" class="form-control" name="discount_percent"
+                                               value="{{ form.discount_percent.value|default:10 }}" min="1" max="100" step="0.01">
+                                        <span class="input-group-text">%</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Combo Config -->
+                        <div class="config-section" id="config-combo">
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">Precio del Combo</label>
+                                    <div class="input-group">
+                                        <span class="input-group-text">$</span>
+                                        <input type="number" class="form-control" name="combo_price"
+                                               value="{{ form.final_price.value|default:'' }}" step="0.01" min="0">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Simple Discount Config -->
+                        <div class="config-section" id="config-simple_discount">
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">Descuento (%)</label>
+                                    <div class="input-group">
+                                        <input type="number" class="form-control" name="discount_percent_simple"
+                                               value="{{ form.discount_percent.value|default:10 }}" min="1" max="100" step="0.01">
+                                        <span class="input-group-text">%</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endlocalize %}
+                    </div>
+                </div>
+
+                <!-- Products -->
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">
+                            <i class="fas fa-box me-2"></i>Productos
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <label class="form-label">Buscar Productos</label>
+                            <input type="text" class="form-control" id="productSearch" placeholder="Buscar por nombre o código...">
+                        </div>
+                        
+                        <div id="productResults" class="list-group mb-3" style="max-height: 200px; overflow-y: auto;"></div>
+                        
+                        <label class="form-label">Productos Seleccionados</label>
+                        <div id="selectedProducts" class="border rounded p-3" style="min-height: 100px;">
+                            {% localize off %}
+                            {% with prods=selected_products|default_if_none:"" %}
+                            {% if prods %}
+                                {% for product in prods %}
+                                <span class="badge bg-primary me-2 mb-2 existing-product" data-id="{{ product.pk }}">
+                                    {{ product.name }}
+                                    <button type="button" class="btn-close btn-close-white ms-1" aria-label="Quitar" onclick="removeProduct({{ product.pk }})"></button>
+                                </span>
+                                {% endfor %}
+                            {% elif promotion and promotion.products.exists %}
+                                {% for product in promotion.products.all %}
+                                <span class="badge bg-primary me-2 mb-2 existing-product" data-id="{{ product.pk }}">
+                                    {{ product.name }}
+                                    <button type="button" class="btn-close btn-close-white ms-1" aria-label="Quitar" onclick="removeProduct({{ product.pk }})"></button>
+                                </span>
+                                {% endfor %}
+                            {% else %}
+                            <p class="text-muted mb-0" id="noProductsMessage">No hay productos seleccionados</p>
+                            {% endif %}
+                            {% endwith %}
+                            {% endlocalize %}
+                        </div>
+                        {% localize off %}
+                        <input type="hidden" name="products" id="selectedProductIds" value="{% if selected_products %}{% for p in selected_products %}{{ p.pk }}{% if not forloop.last %},{% endif %}{% endfor %}{% elif promotion %}{% for p in promotion.products.all %}{{ p.pk }}{% if not forloop.last %},{% endif %}{% endfor %}{% endif %}">
+                        {% endlocalize %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Sidebar -->
+            <div class="col-lg-4">
+                <!-- Validity -->
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">
+                            <i class="fas fa-calendar me-2"></i>Vigencia
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <label for="id_start_date" class="form-label">Fecha Inicio</label>
+                            {{ form.start_date }}
+                        </div>
+                        <div class="mb-3">
+                            <label for="id_end_date" class="form-label">Fecha Fin</label>
+                            {{ form.end_date }}
+                        </div>
+                        <small class="text-muted">Dejar vacío para promoción sin fecha de fin</small>
+                    </div>
+                </div>
+
+                <!-- Days -->
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">
+                            <i class="fas fa-calendar-week me-2"></i>Días Activos
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="form-check mb-2">
+                            <input class="form-check-input" type="checkbox" name="monday" id="monday" {% if form.monday.value != False %}checked{% endif %}>
+                            <label class="form-check-label" for="monday">Lunes</label>
+                        </div>
+                        <div class="form-check mb-2">
+                            <input class="form-check-input" type="checkbox" name="tuesday" id="tuesday" {% if form.tuesday.value != False %}checked{% endif %}>
+                            <label class="form-check-label" for="tuesday">Martes</label>
+                        </div>
+                        <div class="form-check mb-2">
+                            <input class="form-check-input" type="checkbox" name="wednesday" id="wednesday" {% if form.wednesday.value != False %}checked{% endif %}>
+                            <label class="form-check-label" for="wednesday">Miércoles</label>
+                        </div>
+                        <div class="form-check mb-2">
+                            <input class="form-check-input" type="checkbox" name="thursday" id="thursday" {% if form.thursday.value != False %}checked{% endif %}>
+                            <label class="form-check-label" for="thursday">Jueves</label>
+                        </div>
+                        <div class="form-check mb-2">
+                            <input class="form-check-input" type="checkbox" name="friday" id="friday" {% if form.friday.value != False %}checked{% endif %}>
+                            <label class="form-check-label" for="friday">Viernes</label>
+                        </div>
+                        <div class="form-check mb-2">
+                            <input class="form-check-input" type="checkbox" name="saturday" id="saturday" {% if form.saturday.value != False %}checked{% endif %}>
+                            <label class="form-check-label" for="saturday">Sábado</label>
+                        </div>
+                        <div class="form-check mb-2">
+                            <input class="form-check-input" type="checkbox" name="sunday" id="sunday" {% if form.sunday.value != False %}checked{% endif %}>
+                            <label class="form-check-label" for="sunday">Domingo</label>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Options -->
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">
+                            <i class="fas fa-cog me-2"></i>Opciones
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <label for="id_priority" class="form-label">Prioridad</label>
+                            {% localize off %}
+                            <input type="number" class="form-control" id="id_priority" name="priority"
+                                   value="{{ form.priority.value|default:50 }}" min="1" max="100">
+                            {% endlocalize %}
+                            <small class="text-muted">Mayor número = mayor prioridad</small>
+                        </div>
+                        <div class="form-check mb-3">
+                            <input class="form-check-input" type="checkbox" name="is_combinable" id="id_is_combinable"
+                                   {% if form.is_combinable.value != False %}checked{% endif %}>
+                            <label class="form-check-label" for="id_is_combinable">
+                                Combinable con otras promociones
+                            </label>
+                        </div>
+                        <div class="mb-3">
+                            <label for="id_applies_to_packaging_type" class="form-label">
+                                <i class="fas fa-box me-1"></i>Aplica a
+                            </label>
+                            <select class="form-select" id="id_applies_to_packaging_type" name="applies_to_packaging_type">
+                                {% with current=form.applies_to_packaging_type.value|default:'unit' %}
+                                <option value="unit"    {% if current == 'unit' %}selected{% endif %}>Solo unidad suelta</option>
+                                <option value="display" {% if current == 'display' %}selected{% endif %}>Solo display / paquete</option>
+                                <option value="bulk"    {% if current == 'bulk' %}selected{% endif %}>Solo bulto / caja</option>
+                                <option value="any"     {% if current == 'any' %}selected{% endif %}>Cualquier empaque</option>
+                                {% endwith %}
+                            </select>
+                            <small class="text-muted d-block mt-1">
+                                Elegí a qué empaque se le aplica esta promo. Podés crear dos promos del mismo producto
+                                con precios distintos (ej: unidad 4x$1.800 y display 2x$9.000).
+                            </small>
+                        </div>
+                        <hr>
+                        <div class="mb-2">
+                            <label for="id_group_name" class="form-label">
+                                <i class="fas fa-link me-1"></i>Grupo enlazado <small class="text-muted">(opcional)</small>
+                            </label>
+                            <input type="text" class="form-control" id="id_group_name" name="group_name"
+                                   list="promo_groups_datalist"
+                                   value="{{ current_group_name|default:'' }}"
+                                   placeholder="Ej: 4x$1000 — Galletas">
+                            <datalist id="promo_groups_datalist">
+                                {% for g in existing_groups %}
+                                <option value="{{ g.name }}"></option>
+                                {% endfor %}
+                            </datalist>
+                            <small class="text-muted d-block mt-1">
+                                Promociones con el mismo nombre de grupo se combinan en el carrito.
+                                Ej: dos promos "4x$1000" enlazadas → llevando 2 de cada una se activa el precio.
+                                Dejá vacío para que la promo funcione sola.
+                            </small>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Actions -->
+                <div class="card">
+                    <div class="card-body">
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-primary btn-lg">
+                                <i class="fas fa-save me-2"></i>Guardar Promoción
+                            </button>
+                            <a href="{% url 'promotions:promotion_list' %}" class="btn btn-outline-secondary">
+                                <i class="fas fa-times me-2"></i>Cancelar
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </form>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const typeCards = document.querySelectorAll('.promo-type-card');
+    const promoTypeInput = document.getElementById('id_promo_type');
+    const configSections = document.querySelectorAll('.config-section');
+    
+    // Initialize selected products from existing badges AND hidden input
+    const selectedProducts = [];
+    const hiddenInput = document.getElementById('selectedProductIds');
+
+    // First: read IDs from the hidden input (server-rendered, authoritative)
+    if (hiddenInput.value.trim()) {
+        hiddenInput.value.split(',').forEach(v => {
+            const id = parseInt(v.trim());
+            if (id && !selectedProducts.includes(id)) {
+                selectedProducts.push(id);
+            }
+        });
+    }
+    // Second: also pick up any badges (belt-and-suspenders)
+    document.querySelectorAll('.existing-product').forEach(badge => {
+        const id = parseInt(badge.dataset.id);
+        if (id && !selectedProducts.includes(id)) {
+            selectedProducts.push(id);
+        }
+    });
+    // Sync hidden input with merged list
+    hiddenInput.value = selectedProducts.join(',');
+
+    // Hide "no products" message if there are products
+    if (selectedProducts.length > 0) {
+        const noProductsMsg = document.getElementById('noProductsMessage');
+        if (noProductsMsg) noProductsMsg.style.display = 'none';
+    }
+    
+    // Promo type selection
+    typeCards.forEach(card => {
+        card.addEventListener('click', function() {
+            // Remove selected from all
+            typeCards.forEach(c => c.classList.remove('selected'));
+            // Add selected to clicked
+            this.classList.add('selected');
+            // Update hidden input
+            promoTypeInput.value = this.dataset.type;
+            // Show config section
+            configSections.forEach(s => s.classList.remove('active'));
+            const configId = 'config-' + this.dataset.type;
+            const configSection = document.getElementById(configId);
+            if (configSection) {
+                configSection.classList.add('active');
+            }
+        });
+    });
+    
+    // Initialize selected type
+    if (promoTypeInput.value) {
+        const selectedCard = document.querySelector(`[data-type="${promoTypeInput.value}"]`);
+        if (selectedCard) {
+            selectedCard.click();
+        }
+    }
+    
+    // Product search
+    let searchTimeout;
+    const productSearch = document.getElementById('productSearch');
+    const productResults = document.getElementById('productResults');
+
+    // Prevent Enter from submitting the form (barcode scanners send Enter after scan)
+    productSearch.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            clearTimeout(searchTimeout);
+            const query = this.value.trim();
+            if (query.length >= 1) {
+                searchAndAdd(query);
+            }
+        }
+    });
+
+    async function searchAndAdd(query) {
+        try {
+            const response = await fetch(`/stocks/api/search/?q=${encodeURIComponent(query)}`);
+            const data = await response.json();
+
+            // If exactly one result (typical barcode scan), add it directly
+            const available = data.products.filter(p => !selectedProducts.includes(p.id));
+            if (available.length === 1) {
+                addProduct(available[0]);
+                return;
+            }
+
+            // Otherwise show results for manual selection
+            productResults.innerHTML = '';
+            available.forEach(product => {
+                const item = document.createElement('a');
+                item.href = '#';
+                item.className = 'list-group-item list-group-item-action';
+                const pkgBadge = product.matched_packaging
+                    ? ` <span class="badge bg-info ms-1">${product.matched_packaging.type_display} x${product.matched_packaging.units_quantity}</span>`
+                    : '';
+                const price = product.matched_packaging
+                    ? product.matched_packaging.sale_price
+                    : product.sale_price;
+                item.innerHTML = `<strong>${product.name}</strong>${pkgBadge} <small class="text-muted">$${price}</small>`;
+                item.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    addProduct(product);
+                });
+                productResults.appendChild(item);
+            });
+        } catch (error) {
+            console.error('Error searching products:', error);
+        }
+    }
+
+    productSearch.addEventListener('input', function() {
+        clearTimeout(searchTimeout);
+        const query = this.value;
+
+        if (query.length < 2) {
+            productResults.innerHTML = '';
+            return;
+        }
+
+        searchTimeout = setTimeout(async () => {
+            try {
+                const response = await fetch(`/stocks/api/search/?q=${encodeURIComponent(query)}`);
+                const data = await response.json();
+
+                productResults.innerHTML = '';
+                data.products.forEach(product => {
+                    if (!selectedProducts.includes(product.id)) {
+                        const item = document.createElement('a');
+                        item.href = '#';
+                        item.className = 'list-group-item list-group-item-action';
+                        const pkgBadge = product.matched_packaging
+                            ? ` <span class="badge bg-info ms-1">${product.matched_packaging.type_display} x${product.matched_packaging.units_quantity}</span>`
+                            : '';
+                        const price = product.matched_packaging
+                            ? product.matched_packaging.sale_price
+                            : product.sale_price;
+                        item.innerHTML = `<strong>${product.name}</strong>${pkgBadge} <small class="text-muted">$${price}</small>`;
+                        item.addEventListener('click', (e) => {
+                            e.preventDefault();
+                            addProduct(product);
+                        });
+                        productResults.appendChild(item);
+                    }
+                });
+            } catch (error) {
+                console.error('Error searching products:', error);
+            }
+        }, 300);
+    });
+
+    // Aviso visual cuando auto-cambiamos el scope por scanear un display/bulk.
+    const scopeHint = document.createElement('div');
+    scopeHint.className = 'alert alert-info mt-2 py-2 px-3';
+    scopeHint.style.display = 'none';
+    scopeHint.style.fontSize = '0.875rem';
+    const scopeSelect = document.getElementById('id_applies_to_packaging_type');
+    if (scopeSelect && scopeSelect.parentElement) {
+        scopeSelect.parentElement.appendChild(scopeHint);
+    }
+
+    function maybeAutoSetScope(matched) {
+        if (!matched || !scopeSelect) return;
+        const desired = matched.packaging_type;
+        if (scopeSelect.value === desired) return;
+        const prev = scopeSelect.options[scopeSelect.selectedIndex]?.textContent || '';
+        scopeSelect.value = desired;
+        const now = scopeSelect.options[scopeSelect.selectedIndex]?.textContent || '';
+        scopeHint.innerHTML = `<i class="fas fa-info-circle me-1"></i>` +
+            `Escaneaste un <b>${matched.type_display}</b> (x${matched.units_quantity} unidades). ` +
+            `Cambié "Aplica a" de <b>${prev}</b> a <b>${now}</b> para que la promo se dispare en el POS al vender ese empaque.`;
+        scopeHint.style.display = '';
+    }
+
+    function addProduct(product) {
+        if (!selectedProducts.includes(product.id)) {
+            selectedProducts.push(product.id);
+            updateSelectedProducts(product);
+            maybeAutoSetScope(product.matched_packaging);
+        }
+    }
+    
+    window.removeProduct = function(id) {
+        const index = selectedProducts.indexOf(id);
+        if (index > -1) {
+            selectedProducts.splice(index, 1);
+        }
+        const badge = document.querySelector(`#selectedProducts [data-id="${id}"]`);
+        if (badge) {
+            badge.remove();
+        }
+        updateProductIds();
+        if (selectedProducts.length === 0) {
+            document.getElementById('noProductsMessage').style.display = 'block';
+        }
+    };
+    
+    function updateSelectedProducts(product) {
+        const noProductsMsg = document.getElementById('noProductsMessage');
+        if (noProductsMsg) noProductsMsg.style.display = 'none';
+        const container = document.getElementById('selectedProducts');
+        const badge = document.createElement('span');
+        badge.className = 'badge bg-primary me-2 mb-2';
+        badge.dataset.id = product.id;
+        const pkgLabel = product.matched_packaging
+            ? ` · ${product.matched_packaging.type_display} x${product.matched_packaging.units_quantity}`
+            : '';
+        badge.innerHTML = `${product.name}${pkgLabel} <button type="button" class="btn-close btn-close-white ms-1" aria-label="Quitar" onclick="removeProduct(${product.id})"></button>`;
+        container.appendChild(badge);
+        updateProductIds();
+        productResults.innerHTML = '';
+        productSearch.value = '';
+    }
+    
+    function updateProductIds() {
+        document.getElementById('selectedProductIds').value = selectedProducts.join(',');
+    }
+
+    // Form validation on submit
+    document.getElementById('promotionForm').addEventListener('submit', function(e) {
+        const promoType = promoTypeInput.value;
+
+        if (!promoType) {
+            e.preventDefault();
+            alert('Debe seleccionar un tipo de promoción.');
+            return;
+        }
+
+        // Validate price/discount based on promo type
+        let priceField = null;
+        let fieldLabel = '';
+
+        if (promoType === 'nx_fixed_price') {
+            priceField = document.querySelector('input[name="nx_fixed_price"]');
+            fieldLabel = 'precio final';
+        } else if (promoType === 'combo') {
+            priceField = document.querySelector('input[name="combo_price"]');
+            fieldLabel = 'precio del combo';
+        } else if (promoType === 'second_unit') {
+            priceField = document.querySelector('input[name="second_unit_discount"]');
+            fieldLabel = 'descuento de 2da unidad';
+        } else if (promoType === 'quantity_discount') {
+            priceField = document.querySelector('#config-quantity_discount input[name="discount_percent"]');
+            fieldLabel = 'porcentaje de descuento';
+        } else if (promoType === 'simple_discount') {
+            priceField = document.querySelector('input[name="discount_percent_simple"]');
+            fieldLabel = 'porcentaje de descuento';
+        }
+
+        if (priceField) {
+            const val = parseFloat(priceField.value);
+            if (!priceField.value || isNaN(val) || val <= 0) {
+                e.preventDefault();
+                priceField.classList.add('is-invalid');
+                priceField.focus();
+                alert('Debe ingresar el ' + fieldLabel + ' para guardar la promoción.');
+                return;
+            }
+            priceField.classList.remove('is-invalid');
+        }
+
+        // Sync hidden input before submit
+        updateProductIds();
+
+        // Validate at least one product
+        if (selectedProducts.length === 0) {
+            e.preventDefault();
+            alert('Debe seleccionar al menos un producto.');
+            return;
+        }
+    });
+});
+</script>
+{% endblock %}

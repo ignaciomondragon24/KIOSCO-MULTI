@@ -1,0 +1,135 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Generar Carteles - {{ template.name }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-3">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <div>
+            <h4><i class="fas fa-print me-2" style="color: #E91E8C;"></i>Generar Carteles</h4>
+            <p class="text-muted mb-0">
+                Plantilla: <strong>{{ template.name }}</strong>
+                <span class="badge bg-info ms-1">{{ template.get_sign_type_display }}</span>
+                <span class="badge bg-secondary ms-1">{{ template.size_label }}</span>
+            </p>
+        </div>
+        <div class="d-flex gap-2">
+            <a href="{% url 'signage:template_list' %}" class="btn btn-outline-secondary">
+                <i class="fas fa-arrow-left me-1"></i>Volver
+            </a>
+            <button id="btnPrint" class="btn btn-success" disabled>
+                <i class="fas fa-print me-1"></i>Imprimir
+            </button>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Left: Product Selection & Items -->
+        <div class="col-lg-5">
+            <!-- Search -->
+            <div class="card mb-3">
+                <div class="card-header py-2">
+                    <h6 class="mb-0"><i class="fas fa-search me-2"></i>Buscar Productos</h6>
+                </div>
+                <div class="card-body py-2">
+                    <div class="input-group input-group-sm">
+                        <input type="text" id="productSearch" class="form-control"
+                               placeholder="Nombre, SKU o código de barras..." autocomplete="off">
+                        <button id="btnSearch" class="btn btn-primary"><i class="fas fa-search"></i></button>
+                    </div>
+                    <div id="searchResults" class="list-group mt-2" style="max-height: 200px; overflow-y: auto;"></div>
+                </div>
+            </div>
+
+            <!-- Items List -->
+            <div class="card mb-3">
+                <div class="card-header py-2 d-flex justify-content-between align-items-center">
+                    <h6 class="mb-0"><i class="fas fa-list me-2"></i>Carteles</h6>
+                    <div>
+                        <span class="badge bg-primary" id="itemCount">0</span>
+                        <button id="btnAddManual" class="btn btn-sm btn-outline-secondary ms-1" title="Agregar manual">
+                            <i class="fas fa-plus"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="card-body p-0" style="max-height: 400px; overflow-y: auto;">
+                    <div id="itemsList"></div>
+                    <div id="emptyMessage" class="text-center text-muted py-4">
+                        <i class="fas fa-tags fa-2x mb-2 d-block opacity-50"></i>
+                        <small>Buscá productos y agregalos</small>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Print Settings -->
+            <div class="card">
+                <div class="card-body py-2">
+                    <h6 class="mb-2"><i class="fas fa-cog me-2"></i>Impresión</h6>
+                    <div class="row g-2">
+                        <div class="col-5">
+                            <label class="form-label small mb-0">Papel</label>
+                            <select id="paperSize" class="form-select form-select-sm">
+                                <option value="A4">A4 (210×297mm)</option>
+                                <option value="A3">A3 (297×420mm)</option>
+                                <option value="letter">Carta (216×279mm)</option>
+                            </select>
+                        </div>
+                        <div class="col-3">
+                            <label class="form-label small mb-0">Margen</label>
+                            <div class="input-group input-group-sm">
+                                <input type="number" id="printMargin" class="form-control" value="5" min="0" max="30">
+                                <span class="input-group-text">mm</span>
+                            </div>
+                        </div>
+                        <div class="col-4">
+                            <label class="form-label small mb-0">Espaciado</label>
+                            <div class="input-group input-group-sm">
+                                <input type="number" id="printGap" class="form-control" value="2" min="0" max="20">
+                                <span class="input-group-text">mm</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="nestingInfo" class="mt-2 small text-muted"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right: Preview -->
+        <div class="col-lg-7">
+            <div class="card">
+                <div class="card-header py-2 d-flex justify-content-between align-items-center">
+                    <h6 class="mb-0"><i class="fas fa-eye me-2"></i>Vista Previa de Hoja</h6>
+                    <button id="btnRefreshPreview" class="btn btn-sm btn-outline-primary">
+                        <i class="fas fa-sync me-1"></i>Actualizar
+                    </button>
+                </div>
+                <div class="card-body" style="background: #e8e8e8; min-height: 400px; max-height: 80vh; overflow-y: auto;">
+                    <div id="previewArea"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    const GENERATE_CONFIG = {
+        templateId: {{ template.pk }},
+        signType: '{{ template.sign_type }}',
+        widthMM: {{ template.width_mm }},
+        heightMM: {{ template.height_mm }},
+        layout: {{ layout_json|safe }},
+        variables: {{ variables_json|safe }},
+        productDataUrl: '{% url "signage:api_product_data" %}',
+        productSearchUrl: '{% url "stocks:api_search" %}',
+        saveBatchUrl: '{% url "signage:save_batch" %}',
+        printUrl: '{% url "signage:print_view" %}',
+        csrfToken: '{{ csrf_token }}',
+    };
+</script>
+<script src="{% static 'js/signage-renderer.js' %}"></script>
+<script src="{% static 'js/signage-print.js' %}"></script>
+<script src="{% static 'js/signage-generate.js' %}"></script>
+{% endblock %}

@@ -1,0 +1,272 @@
+{% load static %}
+<nav class="navbar navbar-expand-lg navbar-dark navbar-che">
+    <div class="container-fluid">
+        <a class="navbar-brand logo-animated" href="{% url 'accounts:dashboard' %}">
+            <img src="{% static 'img/logo.png' %}" alt="Che Goloso" class="d-inline-block">
+            <span class="navbar-brand-text d-none d-md-inline">CHE GOLOSO</span>
+        </a>
+        
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+        
+        <div class="collapse navbar-collapse" id="navbarNav">
+            {% if user.is_authenticated %}
+            <ul class="navbar-nav me-auto">
+                
+                <!-- Dashboard -->
+                <li class="nav-item">
+                    <a class="nav-link" href="{% url 'accounts:dashboard' %}">
+                        <i class="fas fa-home me-1"></i>Inicio
+                    </a>
+                </li>
+                
+                <!-- POS - Cajeros, Managers, Admin -->
+                {% if can_pos %}
+                <li class="nav-item">
+                    <a class="nav-link" href="{% url 'pos:pos_main' %}">
+                        <i class="fas fa-cash-register me-1"></i>POS
+                    </a>
+                </li>
+                {% endif %}
+
+                <!-- Productos (consulta) - sólo cajeros sin acceso al inventario completo -->
+                {% if is_cashier and not can_stocks %}
+                <li class="nav-item">
+                    <a class="nav-link" href="{% url 'stocks:product_list' %}">
+                        <i class="fas fa-boxes me-1"></i>Productos
+                    </a>
+                </li>
+                {% endif %}
+
+                <!-- Cash Register - Cajeros, Managers, Admin -->
+                {% if can_cash %}
+                <li class="nav-item dropdown">
+                    <a class="nav-link dropdown-toggle" href="#" id="cashDropdown" role="button" data-bs-toggle="dropdown">
+                        <i class="fas fa-money-bill-wave me-1"></i>Caja
+                    </a>
+                    <ul class="dropdown-menu">
+                        <li><a class="dropdown-item" href="{% url 'cashregister:shift_list' %}">Turnos</a></li>
+                        {% if is_manager %}
+                        <li><a class="dropdown-item" href="{% url 'cashregister:movement_list' %}">Movimientos</a></li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li><a class="dropdown-item" href="{% url 'cashregister:register_list' %}">Cajas Registradoras</a></li>
+                        {% endif %}
+                    </ul>
+                </li>
+                {% endif %}
+                
+                <!-- Inventory - Cajero Manager, Admin -->
+                {% if can_stocks %}
+                <li class="nav-item dropdown">
+                    <a class="nav-link dropdown-toggle" href="#" id="stockDropdown" role="button" data-bs-toggle="dropdown">
+                        <i class="fas fa-boxes me-1"></i>Inventario
+                    </a>
+                    <ul class="dropdown-menu">
+                        <li><a class="dropdown-item" href="{% url 'stocks:product_list' %}">Productos</a></li>
+                        <li><a class="dropdown-item" href="{% url 'stocks:category_list' %}">Categorias</a></li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li><a class="dropdown-item" href="{% url 'stocks:movement_list' %}">
+                            <i class="fas fa-exchange-alt me-1"></i>Movimientos / Kardex
+                        </a></li>
+                        <li><a class="dropdown-item" href="{% url 'stocks:cost_history' %}">
+                            <i class="fas fa-dollar-sign me-1"></i>Costos de Compra
+                        </a></li>
+                        <li><a class="dropdown-item" href="{% url 'stocks:low_stock' %}">
+                            <i class="fas fa-exclamation-triangle text-warning me-1"></i>Stock Bajo
+                        </a></li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li><a class="dropdown-item" href="{% url 'stocks:packaging_inventory' %}">
+                            <i class="fas fa-boxes-stacked text-info me-1"></i>Empaques
+                        </a></li>
+                        {% if is_admin %}
+                        <li><a class="dropdown-item" href="{% url 'stocks:import_excel' %}">
+                            <i class="fas fa-file-excel text-success me-1"></i>Importar Excel
+                        </a></li>
+                        {% endif %}
+                        <li><hr class="dropdown-divider"></li>
+                        <li><a class="dropdown-item" href="{% url 'granel:caramelera_list' %}">
+                            <i class="fas fa-candy-cane me-1" style="color:#E91E8C;"></i>Carameleras
+                        </a></li>
+                        <li><a class="dropdown-item" href="{% url 'granel:deposito_list' %}">
+                            <i class="fas fa-warehouse me-1" style="color:#E91E8C;"></i>Depósito de Bultos
+                        </a></li>
+                    </ul>
+                </li>
+                {% endif %}
+                
+                <!-- Purchases - Admin only -->
+                {% if can_purchases %}
+                <li class="nav-item dropdown">
+                    <a class="nav-link dropdown-toggle" href="#" id="purchaseDropdown" role="button" data-bs-toggle="dropdown">
+                        <i class="fas fa-shopping-cart me-1"></i>Compras
+                    </a>
+                    <ul class="dropdown-menu">
+                        <li><a class="dropdown-item" href="{% url 'purchase:purchase_list' %}">Órdenes de Compra</a></li>
+                        <li><a class="dropdown-item" href="{% url 'purchase:supplier_list' %}">Proveedores</a></li>
+                    </ul>
+                </li>
+                {% endif %}
+                
+                <!-- Expenses - Manager, Admin -->
+                {% if can_expenses %}
+                <li class="nav-item dropdown">
+                    <a class="nav-link dropdown-toggle" href="#" id="expenseDropdown" role="button" data-bs-toggle="dropdown">
+                        <i class="fas fa-receipt me-1"></i>Gastos
+                    </a>
+                    <ul class="dropdown-menu">
+                        <li><a class="dropdown-item" href="{% url 'expenses:expense_list' %}">Gastos</a></li>
+                        <li><a class="dropdown-item" href="{% url 'expenses:category_list' %}">Categorías</a></li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li><a class="dropdown-item" href="{% url 'expenses:expense_report' %}">Reporte de Gastos</a></li>
+                    </ul>
+                </li>
+                {% endif %}
+                
+                <!-- Promotions - Manager, Admin -->
+                {% if can_promotions %}
+                <li class="nav-item">
+                    <a class="nav-link" href="{% url 'promotions:promotion_list' %}">
+                        <i class="fas fa-tags me-1"></i>Promociones
+                    </a>
+                </li>
+                {% endif %}
+                
+                <!-- Signage - Cajero Manager, Admin -->
+                {% if can_signage %}
+                <li class="nav-item dropdown">
+                    <a class="nav-link dropdown-toggle" href="#" id="signageDropdown" role="button" data-bs-toggle="dropdown">
+                        <i class="fas fa-paint-brush me-1"></i>Cartelería
+                    </a>
+                    <ul class="dropdown-menu">
+                        <li><a class="dropdown-item" href="{% url 'signage:template_list' %}">
+                            <i class="fas fa-palette me-2"></i>Plantillas
+                        </a></li>
+                        <li><a class="dropdown-item" href="{% url 'signage:batch_list' %}">
+                            <i class="fas fa-history me-2"></i>Historial de Lotes
+                        </a></li>
+                    </ul>
+                </li>
+                {% endif %}
+                
+                <!-- Reports - Manager, General Manager, Admin -->
+                {% if can_reports %}
+                <li class="nav-item dropdown">
+                    <a class="nav-link dropdown-toggle" href="#" id="reportsDropdown" role="button" data-bs-toggle="dropdown">
+                        <i class="fas fa-chart-bar me-1"></i>Reportes
+                    </a>
+                    <ul class="dropdown-menu">
+                        <li><a class="dropdown-item" href="{% url 'sales:dashboard' %}">Dashboard de Ventas</a></li>
+                        <li><a class="dropdown-item fw-bold" href="{% url 'sales:balance_consolidado' %}"><i class="fas fa-scale-balanced me-2"></i>Balance Consolidado</a></li>
+                        <li><a class="dropdown-item" href="{% url 'sales:daily_report' %}">Reporte Diario</a></li>
+                        <li><a class="dropdown-item" href="{% url 'sales:period_report' %}">Reporte por Período</a></li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li><a class="dropdown-item" href="{% url 'sales:products_report' %}">Por Producto</a></li>
+                        <li><a class="dropdown-item" href="{% url 'sales:categories_report' %}">Por Categoría</a></li>
+                        <li><a class="dropdown-item" href="{% url 'sales:cashiers_report' %}">Por Cajero</a></li>
+                    </ul>
+                </li>
+                {% endif %}
+                
+                <!-- AI Assistant - Solo Admin -->
+                {% if can_assistant %}
+                <li class="nav-item dropdown">
+                    <a class="nav-link dropdown-toggle" href="#" id="assistantDropdown" role="button" data-bs-toggle="dropdown" style="color: #ff6b6b;">
+                        <i class="fas fa-robot me-1"></i>Asistente IA
+                    </a>
+                    <ul class="dropdown-menu">
+                        <li><a class="dropdown-item" href="{% url 'assistant:home' %}">
+                            <i class="fas fa-comments me-2"></i>Chat
+                        </a></li>
+                        <li><a class="dropdown-item" href="{% url 'assistant:scan_invoice' %}">
+                            <i class="fas fa-camera me-2"></i>Escanear Remito
+                        </a></li>
+                    </ul>
+                </li>
+                {% endif %}
+                
+                <!-- Admin Menu - Solo Admin -->
+                {% if is_admin %}
+                <li class="nav-item dropdown">
+                    <a class="nav-link dropdown-toggle" href="#" id="adminDropdown" role="button" data-bs-toggle="dropdown">
+                        <i class="fas fa-cog me-1"></i>Admin
+                    </a>
+                    <ul class="dropdown-menu">
+                        <li><a class="dropdown-item" href="{% url 'accounts:user_list' %}">
+                            <i class="fas fa-users me-2"></i>Usuarios
+                        </a></li>
+                        <li><a class="dropdown-item" href="{% url 'company:settings' %}">
+                            <i class="fas fa-building me-2"></i>Empresa
+                        </a></li>
+                        <li><a class="dropdown-item" href="{% url 'company:branch_list' %}">
+                            <i class="fas fa-store-alt me-2"></i>Sucursales
+                        </a></li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li><a class="dropdown-item" href="{% url 'assistant:settings' %}">
+                            <i class="fas fa-robot me-2 text-danger"></i>Configurar Asistente IA
+                        </a></li>
+                        <li><a class="dropdown-item" href="{% url 'mercadopago:dashboard' %}">
+                            <i class="fas fa-credit-card me-2 text-info"></i>Mercado Pago
+                        </a></li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li><a class="dropdown-item" href="{% url 'admin:index' %}">
+                            <i class="fas fa-tools me-2"></i>Django Admin
+                        </a></li>
+                    </ul>
+                </li>
+                {% endif %}
+                
+            </ul>
+            
+            <!-- User Menu -->
+            <ul class="navbar-nav">
+                <!-- Dark Mode Toggle -->
+                <li class="nav-item d-flex align-items-center me-2">
+                    <button class="dark-mode-toggle" id="darkModeToggle" title="Modo oscuro/claro"
+                            aria-label="Alternar modo oscuro">
+                        <i class="fas fa-moon" id="darkModeIcon"></i>
+                    </button>
+                </li>
+                <!-- Role Badge -->
+                <li class="nav-item d-flex align-items-center me-2">
+                    {% if is_superadmin %}
+                    <span class="badge bg-dark"><i class="fas fa-shield-alt me-1"></i>SuperAdmin</span>
+                    {% elif is_admin %}
+                    <span class="badge bg-danger">Admin</span>
+                    {% elif is_cajero_manager %}
+                    <span class="badge bg-warning text-dark">Cajero Manager</span>
+                    {% elif is_cashier %}
+                    <span class="badge bg-success">Cajero</span>
+                    {% endif %}
+                </li>
+                
+                <li class="nav-item dropdown">
+                    <a class="nav-link dropdown-toggle" href="#" id="userDropdown" role="button" data-bs-toggle="dropdown">
+                        <i class="fas fa-user-circle me-1"></i>{{ user.get_short_name|default:user.username }}
+                    </a>
+                    <ul class="dropdown-menu dropdown-menu-end">
+                        <li>
+                            <span class="dropdown-item-text text-muted">
+                                <small>{{ user.email|default:"Sin email" }}</small>
+                            </span>
+                        </li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li><a class="dropdown-item" href="{% url 'accounts:profile' %}">
+                            <i class="fas fa-user me-2"></i>Mi Perfil
+                        </a></li>
+                        <li><a class="dropdown-item" href="{% url 'accounts:change_password' %}">
+                            <i class="fas fa-key me-2"></i>Cambiar Contraseña
+                        </a></li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li>
+                            <a class="dropdown-item text-danger" href="{% url 'accounts:logout' %}">
+                                <i class="fas fa-sign-out-alt me-2"></i>Cerrar Sesión
+                            </a>
+                        </li>
+                    </ul>
+                </li>
+            </ul>
+            {% endif %}
+        </div>
+    </div>
+</nav>

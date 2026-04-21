@@ -1,0 +1,144 @@
+{% extends 'base.html' %}
+{% load currency_filters %}
+
+{% block title %}Movimientos de Caja{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h3 mb-0">
+                <i class="fas fa-exchange-alt me-2"></i>Movimientos de Caja
+            </h1>
+            <p class="text-muted mb-0">Historial de todos los movimientos</p>
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <form method="get" class="row g-3">
+                <div class="col-md-3">
+                    <label class="form-label">Tipo</label>
+                    <select name="type" class="form-select">
+                        <option value="">Todos</option>
+                        <option value="income" {% if selected_type == 'income' %}selected{% endif %}>Ingresos</option>
+                        <option value="expense" {% if selected_type == 'expense' %}selected{% endif %}>Egresos</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Desde</label>
+                    <input type="date" name="date_from" class="form-control" value="{{ date_from }}">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Hasta</label>
+                    <input type="date" name="date_to" class="form-control" value="{{ date_to }}">
+                </div>
+                <div class="col-md-3 d-flex align-items-end">
+                    <button type="submit" class="btn btn-primary me-2">
+                        <i class="fas fa-search me-1"></i> Filtrar
+                    </button>
+                    <a href="{% url 'cashregister:movement_list' %}" class="btn btn-outline-secondary">
+                        <i class="fas fa-redo"></i>
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Summary Cards -->
+    <div class="row mb-4">
+        <div class="col-md-4">
+            <div class="card bg-success text-white">
+                <div class="card-body text-center">
+                    <h6 class="text-uppercase">Total Ingresos</h6>
+                    <h3>{{ totals.total_income|currency|default:"$0,00" }}</h3>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card bg-danger text-white">
+                <div class="card-body text-center">
+                    <h6 class="text-uppercase">Total Egresos</h6>
+                    <h3>{{ totals.total_expense|currency|default:"$0,00" }}</h3>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card bg-primary text-white">
+                <div class="card-body text-center">
+                    <h6 class="text-uppercase">Balance</h6>
+                    {% with balance=totals.total_income|default:0|add:totals.total_expense|default:0 %}
+                    <h3>{{ balance|currency }}</h3>
+                    {% endwith %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Movements Table -->
+    <div class="card">
+        <div class="card-body p-0">
+            {% if movements %}
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead>
+                        <tr>
+                            <th>Fecha/Hora</th>
+                            <th>Caja</th>
+                            <th>Cajero</th>
+                            <th>Tipo</th>
+                            <th>Concepto</th>
+                            <th>Método Pago</th>
+                            <th class="text-end">Monto</th>
+                            <th>Creado por</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for m in movements %}
+                        <tr>
+                            <td>{{ m.created_at|date:"d/m/Y H:i" }}</td>
+                            <td>
+                                <span class="badge bg-secondary">
+                                    {{ m.cash_shift.cash_register.code }}
+                                </span>
+                            </td>
+                            <td>{{ m.cash_shift.cashier.get_short_name }}</td>
+                            <td>
+                                {% if m.movement_type == 'income' %}
+                                <span class="badge bg-success">
+                                    <i class="fas fa-arrow-up me-1"></i>Ingreso
+                                </span>
+                                {% else %}
+                                <span class="badge bg-danger">
+                                    <i class="fas fa-arrow-down me-1"></i>Egreso
+                                </span>
+                                {% endif %}
+                            </td>
+                            <td>{{ m.concept }}</td>
+                            <td>{{ m.payment_method.name|default:"-" }}</td>
+                            <td class="text-end">
+                                {% if m.movement_type == 'income' %}
+                                <span class="text-success fw-bold">+{{ m.amount|currency }}</span>
+                                {% else %}
+                                <span class="text-danger fw-bold">-{{ m.amount|currency }}</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ m.created_by.get_short_name|default:"-" }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="text-center py-5">
+                <i class="fas fa-inbox fa-4x text-muted mb-3"></i>
+                <h4 class="text-muted">No hay movimientos</h4>
+                <p class="text-muted">Ajusta los filtros para ver resultados</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

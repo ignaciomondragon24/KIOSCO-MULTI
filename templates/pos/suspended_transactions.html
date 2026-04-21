@@ -1,0 +1,133 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Transacciones Suspendidas - POS{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row mb-4">
+        <div class="col">
+            <h2><i class="fas fa-pause-circle text-warning"></i> Transacciones Suspendidas</h2>
+            <p class="text-muted">Lista de transacciones pausadas pendientes de completar</p>
+        </div>
+        <div class="col-auto">
+            <a href="{% url 'pos:main' %}" class="btn btn-primary">
+                <i class="fas fa-cash-register"></i> Volver al POS
+            </a>
+        </div>
+    </div>
+
+    {% if transactions %}
+    <div class="row">
+        {% for transaction in transactions %}
+        <div class="col-md-4 mb-3">
+            <div class="card bg-dark text-white border-warning">
+                <div class="card-header bg-warning text-dark">
+                    <i class="fas fa-receipt"></i> {{ transaction.ticket_number }}
+                </div>
+                <div class="card-body">
+                    <p class="mb-2">
+                        <strong>Caja:</strong> {{ transaction.session.cash_shift.cash_register.name }}
+                    </p>
+                    <p class="mb-2">
+                        <strong>Suspendida:</strong> {{ transaction.updated_at|date:"d/m/Y H:i" }}
+                    </p>
+                    <p class="mb-2">
+                        <strong>Items:</strong> {{ transaction.items_count }}
+                    </p>
+                    <h4 class="text-success">
+                        Total: ${{ transaction.total|floatformat:2 }}
+                    </h4>
+                </div>
+                <div class="card-footer">
+                    <form method="post" action="{% url 'pos:api_transaction_resume' transaction.id %}" 
+                          class="d-inline resume-form">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-success btn-sm">
+                            <i class="fas fa-play"></i> Reanudar
+                        </button>
+                    </form>
+                    <form method="post" action="{% url 'pos:api_transaction_cancel' transaction.id %}" 
+                          class="d-inline cancel-form">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-danger btn-sm"
+                                onclick="return confirm('¿Cancelar esta transacción?');">
+                            <i class="fas fa-times"></i> Cancelar
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="alert alert-info">
+        <i class="fas fa-info-circle"></i> No hay transacciones suspendidas.
+    </div>
+    {% endif %}
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Handle resume form submission
+    document.querySelectorAll('.resume-form').forEach(form => {
+        form.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const url = this.action;
+            const csrfToken = this.querySelector('[name=csrfmiddlewaretoken]').value;
+            
+            try {
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': csrfToken,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({})
+                });
+                const data = await response.json();
+                
+                if (data.success) {
+                    window.location.href = '{% url "pos:main" %}';
+                } else {
+                    alert('Error: ' + (data.error || data.message));
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Error al reanudar la transacción');
+            }
+        });
+    });
+    
+    // Handle cancel form submission
+    document.querySelectorAll('.cancel-form').forEach(form => {
+        form.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const url = this.action;
+            const csrfToken = this.querySelector('[name=csrfmiddlewaretoken]').value;
+            
+            try {
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': csrfToken,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({reason: 'Cancelado desde lista de suspendidas'})
+                });
+                const data = await response.json();
+                
+                if (data.success) {
+                    location.reload();
+                } else {
+                    alert('Error: ' + (data.error || data.message));
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Error al cancelar la transacción');
+            }
+        });
+    });
+});
+</script>
+{% endblock %}

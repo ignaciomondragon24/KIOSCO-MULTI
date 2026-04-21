@@ -1,0 +1,342 @@
+{% extends 'base.html' %}
+{% load currency_filters %}
+
+{% block title %}{% if product %}Costos - {{ product.name }}{% else %}Costos de Compra{% endif %}{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="mb-0">
+                <i class="fas fa-dollar-sign me-2"></i>{% if product %}Costos de {{ product.name }}{% else %}Costos de Compra{% endif %}
+            </h2>
+            {% if product %}
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-0">
+                    <li class="breadcrumb-item"><a href="{% url 'stocks:product_list' %}">Productos</a></li>
+                    <li class="breadcrumb-item"><a href="{% url 'stocks:product_detail' product.pk %}">{{ product.name }}</a></li>
+                    <li class="breadcrumb-item active">Costos</li>
+                </ol>
+            </nav>
+            {% endif %}
+        </div>
+        {% if product %}
+        <a href="{% url 'stocks:product_detail' product.pk %}" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left me-1"></i>Volver al Producto
+        </a>
+        {% endif %}
+    </div>
+
+    <!-- Summary Cards -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body text-center">
+                    <h6 class="text-muted mb-1">Invertido en Stock</h6>
+                    <h3 class="mb-0 text-primary">${{ total_remaining_cost|floatformat:2 }}</h3>
+                    <small class="text-muted">{{ total_remaining_qty|floatformat:2 }} unidades</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body text-center">
+                    <h6 class="text-muted mb-1">Costo Promedio Ponderado</h6>
+                    <h3 class="mb-0 text-info">${{ weighted_avg_cost|floatformat:2 }}</h3>
+                    <small class="text-muted">
+                        Min ${{ min_purchase_price|floatformat:2 }} / Max ${{ max_purchase_price|floatformat:2 }}
+                    </small>
+                </div>
+            </div>
+        </div>
+        {% if product %}
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body text-center">
+                    <h6 class="text-muted mb-1">Precio de Venta</h6>
+                    <h3 class="mb-0 text-success">${{ product.sale_price|floatformat:2 }}</h3>
+                    <small class="text-muted">
+                        {% if weighted_avg_cost > 0 %}
+                            {% widthratio product.sale_price weighted_avg_cost 100 as margin_pct %}
+                            Margen ~{% widthratio product.sale_price weighted_avg_cost 100 %}% sobre costo
+                        {% endif %}
+                    </small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body text-center">
+                    <h6 class="text-muted mb-1">Ganancia Potencial</h6>
+                    <h3 class="mb-0 {% if potential_profit > 0 %}text-success{% else %}text-danger{% endif %}">
+                        {% if potential_profit > 0 %}+{% endif %}${{ potential_profit|floatformat:2 }}
+                    </h3>
+                    <small class="text-muted">Si se vende todo al precio de lista</small>
+                </div>
+            </div>
+        </div>
+        {% else %}
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body text-center">
+                    <h6 class="text-muted mb-1">Entradas Registradas</h6>
+                    <h3 class="mb-0 text-success">{{ entry_count }}</h3>
+                    <small class="text-muted">con stock disponible</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body text-center">
+                    <h6 class="text-muted mb-1">Total Comprado</h6>
+                    <h3 class="mb-0 text-warning">${{ total_invested|floatformat:2 }}</h3>
+                    <small class="text-muted">historial completo filtrado</small>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Supplier Breakdown (only when viewing a specific product) -->
+    {% if product and supplier_stats %}
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5 class="card-title mb-0">
+                <i class="fas fa-truck me-2"></i>Comparativa por Proveedor
+            </h5>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Proveedor</th>
+                            <th class="text-end">Stock Restante</th>
+                            <th class="text-end">Costo Promedio</th>
+                            <th class="text-end">Costo Min</th>
+                            <th class="text-end">Costo Max</th>
+                            <th class="text-end">Invertido</th>
+                            <th class="text-center">Entradas</th>
+                            <th>Margen vs Venta</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for s in supplier_stats %}
+                        <tr>
+                            <td>
+                                <strong>{{ s.supplier_name|default:"Sin proveedor" }}</strong>
+                            </td>
+                            <td class="text-end">{{ s.qty|floatformat:2 }}</td>
+                            <td class="text-end">${{ s.avg_cost|floatformat:2 }}</td>
+                            <td class="text-end">${{ s.min_cost|floatformat:2 }}</td>
+                            <td class="text-end">${{ s.max_cost|floatformat:2 }}</td>
+                            <td class="text-end">${{ s.total_cost|floatformat:2 }}</td>
+                            <td class="text-center">{{ s.entries }}</td>
+                            <td>
+                                {% if product.sale_price and s.avg_cost > 0 %}
+                                    {% widthratio product.sale_price s.avg_cost 100 as pct %}
+                                    {% if pct > 130 %}
+                                        <span class="badge bg-success">+{{ pct }}% sobre costo</span>
+                                    {% elif pct > 110 %}
+                                        <span class="badge bg-warning text-dark">+{{ pct }}% sobre costo</span>
+                                    {% elif pct > 100 %}
+                                        <span class="badge bg-danger">+{{ pct }}% sobre costo</span>
+                                    {% else %}
+                                        <span class="badge bg-dark">{{ pct }}% (perdida)</span>
+                                    {% endif %}
+                                {% else %}
+                                    -
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Filters -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <form method="get" class="row g-3 align-items-end">
+                {% if not product %}
+                <div class="col-md-3">
+                    <label class="form-label">Buscar producto</label>
+                    <input type="text" class="form-control" name="search" value="{{ search }}"
+                           placeholder="Nombre, SKU o proveedor...">
+                </div>
+                {% endif %}
+                <div class="col-md-2">
+                    <label class="form-label">Proveedor</label>
+                    <select class="form-select" name="supplier">
+                        <option value="">Todos</option>
+                        {% for s in all_suppliers %}
+                        <option value="{{ s }}" {% if supplier == s %}selected{% endif %}>{{ s }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Desde</label>
+                    <input type="date" class="form-control" name="date_from" value="{{ date_from }}">
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Hasta</label>
+                    <input type="date" class="form-control" name="date_to" value="{{ date_to }}">
+                </div>
+                <div class="col-md-1">
+                    <div class="form-check mt-4">
+                        <input class="form-check-input" type="checkbox" name="depleted" value="1"
+                               id="showDepleted" {% if show_depleted %}checked{% endif %}>
+                        <label class="form-check-label" for="showDepleted">Vendidos</label>
+                    </div>
+                </div>
+                <div class="col-md-2">
+                    <button type="submit" class="btn btn-primary w-100">
+                        <i class="fas fa-search me-1"></i>Filtrar
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Entries Table -->
+    <div class="card">
+        <div class="card-header">
+            <h5 class="card-title mb-0">
+                <i class="fas fa-list me-2"></i>Detalle de Entradas de Stock
+            </h5>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Fecha</th>
+                            {% if not product %}<th>Producto</th>{% endif %}
+                            <th>Proveedor</th>
+                            <th class="text-end">Cantidad</th>
+                            <th class="text-end">Disponible</th>
+                            <th class="text-end">Costo Unit.</th>
+                            <th class="text-end">Inversión</th>
+                            {% if product %}
+                            <th class="text-end">Precio Venta</th>
+                            <th class="text-end">Ganancia x u.</th>
+                            {% endif %}
+                            <th>Margen</th>
+                            <th>Notas</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for batch in batches %}
+                        <tr class="{% if batch.is_depleted %}table-secondary text-muted{% endif %}">
+                            <td>{{ batch.purchased_at|date:"d/m/Y" }}</td>
+                            {% if not product %}
+                            <td>
+                                <a href="{% url 'stocks:product_costs' batch.product.pk %}">
+                                    {{ batch.product.name|truncatechars:30 }}
+                                </a>
+                                <br><small class="text-muted">${{ batch.product.sale_price|floatformat:2 }} venta</small>
+                            </td>
+                            {% endif %}
+                            <td>{{ batch.supplier_name|default:"-" }}</td>
+                            <td class="text-end">{{ batch.quantity_purchased|floatformat:2 }}</td>
+                            <td class="text-end">
+                                {% if batch.is_depleted %}
+                                    <span class="badge bg-secondary">Vendido</span>
+                                {% else %}
+                                    {{ batch.quantity_remaining|floatformat:2 }}
+                                {% endif %}
+                            </td>
+                            <td class="text-end">
+                                <strong>${{ batch.purchase_price|floatformat:2 }}</strong>
+                            </td>
+                            <td class="text-end">${{ batch.total_cost|floatformat:2 }}</td>
+                            {% if product %}
+                            <td class="text-end">${{ product.sale_price|floatformat:2 }}</td>
+                            <td class="text-end">
+                                {% if batch.purchase_price > 0 %}
+                                    {% with diff=product.sale_price|add:0 %}
+                                        {% if batch.margin_if_sold_at_list is not None %}
+                                            {% if batch.margin_if_sold_at_list > 0 %}
+                                                <span class="text-success">+${{ batch.profit_per_unit|floatformat:2 }}</span>
+                                            {% else %}
+                                                <span class="text-danger">-${{ batch.loss_per_unit|floatformat:2 }}</span>
+                                            {% endif %}
+                                        {% endif %}
+                                    {% endwith %}
+                                {% else %}
+                                    -
+                                {% endif %}
+                            </td>
+                            {% endif %}
+                            <td>
+                                {% if batch.margin_if_sold_at_list is not None %}
+                                    {% if batch.margin_if_sold_at_list > 30 %}
+                                        <span class="badge bg-success">+{{ batch.margin_if_sold_at_list }}%</span>
+                                    {% elif batch.margin_if_sold_at_list > 10 %}
+                                        <span class="badge bg-warning text-dark">+{{ batch.margin_if_sold_at_list }}%</span>
+                                    {% elif batch.margin_if_sold_at_list > 0 %}
+                                        <span class="badge bg-danger">+{{ batch.margin_if_sold_at_list }}%</span>
+                                    {% else %}
+                                        <span class="badge bg-dark">{{ batch.margin_if_sold_at_list }}%</span>
+                                    {% endif %}
+                                {% else %}
+                                    -
+                                {% endif %}
+                            </td>
+                            <td>
+                                <small class="text-muted">{{ batch.notes|truncatechars:40|default:"-" }}</small>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="{% if product %}10{% else %}8{% endif %}" class="text-center text-muted py-4">
+                                <i class="fas fa-inbox fa-2x mb-2 d-block"></i>
+                                No hay entradas de stock registradas.<br>
+                                <small>Los costos se registran al ajustar stock con precio de compra.</small>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Pagination -->
+        {% if batches.has_other_pages %}
+        <div class="card-footer">
+            <nav>
+                <ul class="pagination justify-content-center mb-0">
+                    {% if batches.has_previous %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ batches.previous_page_number }}&search={{ search }}&supplier={{ supplier }}&date_from={{ date_from }}&date_to={{ date_to }}&depleted={{ show_depleted }}">
+                            <i class="fas fa-chevron-left"></i>
+                        </a>
+                    </li>
+                    {% endif %}
+                    {% for num in batches.paginator.page_range %}
+                        {% if batches.number == num %}
+                        <li class="page-item active"><span class="page-link">{{ num }}</span></li>
+                        {% elif num > batches.number|add:'-3' and num < batches.number|add:'3' %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ num }}&search={{ search }}&supplier={{ supplier }}&date_from={{ date_from }}&date_to={{ date_to }}&depleted={{ show_depleted }}">{{ num }}</a>
+                        </li>
+                        {% endif %}
+                    {% endfor %}
+                    {% if batches.has_next %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ batches.next_page_number }}&search={{ search }}&supplier={{ supplier }}&date_from={{ date_from }}&date_to={{ date_to }}&depleted={{ show_depleted }}">
+                            <i class="fas fa-chevron-right"></i>
+                        </a>
+                    </li>
+                    {% endif %}
+                </ul>
+            </nav>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

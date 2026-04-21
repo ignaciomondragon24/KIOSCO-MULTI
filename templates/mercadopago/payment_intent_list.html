@@ -1,0 +1,192 @@
+{% extends 'base.html' %}
+{% load currency_filters %}
+
+{% block title %}Intenciones de Pago{% endblock %}
+
+{% block extra_css %}
+<style>
+    .intent-card {
+        border-radius: 12px;
+        border: none;
+        box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    .intent-status {
+        padding: 0.4rem 0.8rem;
+        border-radius: 15px;
+        font-size: 0.8rem;
+        font-weight: 500;
+    }
+    .intent-status.approved { background: #d1fae5; color: #065f46; }
+    .intent-status.pending { background: #fef3c7; color: #92400e; }
+    .intent-status.processing { background: #dbeafe; color: #1e40af; }
+    .intent-status.rejected { background: #fee2e2; color: #991b1b; }
+    .intent-status.error { background: #fee2e2; color: #991b1b; }
+    .intent-status.cancelled { background: #e5e7eb; color: #374151; }
+    .card-brand {
+        font-size: 1.2rem;
+    }
+    .table-intents td {
+        vertical-align: middle;
+    }
+    .filter-bar {
+        background: #f8fafc;
+        padding: 1rem;
+        border-radius: 10px;
+        margin-bottom: 1rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <a href="{% url 'mercadopago:dashboard' %}" class="btn btn-outline-secondary btn-sm mb-2">
+                <i class="fas fa-arrow-left"></i> Dashboard
+            </a>
+            <h2><i class="fas fa-credit-card text-success"></i> Intenciones de Pago</h2>
+            <p class="text-muted mb-0">Historial de pagos procesados con Mercado Pago Point</p>
+        </div>
+    </div>
+
+    <div class="card intent-card">
+        <div class="card-body">
+            {% if intents %}
+            <div class="table-responsive">
+                <table class="table table-hover table-intents">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Fecha</th>
+                            <th>Referencia</th>
+                            <th>Monto</th>
+                            <th>Estado</th>
+                            <th>Método</th>
+                            <th>Tarjeta</th>
+                            <th>Dispositivo</th>
+                            <th>Cajero</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for intent in intents %}
+                        <tr>
+                            <td>
+                                <small>{{ intent.created_at|date:"d/m/Y" }}</small><br>
+                                <small class="text-muted">{{ intent.created_at|date:"H:i:s" }}</small>
+                            </td>
+                            <td>
+                                <code>{{ intent.external_reference }}</code>
+                                {% if intent.pos_transaction %}
+                                <br><small class="text-muted">
+                                    <i class="fas fa-receipt"></i> {{ intent.pos_transaction.ticket_number }}
+                                </small>
+                                {% endif %}
+                            </td>
+                            <td><strong>{{ intent.amount|currency }}</strong></td>
+                            <td>
+                                <span class="intent-status {{ intent.status }}">
+                                    {{ intent.get_status_display }}
+                                </span>
+                            </td>
+                            <td>
+                                {% if intent.payment_method %}
+                                    {{ intent.payment_method }}
+                                {% else %}
+                                    <span class="text-muted">-</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if intent.card_brand %}
+                                    <span class="card-brand">
+                                        {% if intent.card_brand == 'visa' %}
+                                            <i class="fab fa-cc-visa text-primary"></i>
+                                        {% elif intent.card_brand == 'mastercard' %}
+                                            <i class="fab fa-cc-mastercard text-danger"></i>
+                                        {% elif intent.card_brand == 'amex' %}
+                                            <i class="fab fa-cc-amex text-info"></i>
+                                        {% else %}
+                                            <i class="fas fa-credit-card"></i>
+                                        {% endif %}
+                                    </span>
+                                    {% if intent.card_last_four %}
+                                    <small>****{{ intent.card_last_four }}</small>
+                                    {% endif %}
+                                {% else %}
+                                    <span class="text-muted">-</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if intent.device %}
+                                <small>{{ intent.device.device_name }}</small>
+                                {% else %}
+                                <span class="text-muted">-</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if intent.created_by %}
+                                <small>{{ intent.created_by.get_full_name|default:intent.created_by.username }}</small>
+                                {% else %}
+                                <span class="text-muted">-</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <a href="{% url 'mercadopago:payment_intent_detail' intent.id %}" 
+                                   class="btn btn-sm btn-outline-primary"
+                                   title="Ver detalles">
+                                    <i class="fas fa-eye"></i>
+                                </a>
+                                {% if intent.status in 'pending,processing' %}
+                                <button class="btn btn-sm btn-outline-info btn-check-status" 
+                                        data-intent-id="{{ intent.id }}"
+                                        title="Actualizar estado">
+                                    <i class="fas fa-sync-alt"></i>
+                                </button>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="text-center py-5">
+                <i class="fas fa-credit-card fa-4x text-muted mb-4"></i>
+                <h4>No hay intenciones de pago</h4>
+                <p class="text-muted">
+                    Las intenciones de pago aparecerán aquí cuando se procesen cobros desde el POS
+                </p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.querySelectorAll('.btn-check-status').forEach(btn => {
+    btn.addEventListener('click', function() {
+        const intentId = this.dataset.intentId;
+        const icon = this.querySelector('i');
+        
+        icon.classList.add('fa-spin');
+        
+        fetch(`/mercadopago/intents/${intentId}/check/`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    location.reload();
+                } else {
+                    alert('Error: ' + (data.error || 'Error desconocido'));
+                }
+            })
+            .catch(error => {
+                alert('Error de conexión');
+            })
+            .finally(() => {
+                icon.classList.remove('fa-spin');
+            });
+    });
+});
+</script>
+{% endblock %}

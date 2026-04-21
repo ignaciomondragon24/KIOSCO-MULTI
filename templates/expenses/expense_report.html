@@ -1,0 +1,83 @@
+{% extends 'base.html' %}
+{% load currency_filters %}
+
+{% block title %}Reporte de Gastos - CHE GOLOSO{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <h1 class="mb-4"><i class="fas fa-chart-pie text-warning me-2"></i>Reporte de Gastos</h1>
+    
+    <!-- Filtros -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <form method="get" class="row g-3">
+                <div class="col-md-3">
+                    <label class="form-label">Desde</label>
+                    <input type="date" name="date_from" class="form-control" value="{{ date_from }}">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Hasta</label>
+                    <input type="date" name="date_to" class="form-control" value="{{ date_to }}">
+                </div>
+                <div class="col-md-3 d-flex align-items-end">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-filter me-1"></i>Generar Reporte
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <div class="row">
+        <!-- Resumen -->
+        <div class="col-lg-4 mb-4">
+            <div class="card bg-danger text-white h-100">
+                <div class="card-body">
+                    <h5>Total de Gastos</h5>
+                    <h2 class="display-5">{{ total|currency_ar }}</h2>
+                    <p class="mb-0">{{ expense_count }} gastos registrados</p>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Por Categoría -->
+        <div class="col-lg-8 mb-4">
+            <div class="card h-100">
+                <div class="card-header">
+                    <h5 class="mb-0">Gastos por Categoría</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th>Categoría</th>
+                                    <th class="text-center">Cantidad</th>
+                                    <th class="text-end">Total</th>
+                                    <th class="text-end">%</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for item in by_category %}
+                                <tr>
+                                    <td>{{ item.category__name|default:"Sin categoría" }}</td>
+                                    <td class="text-center">{{ item.count }}</td>
+                                    <td class="text-end fw-bold">{{ item.total|currency_ar }}</td>
+                                    <td class="text-end">
+                                        {% widthratio item.total total 100 %}%
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="4" class="text-center text-muted">No hay datos</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

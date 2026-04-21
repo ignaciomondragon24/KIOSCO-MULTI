@@ -1,0 +1,1 @@
+# CHE GOLOSO - Test Suite

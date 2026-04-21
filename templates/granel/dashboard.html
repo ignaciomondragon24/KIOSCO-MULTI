@@ -1,0 +1,200 @@
+{% extends 'base.html' %}
+{% load currency_filters %}
+
+{% block title %}Caramelera - Dashboard{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-3">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="h3 mb-0">
+            <i class="fas fa-candy-cane me-2" style="color:var(--che-primary,#E91E8C);"></i>Caramelera
+        </h1>
+        <div>
+            <a href="{% url 'granel:audit' %}" class="btn btn-sm btn-outline-warning">
+                <i class="fas fa-balance-scale me-1"></i>Auditar Merma
+            </a>
+        </div>
+    </div>
+
+    {% if not products_data %}
+    <div class="alert alert-info">
+        <i class="fas fa-info-circle me-2"></i>
+        No hay carameleras configuradas. En la ficha de un producto activa <strong>"Producto Comodín Granel"</strong> para que aparezca aquí.
+    </div>
+    {% else %}
+    <div class="row g-3">
+        {% for item in products_data %}
+        <div class="col-md-6 col-xl-4">
+            <div class="card shadow-sm h-100">
+                <!-- Header -->
+                <div class="card-header d-flex justify-content-between align-items-center" style="background:var(--che-secondary,#2D1E5F);color:#fff;">
+                    <h6 class="mb-0">
+                        <i class="fas fa-jar me-1"></i>{{ item.product.name }}
+                    </h6>
+                    <span class="badge bg-light text-dark">
+                        ${{ item.product.sale_price|floatformat:0 }}/{{ item.product.granel_price_weight_grams }}g
+                    </span>
+                </div>
+
+                <!-- Stats -->
+                <div class="card-body pb-0">
+                    <div class="row text-center mb-3">
+                        <div class="col-4">
+                            <div class="text-muted small">Stock</div>
+                            <div class="fs-5 fw-bold">{{ item.product.current_stock|floatformat:0 }}g</div>
+                        </div>
+                        <div class="col-4">
+                            <div class="text-muted small">Costo/g</div>
+                            <div class="fs-6">${{ item.product.weighted_avg_cost_per_gram|floatformat:3 }}</div>
+                        </div>
+                        <div class="col-4">
+                            <div class="text-muted small">Margen</div>
+                            <div class="fs-6 {% if item.margin > 0 %}text-success{% elif item.margin < 0 %}text-danger{% endif %}">
+                                {{ item.margin }}%
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Components section -->
+                    <div class="border-top pt-2 mb-2">
+                        <div class="d-flex justify-content-between align-items-center mb-1">
+                            <span class="small fw-bold text-muted">
+                                <i class="fas fa-boxes me-1"></i>Paquetes asignados
+                            </span>
+                            <a href="{% url 'granel:manage_components' item.product.pk %}" class="btn btn-xs btn-outline-secondary py-0 px-1" style="font-size:.75rem;">
+                                <i class="fas fa-cog"></i> Gestionar
+                            </a>
+                        </div>
+
+                        {% if item.components %}
+                            {% for comp in item.components %}
+                            <div class="d-flex align-items-center gap-2 mb-1 p-1 rounded component-row">
+                                <div class="flex-grow-1 small">
+                                    <span class="fw-semibold">{{ comp.bulk_product.name }}</span>
+                                    <span class="text-muted ms-1">({{ comp.bulk_product.weight_per_unit_grams|floatformat:0 }}g)</span>
+                                    <br>
+                                    <span class="{% if comp.bulk_product.current_stock > 0 %}text-success{% else %}text-danger{% endif %}">
+                                        Stock: {{ comp.bulk_product.current_stock|floatformat:0 }} unid
+                                    </span>
+                                </div>
+                                <button
+                                    class="btn btn-sm btn-abrir"
+                                    style="background:var(--che-primary,#E91E8C);color:#fff;font-size:.8rem;white-space:nowrap;"
+                                    data-component-id="{{ comp.pk|unlocalize }}"
+                                    data-bulk-name="{{ comp.bulk_product.name }}"
+                                    data-granel-name="{{ item.product.name }}"
+                                    data-stock="{{ comp.bulk_product.current_stock }}"
+                                    {% if comp.bulk_product.current_stock < 1 %}disabled title="Sin stock"{% endif %}>
+                                    <i class="fas fa-box-open me-1"></i>Abrir
+                                </button>
+                            </div>
+                            {% endfor %}
+                        {% else %}
+                            <div class="text-muted small py-2 text-center">
+                                <i class="fas fa-plus-circle me-1"></i>
+                                <a href="{% url 'granel:manage_components' item.product.pk %}">Asignar paquetes</a>
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Footer -->
+                <div class="card-footer bg-transparent d-flex gap-1 flex-wrap">
+                    <a href="{% url 'granel:transfer' %}" class="btn btn-sm btn-outline-secondary">
+                        <i class="fas fa-exchange-alt me-1"></i>Abrir otro
+                    </a>
+                    <a href="{% url 'granel:transfer_history' %}?granel={{ item.product.pk|unlocalize }}" class="btn btn-sm btn-outline-secondary">
+                        <i class="fas fa-history me-1"></i>Historial
+                    </a>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <!-- Quick links -->
+    <div class="mt-4 d-flex gap-2 flex-wrap">
+        <a href="{% url 'granel:transfer_history' %}" class="btn btn-sm btn-outline-secondary">
+            <i class="fas fa-exchange-alt me-1"></i>Todas las Transferencias
+        </a>
+        <a href="{% url 'granel:audit_history' %}" class="btn btn-sm btn-outline-secondary">
+            <i class="fas fa-clipboard-list me-1"></i>Historial de Mermas
+        </a>
+        <a href="{% url 'granel:batch_list' %}" class="btn btn-sm btn-outline-secondary">
+            <i class="fas fa-layer-group me-1"></i>Lotes de Stock
+        </a>
+    </div>
+</div>
+
+<!-- Toast de feedback -->
+<div class="position-fixed bottom-0 end-0 p-3" style="z-index:1100;">
+    <div id="granel-toast" class="toast align-items-center border-0" role="alert" aria-live="assertive">
+        <div class="d-flex">
+            <div class="toast-body" id="granel-toast-msg"></div>
+            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const toastEl = document.getElementById('granel-toast');
+    const toastMsg = document.getElementById('granel-toast-msg');
+    const toast = new bootstrap.Toast(toastEl, {delay: 4000});
+
+    function showToast(msg, success) {
+        toastEl.classList.remove('text-bg-success', 'text-bg-danger');
+        toastEl.classList.add(success ? 'text-bg-success' : 'text-bg-danger');
+        toastMsg.textContent = msg;
+        toast.show();
+    }
+
+    document.querySelectorAll('.btn-abrir').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const componentId = this.dataset.componentId;
+            const bulkName = this.dataset.bulkName;
+            const granelName = this.dataset.granelName;
+
+            if (!confirm(`¿Abrir un paquete de "${bulkName}" para "${granelName}"?`)) return;
+
+            const origHtml = this.innerHTML;
+            this.disabled = true;
+            this.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+
+            fetch(`/granel/api/quick-transfer/${componentId}/`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': '{{ csrf_token }}'
+                },
+                body: JSON.stringify({notes: ''})
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) {
+                    const t = data.transfer;
+                    showToast(
+                        `✓ ${t.grams.toFixed(0)}g agregados a ${granelName}. ` +
+                        `Stock: ${t.new_stock.toFixed(0)}g | Costo: $${t.new_avg_cost.toFixed(3)}/g`,
+                        true
+                    );
+                    setTimeout(() => location.reload(), 2000);
+                } else {
+                    showToast(data.error || 'Error al abrir paquete', false);
+                    this.disabled = false;
+                    this.innerHTML = origHtml;
+                }
+            })
+            .catch(() => {
+                showToast('Error de conexión', false);
+                this.disabled = false;
+                this.innerHTML = origHtml;
+            });
+        });
+    });
+});
+</script>
+{% endblock %}

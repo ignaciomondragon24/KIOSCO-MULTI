@@ -1,0 +1,211 @@
+{% extends 'base.html' %}
+{% load currency_filters %}
+
+{% block title %}Depósito de Bultos{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-3">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="h3 mb-0">
+            <i class="fas fa-warehouse me-2" style="color:var(--che-primary,#E91E8C);"></i>
+            Depósito de Bultos
+        </h1>
+    </div>
+    <p class="text-muted small mb-3">
+        <i class="fas fa-info-circle me-1"></i>
+        Los productos se crean y editan desde el <a href="{% url 'stocks:product_list' %}">Inventario</a>.
+        Activá la opción "Producto para Caramelera" al crear o editar un producto para que aparezca aquí.
+    </p>
+
+    <!-- Búsqueda -->
+    <form method="get" class="mb-3">
+        <div class="input-group" style="max-width:400px;">
+            <input type="text" name="q" class="form-control" placeholder="Buscar por nombre o marca..."
+                   value="{{ q }}">
+            <button type="submit" class="btn btn-outline-secondary">
+                <i class="fas fa-search"></i>
+            </button>
+            {% if q %}
+            <a href="{% url 'granel:deposito_list' %}" class="btn btn-outline-secondary">
+                <i class="fas fa-times"></i>
+            </a>
+            {% endif %}
+        </div>
+    </form>
+
+    {% if not productos %}
+    <div class="alert alert-info">
+        <i class="fas fa-info-circle me-2"></i>
+        {% if q %}
+            No se encontraron productos para "{{ q }}".
+        {% else %}
+            No hay productos marcados como "para caramelera" todavía.
+            Creá un producto en el inventario y activá la opción correspondiente.
+        {% endif %}
+    </div>
+    {% else %}
+    <div class="card shadow-sm">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead style="background:var(--che-secondary,#2D1E5F);color:#fff;">
+                    <tr>
+                        <th>Nombre</th>
+                        <th>Marca</th>
+                        <th class="text-end">Costo Bulto</th>
+                        <th class="text-end">Gramos/Bulto</th>
+                        <th class="text-end">Costo/g</th>
+                        <th class="text-center">Stock (unidades)</th>
+                        <th class="text-center">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for p in productos %}
+                    <tr>
+                        <td class="fw-semibold">{{ p.name }}</td>
+                        <td class="text-muted">{{ p.marca|default:"—" }}</td>
+                        <td class="text-end">{{ p.purchase_price|currency_ar }}</td>
+                        <td class="text-end text-muted">
+                            {% if p.weight_per_unit_grams %}
+                                {{ p.weight_per_unit_grams|floatformat:0 }}g
+                            {% else %}
+                                <span class="text-danger">—</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-end text-muted small">
+                            {% if p.costo_por_gramo > 0 %}
+                                ${{ p.costo_por_gramo|floatformat:4 }}/g
+                            {% else %}
+                                <span class="text-danger">Sin gramos</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-center">
+                            {% with stock=p.current_stock|floatformat:0 %}
+                            {% if p.current_stock <= 2 %}
+                                <span class="badge bg-danger fs-6">{{ stock }}</span>
+                            {% elif p.current_stock <= 5 %}
+                                <span class="badge bg-warning text-dark fs-6">{{ stock }}</span>
+                            {% else %}
+                                <span class="badge bg-success fs-6">{{ stock }}</span>
+                            {% endif %}
+                            {% endwith %}
+                        </td>
+                        <td class="text-center">
+                            <div class="d-flex gap-1 justify-content-center">
+                                <a href="{% url 'stocks:product_edit' p.pk %}"
+                                   class="btn btn-sm btn-outline-primary" title="Editar producto">
+                                    <i class="fas fa-edit"></i>
+                                </a>
+                                <!-- Ajuste rápido de stock -->
+                                <button type="button"
+                                        class="btn btn-sm btn-outline-success btn-ajustar"
+                                        data-pk="{{ p.pk|unlocalize }}"
+                                        data-nombre="{{ p.name|escapejs }}"
+                                        data-stock="{{ p.current_stock|floatformat:0 }}"
+                                        title="Ajustar stock">
+                                    <i class="fas fa-boxes"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Modal ajuste de stock -->
+<div class="modal fade" id="modalAjustarStock" tabindex="-1">
+    <div class="modal-dialog modal-sm">
+        <div class="modal-content">
+            <div class="modal-header" style="background:var(--che-secondary,#2D1E5F);color:#fff;">
+                <h6 class="modal-title mb-0">
+                    <i class="fas fa-boxes me-2"></i>Ajustar Stock
+                </h6>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p class="fw-semibold mb-3" id="modal-producto-nombre"></p>
+                <div class="mb-3">
+                    <label class="form-label">Stock actual</label>
+                    <input type="number" id="modal-stock-actual" class="form-control" readonly>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Nuevo stock</label>
+                    <input type="number" id="modal-stock-nuevo" class="form-control" min="0" step="1">
+                </div>
+                <div id="modal-ajuste-error" class="alert alert-danger d-none"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-primary" id="btn-confirmar-ajuste">
+                    Confirmar
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function () {
+    let activePk = null;
+    let stockActual = 0;
+
+    document.querySelectorAll('.btn-ajustar').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            activePk = this.dataset.pk;
+            stockActual = parseInt(this.dataset.stock);
+            document.getElementById('modal-producto-nombre').textContent = this.dataset.nombre;
+            document.getElementById('modal-stock-actual').value = stockActual;
+            document.getElementById('modal-stock-nuevo').value = stockActual;
+            document.getElementById('modal-ajuste-error').classList.add('d-none');
+            new bootstrap.Modal(document.getElementById('modalAjustarStock')).show();
+        });
+    });
+
+    document.getElementById('btn-confirmar-ajuste').addEventListener('click', function () {
+        const nuevo = parseInt(document.getElementById('modal-stock-nuevo').value);
+        if (isNaN(nuevo) || nuevo < 0) {
+            document.getElementById('modal-ajuste-error').textContent = 'Stock inválido.';
+            document.getElementById('modal-ajuste-error').classList.remove('d-none');
+            return;
+        }
+        const delta = nuevo - stockActual;
+        const btn = this;
+        btn.disabled = true;
+
+        fetch(`/granel/api/deposito/${activePk}/stock/`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCsrfToken(),
+            },
+            body: JSON.stringify({ delta }),
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                location.reload();
+            } else {
+                document.getElementById('modal-ajuste-error').textContent = data.error || 'Error.';
+                document.getElementById('modal-ajuste-error').classList.remove('d-none');
+                btn.disabled = false;
+            }
+        })
+        .catch(() => {
+            document.getElementById('modal-ajuste-error').textContent = 'Error de conexión.';
+            document.getElementById('modal-ajuste-error').classList.remove('d-none');
+            btn.disabled = false;
+        });
+    });
+
+    function getCsrfToken() {
+        const cookie = document.cookie.split(';').find(c => c.trim().startsWith('csrftoken='));
+        return cookie ? cookie.split('=')[1].trim() : '';
+    }
+})();
+</script>
+{% endblock %}

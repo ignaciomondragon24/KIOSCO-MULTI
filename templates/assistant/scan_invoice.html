@@ -1,0 +1,1272 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Escanear Remito - CHE GOLOSO{% endblock %}
+
+{% block extra_css %}
+<style>
+    .scan-container {
+        max-width: 1200px;
+        margin: 0 auto;
+    }
+
+    /* Camera / Upload area */
+    .upload-zone {
+        border: 3px dashed var(--che-purple, #2D1E5F);
+        border-radius: 16px;
+        padding: 2rem;
+        text-align: center;
+        cursor: pointer;
+        transition: all 0.3s;
+        background: rgba(45, 30, 95, 0.05);
+    }
+    .upload-zone:hover, .upload-zone.dragover {
+        background: rgba(45, 30, 95, 0.12);
+        border-color: var(--che-pink, #E91E8C);
+    }
+    .upload-zone i {
+        font-size: 3rem;
+        color: var(--che-purple, #2D1E5F);
+    }
+    .upload-zone .btn-camera {
+        font-size: 1.1rem;
+    }
+
+    /* Preview image */
+    .preview-container {
+        position: relative;
+        display: none;
+    }
+    .preview-container img {
+        max-width: 100%;
+        max-height: 300px;
+        border-radius: 12px;
+        border: 2px solid #ddd;
+        object-fit: contain;
+    }
+    .preview-container .btn-remove {
+        position: absolute;
+        top: 8px;
+        right: 8px;
+    }
+
+    /* Processing overlay */
+    .processing-overlay {
+        display: none;
+        text-align: center;
+        padding: 3rem;
+    }
+    .processing-overlay .spinner-border {
+        width: 4rem;
+        height: 4rem;
+        color: var(--che-pink, #E91E8C);
+    }
+
+    /* Results */
+    .results-section {
+        display: none;
+    }
+
+    /* Editable cells */
+    .edit-cell input {
+        border: 1px solid transparent;
+        background: transparent;
+        text-align: inherit;
+        width: 100%;
+        padding: 2px 4px;
+        border-radius: 4px;
+    }
+    .edit-cell input:focus {
+        border-color: var(--che-pink, #E91E8C);
+        background: #fff;
+        outline: none;
+    }
+    .edit-cell input[type="number"] {
+        text-align: right;
+    }
+
+    /* Product match indicators */
+    .match-found { color: #198754; }
+    .match-not-found { color: #dc3545; }
+
+    /* Summary card */
+    .summary-card {
+        border-left: 4px solid var(--che-pink, #E91E8C);
+    }
+
+    /* Step indicators */
+    .step-indicator {
+        display: flex;
+        gap: 0;
+        margin-bottom: 1.5rem;
+    }
+    .step {
+        flex: 1;
+        text-align: center;
+        padding: 0.75rem;
+        background: #e9ecef;
+        position: relative;
+        font-weight: 600;
+        font-size: 0.85rem;
+        color: #6c757d;
+    }
+    .step:first-child { border-radius: 8px 0 0 8px; }
+    .step:last-child { border-radius: 0 8px 8px 0; }
+    .step.active {
+        background: var(--che-purple, #2D1E5F);
+        color: white;
+    }
+    .step.completed {
+        background: #198754;
+        color: white;
+    }
+    .step .step-num {
+        display: inline-block;
+        width: 24px;
+        height: 24px;
+        line-height: 24px;
+        border-radius: 50%;
+        background: rgba(255,255,255,0.3);
+        margin-right: 6px;
+        font-size: 0.8rem;
+    }
+
+    /* Mobile */
+    @media (max-width: 767.98px) {
+        .upload-zone { padding: 1.5rem; }
+        .upload-zone i { font-size: 2rem; }
+        .step span.step-text { display: none; }
+        .step .step-num { margin: 0; }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid scan-container">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <div>
+            <h1 class="h3 mb-0">
+                <i class="fas fa-camera me-2"></i>Escanear Remito
+            </h1>
+            <p class="text-muted mb-0">Sacá una foto del remito y el asistente extrae los datos automáticamente</p>
+        </div>
+        <a href="{% url 'stocks:product_list' %}" class="btn btn-outline-secondary btn-sm">
+            <i class="fas fa-arrow-left me-1"></i>Inventario
+        </a>
+    </div>
+
+    <!-- Steps -->
+    <div class="step-indicator">
+        <div class="step active" id="step1">
+            <span class="step-num">1</span>
+            <span class="step-text">Foto</span>
+        </div>
+        <div class="step" id="step2">
+            <span class="step-num">2</span>
+            <span class="step-text">Revisar</span>
+        </div>
+        <div class="step" id="step3">
+            <span class="step-num">3</span>
+            <span class="step-text">Confirmar</span>
+        </div>
+    </div>
+
+    <!-- STEP 1: Upload / Camera -->
+    <div id="uploadSection">
+        <div class="row g-3">
+            <div class="col-lg-8">
+                <div class="card">
+                    <div class="card-body">
+                        <!-- Upload zone -->
+                        <div class="upload-zone" id="uploadZone" onclick="document.getElementById('fileInput').click()">
+                            <i class="fas fa-cloud-arrow-up mb-3 d-block"></i>
+                            <h5>Arrastrá o tocá para subir la foto del remito</h5>
+                            <p class="text-muted mb-3">JPG, PNG o WebP - Máx. 10MB</p>
+                            <div class="d-flex gap-2 justify-content-center flex-wrap">
+                                <button type="button" class="btn btn-primary btn-camera" onclick="event.stopPropagation(); document.getElementById('cameraInput').click()">
+                                    <i class="fas fa-camera me-1"></i>Cámara
+                                </button>
+                                <button type="button" class="btn btn-outline-primary" onclick="event.stopPropagation(); document.getElementById('fileInput').click()">
+                                    <i class="fas fa-image me-1"></i>Galería
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Hidden inputs -->
+                        <input type="file" id="cameraInput" accept="image/*" capture="environment" class="d-none" onchange="handleImageSelect(event)">
+                        <input type="file" id="fileInput" accept="image/jpeg,image/png,image/webp" class="d-none" onchange="handleImageSelect(event)">
+
+                        <!-- Preview -->
+                        <div class="preview-container mt-3" id="previewContainer">
+                            <img id="previewImage" alt="Preview del remito">
+                            <button type="button" class="btn btn-danger btn-sm btn-remove" onclick="clearImage()">
+                                <i class="fas fa-times"></i>
+                            </button>
+                            <div class="text-center mt-3">
+                                <button type="button" class="btn btn-lg btn-primary" id="btnScan" onclick="scanInvoice()">
+                                    <i class="fas fa-wand-magic-sparkles me-2"></i>Analizar con IA
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Processing -->
+                        <div class="processing-overlay" id="processingOverlay">
+                            <div class="spinner-border mb-3" role="status"></div>
+                            <h5>Analizando remito con Gemini...</h5>
+                            <p class="text-muted">Esto puede tardar unos segundos</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-lg-4">
+                <div class="card">
+                    <div class="card-header">
+                        <h6 class="mb-0"><i class="fas fa-lightbulb me-2 text-warning"></i>Tips</h6>
+                    </div>
+                    <div class="card-body">
+                        <ul class="list-unstyled mb-0">
+                            <li class="mb-2"><i class="fas fa-check-circle text-success me-2"></i>Foto con buena iluminación</li>
+                            <li class="mb-2"><i class="fas fa-check-circle text-success me-2"></i>Que se vean todos los productos y precios</li>
+                            <li class="mb-2"><i class="fas fa-check-circle text-success me-2"></i>Evitar sombras y reflejos</li>
+                            <li class="mb-2"><i class="fas fa-check-circle text-success me-2"></i>Si el remito es largo, hacé varias fotos</li>
+                            <li><i class="fas fa-info-circle text-info me-2"></i>Siempre podés editar los datos antes de confirmar</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- STEP 2: Review & Edit -->
+    <div class="results-section" id="resultsSection">
+        <div class="row g-3">
+            <!-- Invoice header data -->
+            <div class="col-lg-4">
+                <div class="card">
+                    <div class="card-header">
+                        <h6 class="mb-0"><i class="fas fa-file-invoice me-2"></i>Datos del Remito</h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Proveedor</label>
+                            <select class="form-select" id="supplierSelect" onchange="toggleNewSupplier()">
+                                <option value="">-- Nuevo proveedor --</option>
+                                {% for s in suppliers %}
+                                <option value="{{ s.id }}">{{ s.name }}</option>
+                                {% endfor %}
+                            </select>
+                            <input type="text" class="form-control mt-2" id="supplierName" placeholder="Nombre del proveedor">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Nº Comprobante</label>
+                            <input type="text" class="form-control" id="invoiceNumber" placeholder="0001-00001234">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Fecha</label>
+                            <input type="date" class="form-control" id="invoiceDate">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Método de Pago</label>
+                            <select class="form-select" id="paymentMethod">
+                                <option value="cash">Efectivo</option>
+                                <option value="card">Tarjeta</option>
+                                <option value="transfer">Transferencia</option>
+                                <option value="check">Cheque</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Notas</label>
+                            <textarea class="form-control" id="invoiceNotes" rows="2"></textarea>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Summary -->
+                <div class="card mt-3 summary-card">
+                    <div class="card-header">
+                        <h6 class="mb-0"><i class="fas fa-calculator me-2"></i>Totales</h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between mb-2">
+                            <span>Subtotal</span>
+                            <strong id="summarySubtotal">$0,00</strong>
+                        </div>
+                        <div class="d-flex justify-content-between mb-2">
+                            <span>IVA</span>
+                            <input type="number" class="form-control form-control-sm" id="invoiceIva" 
+                                   style="width: 100px; text-align: right;" step="0.01" value="0" onchange="updateTotals()">
+                        </div>
+                        <hr>
+                        <div class="d-flex justify-content-between">
+                            <strong class="fs-5">Total</strong>
+                            <strong class="fs-5 text-primary" id="summaryTotal">$0,00</strong>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Options -->
+                <div class="card mt-3">
+                    <div class="card-body">
+                        <div class="form-check form-switch mb-2">
+                            <input class="form-check-input" type="checkbox" id="chkUpdateStock" checked>
+                            <label class="form-check-label" for="chkUpdateStock">
+                                <i class="fas fa-boxes-stacked me-1"></i>Actualizar stock
+                            </label>
+                        </div>
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" id="chkRegisterExpense" checked>
+                            <label class="form-check-label" for="chkRegisterExpense">
+                                <i class="fas fa-money-bill-trend-up me-1"></i>Registrar como gasto
+                            </label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Products table -->
+            <div class="col-lg-8">
+                <div class="card">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h6 class="mb-0"><i class="fas fa-list me-2"></i>Productos Detectados</h6>
+                        <div>
+                            <button type="button" class="btn btn-sm btn-outline-success" onclick="addProductRow()">
+                                <i class="fas fa-plus me-1"></i>Agregar
+                            </button>
+                        </div>
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="table-responsive">
+                            <table class="table table-hover table-sm mb-0" id="productsTable">
+                                <thead>
+                                    <tr>
+                                        <th style="width: 30px;"></th>
+                                        <th>Producto</th>
+                                        <th style="width: 80px;" class="text-center">Cant.</th>
+                                        <th style="width: 110px;" class="text-end">P. Unit.</th>
+                                        <th style="width: 110px;" class="text-end">Total</th>
+                                        <th style="width: 40px;"></th>
+                                    </tr>
+                                </thead>
+                                <tbody id="productsBody">
+                                    <!-- Filled by JS -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Action buttons -->
+                <div class="d-flex gap-2 mt-3 justify-content-between">
+                    <button type="button" class="btn btn-outline-secondary" onclick="resetAll()">
+                        <i class="fas fa-arrow-left me-1"></i>Volver a escanear
+                    </button>
+                    <button type="button" class="btn btn-lg btn-success" id="btnConfirm" onclick="confirmInvoice()">
+                        <i class="fas fa-check me-2"></i>Confirmar y Guardar
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- STEP 3: Success -->
+    <div class="results-section" id="successSection">
+        <div class="card">
+            <div class="card-body text-center py-5">
+                <i class="fas fa-check-circle text-success fa-4x mb-3"></i>
+                <h3 class="mb-3">¡Remito procesado exitosamente!</h3>
+                <div id="successDetails" class="mb-4"></div>
+                <div id="notFoundWarning" class="alert alert-warning d-none mb-4" style="max-width: 500px; margin: 0 auto;">
+                    <h6><i class="fas fa-exclamation-triangle me-2"></i>Productos no encontrados</h6>
+                    <ul id="notFoundList" class="mb-0 text-start"></ul>
+                    <small class="text-muted">Podés crearlos manualmente y volver a escanear</small>
+                </div>
+                <div id="autoCreatedWarning" class="alert alert-info d-none mb-4" style="max-width: 500px; margin: 0 auto;">
+                    <h6><i class="fas fa-magic me-2"></i>Productos creados automáticamente</h6>
+                    <p class="mb-1 small">Los siguientes productos no existían en el sistema y fueron creados con precio de venta estimado (30% margen). Revisá sus precios en el catálogo:</p>
+                    <ul id="autoCreatedList" class="mb-0 text-start"></ul>
+                </div>
+                <div class="d-flex gap-2 justify-content-center flex-wrap">
+                    <button type="button" class="btn btn-primary" onclick="resetAll()">
+                        <i class="fas fa-camera me-1"></i>Escanear otro
+                    </button>
+                    <a href="{% url 'purchase:purchase_list' %}" class="btn btn-outline-primary">
+                        <i class="fas fa-file-invoice me-1"></i>Ver Compras
+                    </a>
+                    <a href="{% url 'stocks:product_list' %}" class="btn btn-outline-secondary">
+                        <i class="fas fa-boxes me-1"></i>Inventario
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Crear Producto -->
+<div class="modal fade" id="createProductModal" tabindex="-1" aria-labelledby="createProductModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header" style="background: linear-gradient(135deg, var(--che-purple, #2D1E5F), var(--che-pink, #E91E8C)); color: white;">
+                <h5 class="modal-title" id="createProductModalLabel">
+                    <i class="fas fa-plus-circle me-2"></i>Crear Producto
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="cpRowIndex">
+
+                <!-- BUSCAR EXISTENTE -->
+                <div class="mb-3 p-3 rounded" style="background:#f0f4ff; border:1px solid #c5d0f5;">
+                    <label class="form-label fw-bold text-primary mb-1">
+                        <i class="fas fa-search me-1"></i>Vincular a un producto ya existente
+                    </label>
+                    <input type="text" class="form-control" id="cpSearchExisting"
+                           placeholder="Buscar por nombre o código de barras..." autocomplete="off">
+                    <div id="cpSearchResults" class="list-group mt-1" style="max-height:160px; overflow-y:auto; display:none;"></div>
+                </div>
+                <div class="text-center text-muted small mb-3" style="letter-spacing:.5px;">── o bien crear uno nuevo ──</div>
+
+                <div class="mb-3">
+                    <label class="form-label fw-bold">Nombre <span class="text-danger">*</span></label>
+                    <input type="text" class="form-control" id="cpName" placeholder="Nombre del producto">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-bold">Categoría</label>
+                    <select class="form-select" id="cpCategory">
+                        <option value="">-- Sin categoría --</option>
+                        {% for cat in categories %}
+                        <option value="{{ cat.id }}" data-margin="{{ cat.default_margin_percent }}">{{ cat.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-bold">Código de Barras</label>
+                    <input type="text" class="form-control" id="cpBarcode" placeholder="Opcional">
+                </div>
+                <div class="row g-3">
+                    <div class="col-6">
+                        <label class="form-label fw-bold">Precio de Compra</label>
+                        <div class="input-group">
+                            <span class="input-group-text">$</span>
+                                <input type="number" class="form-control" id="cpPurchasePrice" step="0.01" min="0" value="0">
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <label class="form-label fw-bold">Margen %</label>
+                        <div class="input-group">
+                                <input type="number" class="form-control" id="cpMargin" step="0.01" min="0" value="30">
+                            <span class="input-group-text">%</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="mb-3 mt-3">
+                    <label class="form-label fw-bold">Precio de Venta <span class="text-danger">*</span></label>
+                    <div class="input-group">
+                        <span class="input-group-text">$</span>
+                        <input type="number" class="form-control" id="cpSalePrice" step="0.01" min="0.01" value="0">
+                    </div>
+                </div>
+                <div id="cpError" class="alert alert-danger d-none"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-success" id="btnCreateProduct" onclick="createProductFromScan()">
+                    <i class="fas fa-check me-1"></i>Crear y Vincular
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// State
+let selectedImage = null;
+let scannedData = null;
+
+// ========== IMAGE HANDLING ==========
+
+function handleImageSelect(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    if (file.size > 10 * 1024 * 1024) {
+        alert('La imagen es demasiado grande. Máximo 10MB.');
+        return;
+    }
+
+    selectedImage = file;
+    
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        document.getElementById('previewImage').src = e.target.result;
+        document.getElementById('previewContainer').style.display = 'block';
+        document.getElementById('uploadZone').style.display = 'none';
+    };
+    reader.readAsDataURL(file);
+}
+
+function clearImage() {
+    selectedImage = null;
+    document.getElementById('previewImage').src = '';
+    document.getElementById('previewContainer').style.display = 'none';
+    document.getElementById('uploadZone').style.display = 'block';
+    document.getElementById('cameraInput').value = '';
+    document.getElementById('fileInput').value = '';
+}
+
+// Drag & drop
+const uploadZone = document.getElementById('uploadZone');
+if (uploadZone) {
+    uploadZone.addEventListener('dragover', (e) => { e.preventDefault(); uploadZone.classList.add('dragover'); });
+    uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('dragover'));
+    uploadZone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        uploadZone.classList.remove('dragover');
+        if (e.dataTransfer.files.length > 0) {
+            const file = e.dataTransfer.files[0];
+            if (file.type.startsWith('image/')) {
+                const dt = new DataTransfer();
+                dt.items.add(file);
+                document.getElementById('fileInput').files = dt.files;
+                handleImageSelect({ target: { files: [file] } });
+            }
+        }
+    });
+}
+
+// ========== SCAN ==========
+
+async function scanInvoice() {
+    if (!selectedImage) {
+        alert('Primero seleccioná o sacá una foto.');
+        return;
+    }
+
+    // Show processing
+    document.getElementById('previewContainer').style.display = 'none';
+    document.getElementById('processingOverlay').style.display = 'block';
+    document.getElementById('btnScan').disabled = true;
+
+    let result;
+    try {
+        const formData = new FormData();
+        formData.append('image', selectedImage);
+
+        const response = await fetch('{% url "assistant:api_scan_invoice" %}', {
+            method: 'POST',
+            headers: { 'X-CSRFToken': '{{ csrf_token }}' },
+            body: formData,
+        });
+
+        result = await response.json();
+    } catch (err) {
+        alert('Error de conexión al servidor: ' + err.message);
+        document.getElementById('previewContainer').style.display = 'block';
+        document.getElementById('processingOverlay').style.display = 'none';
+        document.getElementById('btnScan').disabled = false;
+        return;
+    }
+
+    document.getElementById('processingOverlay').style.display = 'none';
+    document.getElementById('btnScan').disabled = false;
+
+    if (result.success) {
+        try {
+            scannedData = result.data;
+            populateResults(scannedData);
+            showStep(2);
+        } catch (err) {
+            console.error('Error procesando resultados:', err);
+            alert('Error procesando los datos del remito: ' + err.message);
+            document.getElementById('previewContainer').style.display = 'block';
+        }
+    } else {
+        alert('Error: ' + (result.error || 'No se pudo analizar la imagen'));
+        document.getElementById('previewContainer').style.display = 'block';
+    }
+}
+
+// ========== POPULATE RESULTS ==========
+
+function populateResults(data) {
+    // Header fields
+    document.getElementById('supplierName').value = data.proveedor || '';
+    document.getElementById('invoiceNumber').value = data.numero_comprobante || '';
+    document.getElementById('invoiceNotes').value = data.notas || '';
+
+    // Try to match supplier
+    const supplierSelect = document.getElementById('supplierSelect');
+    if (data.proveedor) {
+        const match = Array.from(supplierSelect.options).find(
+            o => o.text.toLowerCase().includes(data.proveedor.toLowerCase()) ||
+                 data.proveedor.toLowerCase().includes(o.text.toLowerCase())
+        );
+        if (match) {
+            supplierSelect.value = match.value;
+            document.getElementById('supplierName').style.display = 'none';
+        } else {
+            supplierSelect.value = '';
+            document.getElementById('supplierName').style.display = 'block';
+        }
+    }
+
+    // Date
+    if (data.fecha) {
+        // Convert DD/MM/YYYY to YYYY-MM-DD for input
+        const parts = data.fecha.split('/');
+        if (parts.length === 3) {
+            document.getElementById('invoiceDate').value = `${parts[2]}-${parts[1].padStart(2,'0')}-${parts[0].padStart(2,'0')}`;
+        }
+    } else {
+        document.getElementById('invoiceDate').value = new Date().toISOString().split('T')[0];
+    }
+
+    // Payment method
+    if (data.metodo_pago) {
+        const paymentMap = {
+            'efectivo': 'cash', 'cash': 'cash',
+            'tarjeta': 'card', 'card': 'card',
+            'transferencia': 'transfer', 'transfer': 'transfer',
+            'cheque': 'check', 'check': 'check',
+        };
+        const pm = paymentMap[data.metodo_pago.toLowerCase()];
+        if (pm) document.getElementById('paymentMethod').value = pm;
+    }
+
+    // IVA
+    document.getElementById('invoiceIva').value = data.iva || 0;
+
+    // Products
+    const tbody = document.getElementById('productsBody');
+    tbody.innerHTML = '';
+
+    if (data.productos && data.productos.length > 0) {
+        data.productos.forEach((p, idx) => {
+            addProductRowData(p, idx);
+        });
+    }
+
+    updateTotals();
+}
+
+function addProductRowData(p, idx) {
+    const tbody = document.getElementById('productsBody');
+    const tr = document.createElement('tr');
+    tr.dataset.index = idx;
+
+    const qty = p.cantidad || 0;
+    const price = p.precio_unitario || 0;
+    const total = p.precio_total || (qty * price);
+    const barcode = p.codigo_barras || '';
+
+    tr.innerHTML = `
+        <td class="text-center">
+            <i class="fas fa-spinner fa-spin text-muted match-icon" title="Buscando..."></i>
+            <button type="button" class="btn btn-sm btn-outline-warning btn-create-product mt-1" 
+                    style="display:none; font-size:0.7rem; padding:1px 5px;" 
+                    onclick="openCreateProductModal(this.closest('tr'))" title="Crear producto">
+                <i class="fas fa-plus"></i>
+            </button>
+        </td>
+        <td class="edit-cell">
+            <input type="text" class="fw-bold" value="${escapeHtml(p.nombre || '')}" 
+                   data-field="nombre" title="Nombre del producto">
+            ${barcode ? `<br><small class="text-muted"><i class="fas fa-barcode me-1"></i>${escapeHtml(barcode)}</small>` : ''}
+        </td>
+        <td class="edit-cell text-center">
+            <input type="number" value="${qty}" min="0" data-field="cantidad" 
+                   onchange="recalcRow(this)">
+        </td>
+        <td class="edit-cell text-end">
+            <input type="number" value="${price}" min="0" step="0.01" data-field="precio_unitario" 
+                   onchange="recalcRow(this)">
+        </td>
+        <td class="edit-cell text-end">
+            <input type="number" value="${total.toFixed(2)}" min="0" step="0.01" data-field="precio_total"
+                   onchange="updateTotals()">
+        </td>
+        <td>
+            <button type="button" class="btn btn-sm btn-outline-danger" onclick="this.closest('tr').remove(); updateTotals();">
+                <i class="fas fa-trash"></i>
+            </button>
+        </td>
+    `;
+
+    // Store barcode as data attribute
+    tr.dataset.barcode = barcode || '';
+
+    tbody.appendChild(tr);
+
+    // Check if product exists in DB
+    checkProductMatch(tr, p.nombre, barcode);
+}
+
+function addProductRow() {
+    const tbody = document.getElementById('productsBody');
+    const idx = tbody.children.length;
+    addProductRowData({
+        nombre: '',
+        cantidad: 1,
+        precio_unitario: 0,
+        precio_total: 0,
+        codigo_barras: '',
+    }, idx);
+}
+
+async function checkProductMatch(tr, nombre, barcode) {
+    const icon = tr.querySelector('.match-icon');
+    try {
+        const q = barcode || nombre;
+        const response = await fetch(`{% url 'purchase:api_search_products' %}?q=${encodeURIComponent(q)}`);
+        const result = await response.json();
+
+        if (result.results && result.results.length > 0) {
+            const matched = result.results[0];
+            tr.dataset.productId = matched.id;
+            icon.className = 'fas fa-check-circle match-found match-icon';
+            icon.title = `Encontrado: ${matched.name}`;
+            // Hide create button if exists
+            const createBtn = tr.querySelector('.btn-create-product');
+            if (createBtn) createBtn.style.display = 'none';
+        } else {
+            tr.dataset.productId = '';
+            icon.className = 'fas fa-exclamation-circle match-not-found match-icon';
+            icon.title = 'Producto no encontrado en el sistema';
+            // Show create button
+            const createBtn = tr.querySelector('.btn-create-product');
+            if (createBtn) createBtn.style.display = '';
+        }
+    } catch {
+        icon.className = 'fas fa-question-circle text-muted match-icon';
+        icon.title = 'No se pudo verificar';
+    }
+}
+
+function recalcRow(input) {
+    const tr = input.closest('tr');
+    const qty = parseFloat(tr.querySelector('[data-field="cantidad"]').value) || 0;
+    const price = parseFloat(tr.querySelector('[data-field="precio_unitario"]').value) || 0;
+    tr.querySelector('[data-field="precio_total"]').value = (qty * price).toFixed(2);
+    updateTotals();
+}
+
+function updateTotals() {
+    const rows = document.querySelectorAll('#productsBody tr');
+    let subtotal = 0;
+
+    rows.forEach(tr => {
+        const total = parseFloat(tr.querySelector('[data-field="precio_total"]').value) || 0;
+        subtotal += total;
+    });
+
+    const iva = parseFloat(document.getElementById('invoiceIva').value) || 0;
+    const total = subtotal + iva;
+
+    document.getElementById('summarySubtotal').textContent = fmtMoney(subtotal);
+    document.getElementById('summaryTotal').textContent = fmtMoney(total);
+}
+
+// ========== CONFIRM ==========
+
+async function confirmInvoice() {
+    const rows = document.querySelectorAll('#productsBody tr');
+    if (rows.length === 0) {
+        alert('No hay productos para confirmar.');
+        return;
+    }
+
+    const productos = [];
+    let notLinkedCount = 0;
+    rows.forEach(tr => {
+        const nombre = tr.querySelector('[data-field="nombre"]').value.trim();
+        const cantidad = parseInt(tr.querySelector('[data-field="cantidad"]').value) || 0;
+        const precio_unitario = parseFloat(tr.querySelector('[data-field="precio_unitario"]').value) || 0;
+        const precio_total = parseFloat(tr.querySelector('[data-field="precio_total"]').value) || 0;
+        const product_id = tr.dataset.productId || null;
+        const codigo_barras = tr.dataset.barcode || '';
+
+        if (nombre && cantidad > 0) {
+            if (!product_id) notLinkedCount += 1;
+            productos.push({ nombre, cantidad, precio_unitario, precio_total, product_id, codigo_barras });
+        }
+    });
+
+    if (productos.length === 0) {
+        alert('No hay productos válidos. Completá nombre y cantidad.');
+        return;
+    }
+
+    if (notLinkedCount > 0) {
+        const proceed = confirm(`Hay ${notLinkedCount} producto(s) sin vincular a un producto del sistema. Se van a omitir en la compra/stock. ¿Querés continuar?`);
+        if (!proceed) {
+            return;
+        }
+    }
+
+    const iva = parseFloat(document.getElementById('invoiceIva').value) || 0;
+    let subtotal = 0;
+    productos.forEach(p => subtotal += p.precio_total);
+
+    const supplierSelect = document.getElementById('supplierSelect');
+    const dateInput = document.getElementById('invoiceDate');
+
+    const payload = {
+        supplier_id: supplierSelect.value || null,
+        supplier_name: document.getElementById('supplierName').value.trim(),
+        numero_comprobante: document.getElementById('invoiceNumber').value.trim(),
+        fecha: dateInput.value,
+        productos: productos,
+        subtotal: subtotal,
+        iva: iva,
+        total: subtotal + iva,
+        metodo_pago: document.getElementById('paymentMethod').value,
+        notas: document.getElementById('invoiceNotes').value.trim(),
+        registrar_gasto: document.getElementById('chkRegisterExpense').checked,
+        actualizar_stock: document.getElementById('chkUpdateStock').checked,
+    };
+
+    const btnConfirm = document.getElementById('btnConfirm');
+    if (btnConfirm) {
+        btnConfirm.disabled = true;
+        btnConfirm.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Guardando...';
+    }
+
+    try {
+        const response = await fetch('{% url "assistant:api_confirm_invoice" %}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token }}',
+            },
+            body: JSON.stringify(payload),
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+            showSuccess(result);
+        } else {
+            alert('Error: ' + (result.error || 'No se pudo guardar'));
+        }
+    } catch (err) {
+        alert('Error de conexión: ' + err.message);
+    } finally {
+        const btnC = document.getElementById('btnConfirm');
+        if (btnC) {
+            btnC.disabled = false;
+            btnC.innerHTML = '<i class="fas fa-check me-2"></i>Confirmar y Guardar';
+        }
+    }
+}
+
+function showSuccess(result) {
+    showStep(3);
+
+    let html = `
+        <p class="lead">
+            Compra <strong>${escapeHtml(result.order_number)}</strong> registrada
+        </p>
+        <div class="row justify-content-center g-3 mb-3" style="max-width: 600px; margin: 0 auto;">
+            <div class="col-4">
+                <div class="p-3 bg-light rounded">
+                    <div class="fs-3 fw-bold text-primary">${result.items_created}</div>
+                    <small class="text-muted">Productos</small>
+                </div>
+            </div>
+            <div class="col-4">
+                <div class="p-3 bg-light rounded">
+                    <div class="fs-3 fw-bold text-success">${result.stock_updated}</div>
+                    <small class="text-muted">Stock actualizado</small>
+                </div>
+            </div>
+            <div class="col-4">
+                <div class="p-3 bg-light rounded">
+                    <div class="fs-3 fw-bold">${result.expense_id ? '✓' : '—'}</div>
+                    <small class="text-muted">Gasto registrado</small>
+                </div>
+            </div>
+        </div>
+    `;
+    const successEl = document.getElementById('successDetails');
+    if (successEl) successEl.innerHTML = html;
+
+    // Show not found products
+    if (result.products_not_found && result.products_not_found.length > 0) {
+        const warn = document.getElementById('notFoundWarning');
+        if (warn) warn.classList.remove('d-none');
+        const list = document.getElementById('notFoundList');
+        if (list) {
+            list.innerHTML = result.products_not_found.map(p =>
+                `<li><strong>${escapeHtml(p.nombre)}</strong> (${p.cantidad} u. × $${p.precio.toFixed(2)})</li>`
+            ).join('');
+        }
+    }
+
+    // Show auto-created products
+    if (result.auto_created_products && result.auto_created_products.length > 0) {
+        const warn = document.getElementById('autoCreatedWarning');
+        if (warn) warn.classList.remove('d-none');
+        const list = document.getElementById('autoCreatedList');
+        if (list) {
+            list.innerHTML = result.auto_created_products.map(name =>
+                `<li><i class="fas fa-plus-circle me-1 text-info"></i>${escapeHtml(name)}</li>`
+            ).join('');
+        }
+    }
+}
+
+// ========== NAVIGATION ==========
+
+function showStep(step) {
+    // Update step indicators
+    for (let i = 1; i <= 3; i++) {
+        const el = document.getElementById('step' + i);
+        if (el) {
+            el.classList.remove('active', 'completed');
+            if (i < step) el.classList.add('completed');
+            if (i === step) el.classList.add('active');
+        }
+    }
+
+    // Show/hide sections
+    const sections = {
+        'uploadSection': step === 1,
+        'resultsSection': step === 2,
+        'successSection': step === 3,
+    };
+    for (const [id, show] of Object.entries(sections)) {
+        const el = document.getElementById(id);
+        if (el) el.style.display = show ? 'block' : 'none';
+    }
+}
+
+function resetAll() {
+    clearImage();
+    scannedData = null;
+    const body = document.getElementById('productsBody');
+    if (body) body.innerHTML = '';
+    const warn = document.getElementById('notFoundWarning');
+    if (warn) warn.classList.add('d-none');
+    const list = document.getElementById('notFoundList');
+    if (list) list.innerHTML = '';
+    showStep(1);
+}
+
+function toggleNewSupplier() {
+    const sel = document.getElementById('supplierSelect');
+    document.getElementById('supplierName').style.display = sel.value ? 'none' : 'block';
+}
+
+// ========== CREATE PRODUCT ==========
+
+let activeCreateRow = null;
+let lastEditedPriceField = 'margin'; // 'margin' o 'sale'
+
+function openCreateProductModal(tr) {
+    activeCreateRow = tr;
+    const nombre = tr.querySelector('[data-field="nombre"]').value.trim();
+    lastEditedPriceField = 'margin';
+    const precio = parseFloat(tr.querySelector('[data-field="precio_unitario"]').value) || 0;
+    const barcode = tr.dataset.barcode || '';
+
+    // Reset búsqueda existente
+    const searchInp = document.getElementById('cpSearchExisting');
+    const searchRes = document.getElementById('cpSearchResults');
+    if (searchInp) { searchInp.value = nombre; }  // precarga con el nombre detectado
+    if (searchRes) { searchRes.style.display = 'none'; searchRes.innerHTML = ''; }
+
+    document.getElementById('cpName').value = nombre;
+    document.getElementById('cpBarcode').value = barcode;
+    document.getElementById('cpPurchasePrice').value = precio;
+    const cpErr = document.getElementById('cpError');
+    if (cpErr) cpErr.classList.add('d-none');
+
+    // Set margin from category if selected, else default 30
+    const margin = parseFloat(document.getElementById('cpMargin').value) || 30;
+    document.getElementById('cpMargin').value = margin;
+    calcSaleFromMargin();
+
+    const modal = new bootstrap.Modal(document.getElementById('createProductModal'));
+    modal.show();
+
+    // Auto-buscar con el nombre pre-cargado
+    if (nombre.length >= 2) searchExistingProducts(nombre);
+}
+
+function calcSaleFromMargin() {
+    const cost = parseFloat(document.getElementById('cpPurchasePrice').value) || 0;
+    const margin = parseFloat(document.getElementById('cpMargin').value) || 0;
+    const sale = cost * (1 + margin / 100);
+    document.getElementById('cpSalePrice').value = sale > 0 ? sale.toFixed(2) : '0.00';
+}
+
+function calcMarginFromSale() {
+    const cost = parseFloat(document.getElementById('cpPurchasePrice').value) || 0;
+    const sale = parseFloat(document.getElementById('cpSalePrice').value) || 0;
+    if (cost > 0 && sale > 0) {
+        const margin = ((sale - cost) / cost) * 100;
+        document.getElementById('cpMargin').value = margin.toFixed(2);
+    }
+}
+
+// Alias de compatibilidad para llamadas existentes
+function calcSalePrice() { calcSaleFromMargin(); }
+
+// Cambio de categoría: aplica margen por defecto de categoría
+document.getElementById('cpCategory').addEventListener('change', function() {
+    const opt = this.options[this.selectedIndex];
+    if (opt && opt.dataset.margin) {
+        document.getElementById('cpMargin').value = opt.dataset.margin;
+        lastEditedPriceField = 'margin';
+        calcSaleFromMargin();
+    }
+});
+
+// Si el usuario edita margen, recalculamos precio de venta
+document.getElementById('cpMargin').addEventListener('input', function() {
+    lastEditedPriceField = 'margin';
+    calcSaleFromMargin();
+});
+
+// Si el usuario edita precio de venta, recalculamos margen
+document.getElementById('cpSalePrice').addEventListener('input', function() {
+    lastEditedPriceField = 'sale';
+    calcMarginFromSale();
+});
+
+// Al cambiar costo, mantenemos la dirección del último campo editado
+document.getElementById('cpPurchasePrice').addEventListener('input', function() {
+    if (lastEditedPriceField === 'sale') {
+        calcMarginFromSale();
+    } else {
+        calcSaleFromMargin();
+    }
+});
+
+function showModalError(msg) {
+    const errorDiv = document.getElementById('cpError');
+    if (errorDiv) {
+        errorDiv.textContent = msg;
+        errorDiv.classList.remove('d-none');
+        errorDiv.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+    // También toast visible para que no pase desapercibido
+    const toast = document.createElement('div');
+    toast.className = 'alert alert-danger position-fixed bottom-0 end-0 m-3 shadow';
+    toast.style.zIndex = '99999';
+    toast.innerHTML = `<i class="fas fa-exclamation-circle me-2"></i>${escapeHtml(msg)}`;
+    document.body.appendChild(toast);
+    setTimeout(() => toast.remove(), 5000);
+}
+
+async function createProductFromScan() {
+    // Outer try/catch: captura cualquier error inesperado y lo muestra siempre
+    try {
+        const errorDiv = document.getElementById('cpError');
+        if (errorDiv) errorDiv.classList.add('d-none');
+
+        const name = document.getElementById('cpName').value.trim();
+        const category_id = document.getElementById('cpCategory').value || null;
+        const purchase_price = parseFloat(document.getElementById('cpPurchasePrice').value) || 0;
+        let sale_price = parseFloat(document.getElementById('cpSalePrice').value) || 0;
+        const barcode = document.getElementById('cpBarcode').value.trim() || null;
+
+        if (!name) {
+            showModalError('El nombre del producto es obligatorio.');
+            return;
+        }
+
+        // Si sale_price es 0 pero hay precio de compra, calcular automáticamente
+        if (sale_price <= 0 && purchase_price > 0) {
+            const margin = parseFloat(document.getElementById('cpMargin').value) || 30;
+            sale_price = parseFloat((purchase_price * (1 + margin / 100)).toFixed(2));
+            document.getElementById('cpSalePrice').value = sale_price.toFixed(2);
+        }
+
+        if (sale_price <= 0) {
+            showModalError('Ingresá el precio de venta o el precio de costo para calcularla automáticamente.');
+            return;
+        }
+
+        if (!activeCreateRow) {
+            showModalError('No se pudo identificar la fila. Cerrá y abrí el modal nuevamente.');
+            return;
+        }
+
+        const btn = document.getElementById('btnCreateProduct');
+        if (btn) {
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Creando...';
+        }
+
+        let result;
+        try {
+            const csrfToken = getCsrfToken();
+            const response = await fetch('{% url "assistant:api_create_product" %}', {
+                method: 'POST',
+                credentials: 'same-origin',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrfToken,
+                },
+                body: JSON.stringify({ name, category_id, purchase_price, sale_price, barcode }),
+            });
+
+            const rawText = await response.text();
+            try {
+                result = JSON.parse(rawText);
+            } catch {
+                showModalError(response.ok
+                    ? 'Respuesta inválida del servidor. Puede que la sesión haya expirado.'
+                    : `Error HTTP ${response.status} del servidor.`);
+                return;
+            }
+
+            if (!result.success) {
+                showModalError(result.error || 'No se pudo crear el producto.');
+                return;
+            }
+
+        } catch (fetchErr) {
+            showModalError('Error de red: ' + fetchErr.message);
+            return;
+        } finally {
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-check me-1"></i>Crear y Vincular';
+            }
+        }
+
+        // Éxito: actualizar fila y cerrar modal
+        if (activeCreateRow) {
+            activeCreateRow.dataset.productId = String(result.product_id);
+            const icon = activeCreateRow.querySelector('.match-icon');
+            if (icon) {
+                icon.className = 'fas fa-check-circle match-found match-icon';
+                icon.title = `${result.already_existed ? 'Vinculado' : 'Creado'}: ${result.product_name}`;
+            }
+            const createBtn = activeCreateRow.querySelector('.btn-create-product');
+            if (createBtn) createBtn.style.display = 'none';
+            if (barcode) activeCreateRow.dataset.barcode = barcode;
+        }
+
+        const modal = bootstrap.Modal.getInstance(document.getElementById('createProductModal'));
+        if (modal) modal.hide();
+
+        const toast = document.createElement('div');
+        toast.className = 'alert alert-success position-fixed bottom-0 end-0 m-3 shadow';
+        toast.style.zIndex = '9999';
+        toast.innerHTML = `<i class="fas fa-check me-2"></i>${escapeHtml(result.message)}`;
+        document.body.appendChild(toast);
+        setTimeout(() => toast.remove(), 3000);
+
+    } catch (outerErr) {
+        // Red de seguridad: cualquier error que no fue capturado arriba
+        console.error('createProductFromScan error:', outerErr);
+        alert('Error al crear el producto:\n' + outerErr.message);
+    }
+}
+
+// ========== BUSCAR PRODUCTO EXISTENTE ==========
+
+let _searchDebounceTimer = null;
+
+function searchExistingProducts(query) {
+    const resultsEl = document.getElementById('cpSearchResults');
+    if (!resultsEl) return;
+    if (!query || query.length < 2) {
+        resultsEl.style.display = 'none';
+        resultsEl.innerHTML = '';
+        return;
+    }
+    fetch(`{% url 'purchase:api_search_products' %}?q=${encodeURIComponent(query)}`, {
+        credentials: 'same-origin',
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.results && data.results.length > 0) {
+            resultsEl.innerHTML = data.results.map(p =>
+                `<a href="#" class="list-group-item list-group-item-action py-2 px-3"
+                    onclick="event.preventDefault(); linkProductToRow(${p.id}, ${JSON.stringify(p.name)})">
+                    <i class="fas fa-box me-2 text-muted"></i><strong>${escapeHtml(p.name)}</strong>
+                    ${p.barcode ? `<small class="text-muted ms-2"><i class="fas fa-barcode me-1"></i>${escapeHtml(p.barcode)}</small>` : ''}
+                </a>`
+            ).join('');
+            resultsEl.style.display = 'block';
+        } else {
+            resultsEl.innerHTML = '<div class="list-group-item text-muted small py-2"><i class="fas fa-info-circle me-1"></i>No se encontraron productos</div>';
+            resultsEl.style.display = 'block';
+        }
+    })
+    .catch(() => { resultsEl.style.display = 'none'; });
+}
+
+// El script corre al final del body, el DOM ya está cargado — no necesita DOMContentLoaded
+(function attachSearchListener() {
+    const searchInput = document.getElementById('cpSearchExisting');
+    if (searchInput) {
+        searchInput.addEventListener('input', function() {
+            clearTimeout(_searchDebounceTimer);
+            const q = this.value.trim();
+            _searchDebounceTimer = setTimeout(() => searchExistingProducts(q), 300);
+        });
+    }
+})();
+
+function linkProductToRow(productId, productName) {
+    if (!activeCreateRow) return;
+    activeCreateRow.dataset.productId = String(productId);
+    const icon = activeCreateRow.querySelector('.match-icon');
+    if (icon) {
+        icon.className = 'fas fa-check-circle match-found match-icon';
+        icon.title = `Vinculado: ${productName}`;
+    }
+    const createBtn = activeCreateRow.querySelector('.btn-create-product');
+    if (createBtn) createBtn.style.display = 'none';
+
+    const modal = bootstrap.Modal.getInstance(document.getElementById('createProductModal'));
+    if (modal) modal.hide();
+
+    const toast = document.createElement('div');
+    toast.className = 'alert alert-success position-fixed bottom-0 end-0 m-3 shadow';
+    toast.style.zIndex = '9999';
+    toast.innerHTML = `<i class="fas fa-link me-2"></i>Vinculado a: <strong>${escapeHtml(productName)}</strong>`;
+    document.body.appendChild(toast);
+    setTimeout(() => toast.remove(), 3000);
+}
+
+// ========== HELPERS ==========
+
+function getCsrfToken() {
+    const tokenFromTemplate = '{{ csrf_token }}';
+    if (tokenFromTemplate && tokenFromTemplate !== 'NOTPROVIDED') {
+        return tokenFromTemplate;
+    }
+
+    const cookie = document.cookie
+        .split(';')
+        .map(c => c.trim())
+        .find(c => c.startsWith('csrftoken='));
+
+    return cookie ? decodeURIComponent(cookie.split('=')[1]) : '';
+}
+
+function fmtMoney(v) {
+    const parts = v.toFixed(2).split('.');
+    const intPart = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+    return '$' + intPart + ',' + parts[1];
+}
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+// Init
+showStep(1);
+</script>
+{% endblock %}

@@ -1,0 +1,143 @@
+{% extends 'base.html' %}
+{% load currency_filters %}
+
+{% block title %}Historial de Turnos - CHE GOLOSO{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row mb-4">
+        <div class="col">
+            <h2><i class="fas fa-history me-2"></i>Historial de Turnos</h2>
+        </div>
+        <div class="col-auto">
+            <a href="{% url 'cashregister:dashboard' %}" class="btn btn-outline-primary">
+                <i class="fas fa-arrow-left me-1"></i>Volver
+            </a>
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <form method="get" class="row g-3 align-items-end">
+                <div class="col-md-3">
+                    <label class="form-label">Caja</label>
+                    <select name="register" class="form-select">
+                        <option value="">Todas las cajas</option>
+                        {% for register in registers %}
+                        <option value="{{ register.pk }}" {% if selected_register == register.pk|stringformat:"s" %}selected{% endif %}>
+                            {{ register.code }} - {{ register.name }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Estado</label>
+                    <select name="status" class="form-select">
+                        <option value="">Todos</option>
+                        <option value="open" {% if selected_status == 'open' %}selected{% endif %}>Abiertos</option>
+                        <option value="closed" {% if selected_status == 'closed' %}selected{% endif %}>Cerrados</option>
+                    </select>
+                </div>
+                <div class="col-auto">
+                    <button type="submit" class="btn btn-outline-primary">
+                        <i class="fas fa-filter me-1"></i>Filtrar
+                    </button>
+                    <a href="{% url 'cashregister:shift_list' %}" class="btn btn-outline-secondary">Limpiar</a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Shifts Table -->
+    <div class="card">
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Caja</th>
+                            <th>Cajero</th>
+                            <th>Apertura</th>
+                            <th>Cierre</th>
+                            <th>Duración</th>
+                            <th class="text-end">Monto Inicial</th>
+                            <th class="text-end">Total Ventas</th>
+                            <th class="text-end">Diferencia</th>
+                            <th class="text-center">Estado</th>
+                            <th class="text-center">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for shift in shifts %}
+                        <tr>
+                            <td>{{ shift.pk }}</td>
+                            <td>
+                                <strong>{{ shift.cash_register.code }}</strong>
+                                <br><small class="text-muted">{{ shift.cash_register.name }}</small>
+                            </td>
+                            <td>{{ shift.cashier.get_full_name|default:shift.cashier.username }}</td>
+                            <td>{{ shift.opened_at|date:"d/m/Y H:i" }}</td>
+                            <td>
+                                {% if shift.closed_at %}
+                                {{ shift.closed_at|date:"d/m/Y H:i" }}
+                                {% else %}
+                                <span class="text-muted">-</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {{ shift.duration_display }}
+                                {% if shift.status == 'open' and shift.hours_open >= 10 %}
+                                <br><span class="badge bg-danger mt-1" title="Este turno lleva mucho tiempo abierto — verificar si se olvidaron de cerrarlo.">
+                                    <i class="fas fa-exclamation-triangle me-1"></i>Sesión muy larga
+                                </span>
+                                {% endif %}
+                            </td>
+                            <td class="text-end">{{ shift.initial_amount|currency_ar }}</td>
+                            <td class="text-end">{{ shift.total_sales|currency_ar }}</td>
+                            <td class="text-end">
+                                {% if shift.status == 'closed' %}
+                                    {% if shift.difference > 0 %}
+                                    <span class="text-success">+{{ shift.difference|currency_ar }}</span>
+                                    {% elif shift.difference < 0 %}
+                                    <span class="text-danger">{{ shift.difference|currency_ar }}</span>
+                                    {% else %}
+                                    <span class="text-muted">$0,00</span>
+                                    {% endif %}
+                                {% else %}
+                                <span class="text-muted">-</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-center">
+                                {% if shift.status == 'open' %}
+                                <span class="badge bg-success">Abierto</span>
+                                {% else %}
+                                <span class="badge bg-secondary">Cerrado</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-center">
+                                <a href="{% url 'cashregister:shift_detail' shift.pk %}" class="btn btn-sm btn-outline-primary">
+                                    <i class="fas fa-eye"></i>
+                                </a>
+                                {% if shift.status == 'closed' %}
+                                <a href="{% url 'cashregister:shift_report' shift.pk %}" class="btn btn-sm btn-outline-secondary" target="_blank">
+                                    <i class="fas fa-file-pdf"></i>
+                                </a>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="11" class="text-center text-muted py-4">
+                                No se encontraron turnos
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,790 @@
+{% extends 'base.html' %}
+{% load currency_filters %}
+
+{% block title %}{{ caramelera.nombre }} — Caramelera{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-3">
+
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-start mb-4">
+        <div>
+            <h1 class="h3 mb-0">
+                <i class="fas fa-candy-cane me-2" style="color:var(--che-primary,#E91E8C);"></i>
+                {{ caramelera.nombre }}
+            </h1>
+            <nav aria-label="breadcrumb" class="mt-1">
+                <ol class="breadcrumb mb-0 small">
+                    <li class="breadcrumb-item"><a href="{% url 'granel:caramelera_list' %}">Carameleras</a></li>
+                    <li class="breadcrumb-item active">{{ caramelera.nombre }}</li>
+                </ol>
+            </nav>
+        </div>
+        <div class="d-flex gap-2 flex-wrap">
+            <button type="button" class="btn btn-success"
+                    data-bs-toggle="modal" data-bs-target="#modalAbrirPaquete">
+                <i class="fas fa-box-open me-1"></i>Abrir Paquete
+            </button>
+            <button type="button" class="btn btn-outline-warning"
+                    data-bs-toggle="modal" data-bs-target="#modalAuditoria">
+                <i class="fas fa-balance-scale me-1"></i>Auditoría
+            </button>
+            <a href="{% url 'granel:caramelera_edit' caramelera.pk %}"
+               class="btn btn-outline-primary">
+                <i class="fas fa-edit me-1"></i>Editar
+            </a>
+            <a href="{% url 'granel:caramelera_list' %}" class="btn btn-outline-secondary">
+                <i class="fas fa-arrow-left me-1"></i>Volver
+            </a>
+        </div>
+    </div>
+
+    <div id="alert-box" class="mb-3"></div>
+
+    <!-- Row 1: Info cards -->
+    <div class="row g-3 mb-4">
+        <!-- Stock actual -->
+        <div class="col-6 col-lg-3">
+            <div class="card shadow-sm text-center h-100">
+                <div class="card-body py-3">
+                    <div class="text-muted small mb-1">Stock Actual</div>
+                    <div class="display-6 fw-bold {% if caramelera.stock_gramos_actual <= 0 %}text-danger{% elif caramelera.stock_gramos_actual < 500 %}text-warning{% else %}text-success{% endif %}"
+                         id="stock-display">
+                        {{ caramelera.stock_gramos_actual|floatformat:0 }}g
+                    </div>
+                </div>
+            </div>
+        </div>
+        <!-- Precio/100g -->
+        <div class="col-6 col-lg-3">
+            <div class="card shadow-sm text-center h-100">
+                <div class="card-body py-3">
+                    <div class="text-muted small mb-1">Precio / 100g</div>
+                    <div class="h4 fw-bold mb-0">{{ caramelera.precio_100g|currency_ar }}</div>
+                </div>
+            </div>
+        </div>
+        <!-- Precio/kg oferta -->
+        <div class="col-6 col-lg-3">
+            <div class="card shadow-sm text-center h-100">
+                <div class="card-body py-3">
+                    <div class="text-muted small mb-1">Precio / kg oferta</div>
+                    <div class="h4 fw-bold mb-0">
+                        {% if caramelera.precio_cuarto > 0 %}
+                            {{ caramelera.precio_cuarto|currency_ar }}
+                        {% else %}
+                            <span class="text-muted fs-6">No configurado</span>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+        <!-- Costo ponderado y margen -->
+        <div class="col-6 col-lg-3">
+            <div class="card shadow-sm text-center h-100">
+                <div class="card-body py-3">
+                    <div class="text-muted small mb-1">Costo/g · Margen</div>
+                    <div class="fw-bold mb-0" id="costo-ponderado-display">
+                        {% if caramelera.costo_ponderado_gramo > 0 %}
+                            ${{ caramelera.costo_ponderado_gramo|floatformat:4 }}/g
+                        {% else %}
+                            <span class="text-muted">—</span>
+                        {% endif %}
+                    </div>
+                    <div class="small mt-1">
+                        {% if caramelera.margen_100g != 0 %}
+                            <span class="badge {% if caramelera.margen_100g > 0 %}bg-success{% else %}bg-danger{% endif %}">
+                                {{ caramelera.margen_100g|floatformat:1 }}% margen
+                            </span>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-4">
+        <!-- Columna izquierda -->
+        <div class="col-lg-4">
+
+            <!-- Productos autorizados -->
+            <div class="card shadow-sm mb-3">
+                <div class="card-header" style="background:var(--che-secondary,#2D1E5F);color:#fff;">
+                    <i class="fas fa-boxes me-1"></i> Productos Autorizados
+                </div>
+                <div class="card-body p-0">
+                    <table class="table table-sm mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Producto</th>
+                                <th class="text-end">Stock dep.</th>
+                                <th class="text-end">Costo/g</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for p in autorizados %}
+                            <tr>
+                                <td>
+                                    {{ p.name }}
+                                    {% if p.marca %}
+                                    <div class="text-muted" style="font-size:.72rem;">{{ p.marca }}</div>
+                                    {% endif %}
+                                </td>
+                                <td class="text-end {% if p.current_stock <= 0 %}text-danger{% elif p.current_stock <= 2 %}text-warning{% else %}text-success{% endif %}">
+                                    {{ p.current_stock|floatformat:0 }}
+                                </td>
+                                <td class="text-end text-muted small">
+                                    ${{ p.costo_por_gramo|floatformat:4 }}
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="3" class="text-center text-muted py-3">
+                                    Sin productos autorizados.
+                                    <a href="{% url 'granel:caramelera_edit' caramelera.pk %}">Editar</a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Margen real acumulado -->
+            {% if resumen_ventas.total_recaudado %}
+            <div class="card shadow-sm mb-3">
+                <div class="card-header" style="background:var(--che-secondary,#2D1E5F);color:#fff;">
+                    <i class="fas fa-chart-line me-1"></i> Margen Real Acumulado
+                </div>
+                <div class="card-body">
+                    <table class="table table-sm table-borderless mb-0">
+                        <tr>
+                            <td class="text-muted">Total recaudado</td>
+                            <td class="text-end fw-bold">{{ resumen_ventas.total_recaudado|currency_ar }}</td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted">Total costo</td>
+                            <td class="text-end">{{ resumen_ventas.total_costo|currency_ar }}</td>
+                        </tr>
+                        <tr class="{% if resumen_ventas.total_ganancia > 0 %}table-success{% else %}table-danger{% endif %}">
+                            <td class="fw-semibold">Ganancia neta</td>
+                            <td class="text-end fw-bold">{{ resumen_ventas.total_ganancia|currency_ar }}</td>
+                        </tr>
+                        {% if resumen_ventas.total_recaudado > 0 %}
+                        <tr>
+                            <td class="text-muted">% Margen</td>
+                            <td class="text-end">
+                                {% widthratio resumen_ventas.total_ganancia resumen_ventas.total_recaudado 100 as pct_margen %}
+                                <span class="badge {% if resumen_ventas.total_ganancia > 0 %}bg-success{% else %}bg-danger{% endif %}">
+                                    {{ pct_margen }}%
+                                </span>
+                            </td>
+                        </tr>
+                        {% endif %}
+                    </table>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Ranking rotación -->
+            {% if ranking %}
+            <div class="card shadow-sm">
+                <div class="card-header" style="background:var(--che-secondary,#2D1E5F);color:#fff;">
+                    <i class="fas fa-trophy me-1"></i> Ranking de Rotación
+                </div>
+                <div class="card-body p-0">
+                    <table class="table table-sm mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Producto</th>
+                                <th class="text-end">Bolsas</th>
+                                <th class="text-end">Total g</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for r in ranking %}
+                            <tr>
+                                <td>
+                                    {{ r.producto__name }}
+                                    {% if r.producto__marca %}
+                                    <span class="text-muted small">{{ r.producto__marca }}</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-end fw-bold">{{ r.bolsas }}</td>
+                                <td class="text-end text-muted small">
+                                    {{ r.gramos_total|floatformat:0 }}g
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            {% endif %}
+
+        </div>
+
+        <!-- Columna derecha -->
+        <div class="col-lg-8">
+
+            <!-- Historial de aperturas -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-header" style="background:var(--che-secondary,#2D1E5F);color:#fff;">
+                    <i class="fas fa-history me-1"></i> Historial de Aperturas (últimas 20)
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover table-sm mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Fecha</th>
+                                    <th>Producto</th>
+                                    <th class="text-end">Gramos</th>
+                                    <th class="text-end">Costo/g</th>
+                                    <th class="text-end">Stock resultante</th>
+                                    <th>Quien</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tbody-aperturas">
+                                {% for a in aperturas %}
+                                <tr>
+                                    <td class="text-muted small">{{ a.abierto_en|date:"d/m/Y H:i" }}</td>
+                                    <td>
+                                        <strong>{{ a.producto.name }}</strong>
+                                        {% if a.producto.marca %}
+                                        <span class="text-muted small">{{ a.producto.marca }}</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-end text-success fw-semibold">
+                                        +{{ a.gramos_agregados|floatformat:0 }}g
+                                    </td>
+                                    <td class="text-end text-muted small">
+                                        ${{ a.costo_por_gramo_al_abrir|floatformat:4 }}
+                                    </td>
+                                    <td class="text-end">{{ a.stock_gramos_despues|floatformat:0 }}g</td>
+                                    <td class="text-muted small">
+                                        {% if a.abierto_por %}
+                                            {{ a.abierto_por.get_full_name|default:a.abierto_por.username }}
+                                        {% else %}—{% endif %}
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr id="row-empty-aperturas">
+                                    <td colspan="6" class="text-center text-muted py-4">
+                                        <i class="fas fa-box-open fa-2x d-block mb-2 opacity-50"></i>
+                                        Todavía no se abrió ningún paquete para esta caramelera.
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Ventas recientes -->
+            {% if ventas %}
+            <div class="card shadow-sm">
+                <div class="card-header" style="background:var(--che-secondary,#2D1E5F);color:#fff;">
+                    <i class="fas fa-receipt me-1"></i> Ventas Recientes (últimas 20)
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover table-sm mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Fecha</th>
+                                    <th class="text-end">Gramos</th>
+                                    <th>Tipo</th>
+                                    <th class="text-end">Precio cobrado</th>
+                                    <th class="text-end">Costo</th>
+                                    <th class="text-end">Ganancia</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for v in ventas %}
+                                <tr>
+                                    <td class="text-muted small">{{ v.vendido_en|date:"d/m/Y H:i" }}</td>
+                                    <td class="text-end">{{ v.gramos_vendidos|floatformat:0 }}g</td>
+                                    <td>
+                                        <span class="badge {% if v.tipo_venta == 'cuarto' %}bg-primary{% else %}bg-secondary{% endif %}">
+                                            {{ v.get_tipo_venta_display }}
+                                        </span>
+                                    </td>
+                                    <td class="text-end fw-semibold">{{ v.precio_cobrado|currency_ar }}</td>
+                                    <td class="text-end text-muted">{{ v.costo_total|currency_ar }}</td>
+                                    <td class="text-end {% if v.ganancia > 0 %}text-success{% else %}text-danger{% endif %} fw-semibold">
+                                        {{ v.ganancia|currency_ar }}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Historial de Auditorías -->
+            <div class="card shadow-sm mt-3">
+                <div class="card-header" style="background:var(--che-secondary,#2D1E5F);color:#fff;">
+                    <i class="fas fa-balance-scale me-1"></i> Historial de Auditorías (últimas 20)
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover table-sm mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Fecha</th>
+                                    <th class="text-end">Stock sistema</th>
+                                    <th class="text-end">Peso real</th>
+                                    <th class="text-end">Diferencia</th>
+                                    <th class="text-end">Merma %</th>
+                                    <th>Motivo</th>
+                                    <th>Auditó</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for a in auditorias %}
+                                <tr>
+                                    <td class="text-muted small">{{ a.auditado_en|date:"d/m/Y H:i" }}</td>
+                                    <td class="text-end">{{ a.stock_sistema_gramos|floatformat:0 }}g</td>
+                                    <td class="text-end">{{ a.peso_real_balanza_gramos|floatformat:0 }}g</td>
+                                    <td class="text-end {% if a.diferencia_gramos > 0 %}text-danger{% elif a.diferencia_gramos < 0 %}text-success{% endif %} fw-semibold">
+                                        {% if a.diferencia_gramos > 0 %}-{% elif a.diferencia_gramos < 0 %}+{% endif %}{{ a.diferencia_gramos|floatformat:0 }}g
+                                    </td>
+                                    <td class="text-end {% if a.porcentaje_merma > 0 %}text-danger{% elif a.porcentaje_merma < 0 %}text-success{% endif %}">
+                                        {{ a.porcentaje_merma|floatformat:1 }}%
+                                    </td>
+                                    <td class="text-muted small">{{ a.motivo|default:"—" }}</td>
+                                    <td class="text-muted small">{{ a.auditado_por.first_name|default:a.auditado_por.username }}</td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="7" class="text-center text-muted py-4">
+                                        <i class="fas fa-balance-scale fa-2x d-block mb-2 opacity-50"></i>
+                                        No hay auditorías registradas.
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+<!-- Modal: Abrir Paquete -->
+<div class="modal fade" id="modalAbrirPaquete" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header" style="background:var(--che-secondary,#2D1E5F);color:#fff;">
+                <h5 class="modal-title">
+                    <i class="fas fa-box-open me-2"></i>Abrir Paquete — {{ caramelera.nombre }}
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div id="modal-abrir-error" class="alert alert-danger d-none"></div>
+
+                <p class="text-muted small mb-3">
+                    Se descuenta 1 unidad del depósito y se suma el contenido completo de esa bolsa
+                    a la caramelera, recalculando el costo ponderado.
+                </p>
+
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">
+                        Producto a abrir <span class="text-danger">*</span>
+                    </label>
+                    <div id="lista-productos-autorizados">
+                        {% for p in autorizados %}
+                        <div class="d-flex align-items-center justify-content-between
+                                    border rounded p-2 mb-2
+                                    {% if p.current_stock <= 0 %}opacity-50{% endif %}">
+                            <div>
+                                <span class="fw-semibold">{{ p.name }}</span>
+                                {% if p.marca %}
+                                <span class="text-muted small ms-1">{{ p.marca }}</span>
+                                {% endif %}
+                                <div class="text-muted small">
+                                    {% if p.weight_per_unit_grams %}
+                                        {{ p.weight_per_unit_grams|floatformat:0 }}g/bolsa ·
+                                        ${{ p.costo_por_gramo|floatformat:4 }}/g
+                                    {% else %}
+                                        <span class="text-danger">Sin gramos configurados</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="text-end ms-3">
+                                {% if p.current_stock > 0 %}
+                                <span class="badge bg-success mb-1">{{ p.current_stock|floatformat:0 }} en dep.</span><br>
+                                <button type="button"
+                                        class="btn btn-sm btn-success btn-seleccionar-producto"
+                                        data-pk="{{ p.pk|unlocalize }}"
+                                        data-nombre="{{ p.name|escapejs }}"
+                                        data-gramos="{{ p.weight_per_unit_grams|floatformat:0 }}"
+                                        data-stock="{{ p.current_stock|floatformat:0 }}">
+                                    <i class="fas fa-check me-1"></i>Abrir
+                                </button>
+                                {% else %}
+                                <span class="badge bg-danger">SIN STOCK</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                        {% empty %}
+                        <div class="alert alert-warning mb-0">
+                            <i class="fas fa-exclamation-triangle me-2"></i>
+                            No hay productos autorizados.
+                            <a href="{% url 'granel:caramelera_edit' caramelera.pk %}">
+                                Editá la caramelera
+                            </a> para agregar productos.
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+
+                <div id="producto-seleccionado-info" class="d-none">
+                    <hr>
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Cantidad de paquetes</label>
+                        <div class="input-group" style="max-width:200px;">
+                            <button type="button" class="btn btn-outline-secondary" id="btn-cant-menos">
+                                <i class="fas fa-minus"></i>
+                            </button>
+                            <input type="number" id="input-cantidad-paquetes" class="form-control text-center fw-bold"
+                                   value="1" min="1" max="99">
+                            <button type="button" class="btn btn-outline-secondary" id="btn-cant-mas">
+                                <i class="fas fa-plus"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="alert alert-info mb-3" id="sel-resumen">
+                        <strong id="sel-nombre"></strong><br>
+                        <span id="sel-cantidad-label"></span> ×
+                        <span id="sel-gramos-unidad"></span>g =
+                        <strong id="sel-gramos-total"></strong>g a agregar<br>
+                        <span class="text-muted small">Dep. quedará con
+                        <strong id="sel-stock-despues"></strong> unidades</span>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Notas (opcional)</label>
+                        <input type="text" id="input-notas-apertura" class="form-control"
+                               placeholder="Ej: Lote de proveedor ABC">
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-success d-none" id="btn-confirmar-apertura">
+                    <i class="fas fa-check me-1"></i>Confirmar Apertura
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: Auditoría -->
+<div class="modal fade" id="modalAuditoria" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header" style="background:var(--che-secondary,#2D1E5F);color:#fff;">
+                <h5 class="modal-title">
+                    <i class="fas fa-balance-scale me-2"></i>Auditoría — {{ caramelera.nombre }}
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div id="modal-auditoria-error" class="alert alert-danger d-none"></div>
+
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">Stock actual en sistema</label>
+                    <div class="input-group">
+                        <input type="text" class="form-control" readonly
+                               value="{{ caramelera.stock_gramos_actual|floatformat:0 }}" id="auditoria-stock-sistema">
+                        <span class="input-group-text">g</span>
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">
+                        Peso real en balanza <span class="text-danger">*</span>
+                    </label>
+                    <div class="input-group">
+                        <input type="number" id="input-peso-real" class="form-control"
+                               step="0.1" min="0" placeholder="Ej: 1850">
+                        <span class="input-group-text">g</span>
+                    </div>
+                </div>
+
+                <!-- Preview diferencia -->
+                <div id="auditoria-preview" class="d-none">
+                    <div class="alert" id="auditoria-diff-alert">
+                        <i class="fas fa-info-circle me-1"></i>
+                        Diferencia: <strong id="auditoria-diff-valor"></strong>
+                        (<span id="auditoria-diff-pct"></span>)
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Motivo</label>
+                    <input type="text" id="input-motivo-auditoria" class="form-control"
+                           placeholder="Ej: Picoteo, humedad, error de pesaje...">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-warning" id="btn-confirmar-auditoria">
+                    <i class="fas fa-save me-1"></i>Registrar Auditoría
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function () {
+    const CSRF = '{{ csrf_token }}';
+    const API_ABRIR = '{% url "granel:api_abrir_paquete" caramelera.pk %}';
+    const API_AUDITORIA = '{% url "granel:api_auditoria" caramelera.pk %}';
+
+    // Mostrar mensaje guardado de operación anterior (post-reload)
+    var savedMsg = sessionStorage.getItem('caramelera_msg');
+    var savedType = sessionStorage.getItem('caramelera_msg_type');
+    if (savedMsg) {
+        sessionStorage.removeItem('caramelera_msg');
+        sessionStorage.removeItem('caramelera_msg_type');
+        document.getElementById('alert-box').innerHTML =
+            '<div class="alert alert-' + (savedType || 'success') + ' alert-dismissible fade show">' +
+            savedMsg + '<button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>';
+    }
+
+    // ---- ABRIR PAQUETE ----
+    var productoSeleccionadoPk = null;
+    var productoSeleccionadoStock = 0;
+    var productoSeleccionadoGramos = 0;
+
+    var modalAbrirEl = document.getElementById('modalAbrirPaquete');
+    var modalAuditoriaEl = document.getElementById('modalAuditoria');
+    var inputCantidad = document.getElementById('input-cantidad-paquetes');
+
+    function updateResumenCantidad() {
+        var cant = Math.max(1, Math.min(parseInt(inputCantidad.value) || 1, productoSeleccionadoStock));
+        inputCantidad.value = cant;
+        inputCantidad.max = productoSeleccionadoStock;
+        document.getElementById('sel-cantidad-label').textContent = cant;
+        document.getElementById('sel-gramos-total').textContent = (cant * productoSeleccionadoGramos).toString();
+        document.getElementById('sel-stock-despues').textContent = (productoSeleccionadoStock - cant).toString();
+    }
+
+    modalAbrirEl.addEventListener('show.bs.modal', function () {
+        productoSeleccionadoPk = null;
+        productoSeleccionadoStock = 0;
+        productoSeleccionadoGramos = 0;
+        document.getElementById('modal-abrir-error').classList.add('d-none');
+        document.getElementById('producto-seleccionado-info').classList.add('d-none');
+        document.getElementById('input-notas-apertura').value = '';
+        inputCantidad.value = 1;
+        var btnConfirmar = document.getElementById('btn-confirmar-apertura');
+        btnConfirmar.classList.add('d-none');
+        btnConfirmar.disabled = false;
+        btnConfirmar.innerHTML = '<i class="fas fa-check me-1"></i>Confirmar Apertura';
+        document.querySelectorAll('.btn-seleccionar-producto').forEach(function (b) {
+            b.classList.remove('btn-outline-success');
+            b.classList.add('btn-success');
+        });
+    });
+
+    document.getElementById('btn-cant-menos').addEventListener('click', function () {
+        var v = parseInt(inputCantidad.value) || 1;
+        if (v > 1) { inputCantidad.value = v - 1; updateResumenCantidad(); }
+    });
+    document.getElementById('btn-cant-mas').addEventListener('click', function () {
+        var v = parseInt(inputCantidad.value) || 1;
+        if (v < productoSeleccionadoStock) { inputCantidad.value = v + 1; updateResumenCantidad(); }
+    });
+    inputCantidad.addEventListener('input', updateResumenCantidad);
+
+    document.querySelectorAll('.btn-seleccionar-producto').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            productoSeleccionadoPk = this.dataset.pk;
+            productoSeleccionadoStock = parseInt(this.dataset.stock);
+            productoSeleccionadoGramos = parseInt(this.dataset.gramos);
+            document.getElementById('sel-nombre').textContent = this.dataset.nombre;
+            document.getElementById('sel-gramos-unidad').textContent = this.dataset.gramos;
+            inputCantidad.value = 1;
+            updateResumenCantidad();
+            document.getElementById('producto-seleccionado-info').classList.remove('d-none');
+            document.getElementById('btn-confirmar-apertura').classList.remove('d-none');
+            document.querySelectorAll('.btn-seleccionar-producto').forEach(function (b) {
+                b.classList.remove('btn-success');
+                b.classList.add('btn-outline-success');
+            });
+            this.classList.remove('btn-outline-success');
+            this.classList.add('btn-success');
+        });
+    });
+
+    // ---- CONFIRMAR APERTURA: fetch + reload ----
+    document.getElementById('btn-confirmar-apertura').addEventListener('click', function () {
+        if (!productoSeleccionadoPk) return;
+
+        var cantidad = Math.max(1, parseInt(inputCantidad.value) || 1);
+        var notas = document.getElementById('input-notas-apertura').value;
+        var btn = this;
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Procesando...';
+        document.getElementById('modal-abrir-error').classList.add('d-none');
+
+        var xhr = new XMLHttpRequest();
+        xhr.open('POST', API_ABRIR, true);
+        xhr.setRequestHeader('Content-Type', 'application/json');
+        xhr.setRequestHeader('X-CSRFToken', CSRF);
+        xhr.timeout = 15000;
+
+        xhr.onload = function () {
+            try {
+                var data = JSON.parse(xhr.responseText);
+                if (data.success) {
+                    var cantLabel = (data.cantidad || 1) > 1 ? data.cantidad + ' paquetes - ' : '';
+                    sessionStorage.setItem('caramelera_msg',
+                        '<i class="fas fa-check-circle me-2"></i>' +
+                        cantLabel + '<strong>+' + Math.round(data.gramos_agregados) + 'g</strong> de ' +
+                        '<strong>' + data.producto_nombre + '</strong> agregados. ' +
+                        'Nuevo stock: <strong>' + Math.round(data.nuevo_stock) + 'g</strong>');
+                    sessionStorage.setItem('caramelera_msg_type', 'success');
+                    window.location.reload();
+                    return;
+                }
+                document.getElementById('modal-abrir-error').textContent = data.error || 'Error al procesar.';
+                document.getElementById('modal-abrir-error').classList.remove('d-none');
+            } catch (e) {
+                document.getElementById('modal-abrir-error').textContent = 'Respuesta inesperada del servidor.';
+                document.getElementById('modal-abrir-error').classList.remove('d-none');
+            }
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-check me-1"></i>Confirmar Apertura';
+        };
+
+        xhr.onerror = function () {
+            document.getElementById('modal-abrir-error').textContent = 'Error de conexion. Verifica tu internet.';
+            document.getElementById('modal-abrir-error').classList.remove('d-none');
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-check me-1"></i>Confirmar Apertura';
+        };
+
+        xhr.ontimeout = function () {
+            document.getElementById('modal-abrir-error').textContent = 'La operacion tardo demasiado. Recarga la pagina y verifica si se proceso.';
+            document.getElementById('modal-abrir-error').classList.remove('d-none');
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-check me-1"></i>Confirmar Apertura';
+        };
+
+        xhr.send(JSON.stringify({
+            producto_id: parseInt(productoSeleccionadoPk),
+            cantidad: cantidad,
+            notas: notas
+        }));
+    });
+
+    // ---- AUDITORÍA ----
+    var inputPesoReal = document.getElementById('input-peso-real');
+
+    modalAuditoriaEl.addEventListener('show.bs.modal', function () {
+        document.getElementById('modal-auditoria-error').classList.add('d-none');
+        inputPesoReal.value = '';
+        document.getElementById('input-motivo-auditoria').value = '';
+        document.getElementById('auditoria-preview').classList.add('d-none');
+        var btnAuditoria = document.getElementById('btn-confirmar-auditoria');
+        btnAuditoria.disabled = false;
+        btnAuditoria.innerHTML = '<i class="fas fa-save me-1"></i>Registrar Auditoria';
+    });
+
+    inputPesoReal.addEventListener('input', function () {
+        var stockSistema = parseFloat(document.getElementById('auditoria-stock-sistema').value) || 0;
+        var real = parseFloat(this.value) || 0;
+        var diff = stockSistema - real;
+        var pct = stockSistema > 0 ? ((diff / stockSistema) * 100).toFixed(1) : '0.0';
+        var preview = document.getElementById('auditoria-preview');
+        var diffAlert = document.getElementById('auditoria-diff-alert');
+        var diffValor = document.getElementById('auditoria-diff-valor');
+        var diffPct = document.getElementById('auditoria-diff-pct');
+
+        if (this.value !== '') {
+            preview.classList.remove('d-none');
+            diffValor.textContent = (diff >= 0 ? '' : '+') + (-diff).toFixed(0) + 'g ' +
+                (diff > 0 ? '(merma)' : diff < 0 ? '(sobrante)' : '');
+            diffPct.textContent = Math.abs(pct) + '%';
+            diffAlert.className = 'alert ' +
+                (diff > 0 ? 'alert-warning' : diff < 0 ? 'alert-success' : 'alert-info');
+        } else {
+            preview.classList.add('d-none');
+        }
+    });
+
+    // ---- CONFIRMAR AUDITORÍA: fetch + reload ----
+    document.getElementById('btn-confirmar-auditoria').addEventListener('click', function () {
+        var pesoReal = parseFloat(inputPesoReal.value);
+        if (isNaN(pesoReal) || pesoReal < 0) {
+            document.getElementById('modal-auditoria-error').textContent = 'Ingresa el peso real medido en balanza.';
+            document.getElementById('modal-auditoria-error').classList.remove('d-none');
+            return;
+        }
+
+        var motivo = document.getElementById('input-motivo-auditoria').value;
+        var btn = this;
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Guardando...';
+        document.getElementById('modal-auditoria-error').classList.add('d-none');
+
+        var xhr = new XMLHttpRequest();
+        xhr.open('POST', API_AUDITORIA, true);
+        xhr.setRequestHeader('Content-Type', 'application/json');
+        xhr.setRequestHeader('X-CSRFToken', CSRF);
+        xhr.timeout = 15000;
+
+        xhr.onload = function () {
+            try {
+                var data = JSON.parse(xhr.responseText);
+                if (data.success) {
+                    sessionStorage.setItem('caramelera_msg',
+                        '<i class="fas fa-balance-scale me-2"></i>Auditoria registrada. ' +
+                        'Diferencia: <strong>' + parseFloat(data.diferencia).toFixed(0) + 'g</strong>. ' +
+                        'Nuevo stock: <strong>' + Math.round(data.nuevo_stock) + 'g</strong>');
+                    sessionStorage.setItem('caramelera_msg_type', 'info');
+                    window.location.reload();
+                    return;
+                }
+                document.getElementById('modal-auditoria-error').textContent = data.error || 'Error al procesar.';
+                document.getElementById('modal-auditoria-error').classList.remove('d-none');
+            } catch (e) {
+                document.getElementById('modal-auditoria-error').textContent = 'Respuesta inesperada del servidor.';
+                document.getElementById('modal-auditoria-error').classList.remove('d-none');
+            }
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-save me-1"></i>Registrar Auditoria';
+        };
+
+        xhr.onerror = function () {
+            document.getElementById('modal-auditoria-error').textContent = 'Error de conexion. Verifica tu internet.';
+            document.getElementById('modal-auditoria-error').classList.remove('d-none');
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-save me-1"></i>Registrar Auditoria';
+        };
+
+        xhr.ontimeout = function () {
+            document.getElementById('modal-auditoria-error').textContent = 'La operacion tardo demasiado. Recarga la pagina y verifica si se proceso.';
+            document.getElementById('modal-auditoria-error').classList.remove('d-none');
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-save me-1"></i>Registrar Auditoria';
+        };
+
+        xhr.send(JSON.stringify({ peso_real: pesoReal, motivo: motivo }));
+    });
+})();
+</script>
+{% endblock %}

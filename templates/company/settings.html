@@ -1,0 +1,131 @@
+{% extends 'base.html' %}
+{% load currency_filters %}
+
+{% block title %}Configuración de la Empresa - CHE GOLOSO{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <h1 class="mb-4"><i class="fas fa-cog text-secondary me-2"></i>Configuración de la Empresa</h1>
+    
+    <div class="row">
+        <div class="col-lg-8">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Datos de la Empresa</h5>
+                </div>
+                <div class="card-body">
+                    <form method="post" enctype="multipart/form-data">
+                        {% csrf_token %}
+                        
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label">Nombre de la Empresa *</label>
+                                <input type="text" name="name" class="form-control" 
+                                       value="{{ company.name|default:'' }}" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Nombre Comercial</label>
+                                <input type="text" name="trade_name" class="form-control"
+                                       value="{{ company.trade_name|default:'' }}">
+                            </div>
+                        </div>
+                        
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label">CUIT</label>
+                                <input type="text" name="cuit" class="form-control" placeholder="XX-XXXXXXXX-X"
+                                       value="{{ company.cuit|default:'' }}">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Condición IVA</label>
+                                <select name="tax_condition" class="form-select">
+                                    <option value="">Seleccione...</option>
+                                    <option value="RI" {% if company.tax_condition == 'RI' %}selected{% endif %}>Responsable Inscripto</option>
+                                    <option value="MO" {% if company.tax_condition == 'MO' %}selected{% endif %}>Monotributista</option>
+                                    <option value="EX" {% if company.tax_condition == 'EX' %}selected{% endif %}>Exento</option>
+                                    <option value="CF" {% if company.tax_condition == 'CF' %}selected{% endif %}>Consumidor Final</option>
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">Dirección</label>
+                            <input type="text" name="address" class="form-control"
+                                   value="{{ company.address|default:'' }}">
+                        </div>
+                        
+                        <div class="row mb-3">
+                            <div class="col-md-4">
+                                <label class="form-label">Ciudad</label>
+                                <input type="text" name="city" class="form-control"
+                                       value="{{ company.city|default:'' }}">
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">Provincia</label>
+                                <input type="text" name="state" class="form-control"
+                                       value="{{ company.state|default:'' }}">
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">Código Postal</label>
+                                <input type="text" name="postal_code" class="form-control"
+                                       value="{{ company.postal_code|default:'' }}">
+                            </div>
+                        </div>
+                        
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label">Teléfono</label>
+                                <input type="text" name="phone" class="form-control"
+                                       value="{{ company.phone|default:'' }}">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Email</label>
+                                <input type="email" name="email" class="form-control"
+                                       value="{{ company.email|default:'' }}">
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">Logo</label>
+                            <input type="file" name="logo" class="form-control" accept="image/*">
+                            {% if company.logo %}
+                            <small class="text-muted">Logo actual: {{ company.logo.name }}</small>
+                            {% endif %}
+                        </div>
+                        
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save me-2"></i>Guardar Cambios
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Vista Previa</h5>
+                </div>
+                <div class="card-body text-center">
+                    {% if company.logo %}
+                    <img src="{{ company.logo.url }}" alt="Logo" class="img-fluid mb-3" style="max-height: 100px;">
+                    {% else %}
+                    <div class="text-muted mb-3">
+                        <i class="fas fa-image fa-4x"></i>
+                        <p>Sin logo</p>
+                    </div>
+                    {% endif %}
+                    
+                    <h4>{{ company.name|default:"CHE GOLOSO" }}</h4>
+                    {% if company.trade_name %}
+                    <p class="text-muted">{{ company.trade_name }}</p>
+                    {% endif %}
+                    {% if company.cuit %}
+                    <p><small>CUIT: {{ company.cuit }}</small></p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

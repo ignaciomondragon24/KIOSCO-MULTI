@@ -1,0 +1,172 @@
+{% extends 'base.html' %}
+{% load currency_filters %}
+
+{% block title %}Editar {{ purchase.order_number }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h3 mb-0">
+                <i class="fas fa-file-invoice me-2"></i>{{ purchase.order_number }}
+            </h1>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-0">
+                    <li class="breadcrumb-item"><a href="{% url 'purchase:purchase_list' %}">Compras</a></li>
+                    <li class="breadcrumb-item active">{{ purchase.order_number }}</li>
+                </ol>
+            </nav>
+        </div>
+        <div>
+            {% if purchase.status != 'received' %}
+            <a href="{% url 'purchase:purchase_receive' purchase.pk %}" class="btn btn-success">
+                <i class="fas fa-check me-1"></i> Recibir Mercadería
+            </a>
+            {% endif %}
+        </div>
+    </div>
+
+    <form method="post">
+        {% csrf_token %}
+        
+        <div class="row">
+            <!-- Order Info -->
+            <div class="col-lg-4">
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">Información de la Orden</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <label class="form-label">Proveedor</label>
+                            <select name="supplier" class="form-select" required>
+                                {% for supplier in form.supplier.field.queryset %}
+                                <option value="{{ supplier.pk }}" {% if purchase.supplier_id == supplier.pk %}selected{% endif %}>
+                                    {{ supplier.name }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">Fecha de Orden</label>
+                            <input type="date" name="order_date" class="form-control" 
+                                   value="{{ purchase.order_date|date:'Y-m-d' }}">
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">Estado</label>
+                            <div>
+                                {% if purchase.status == 'pending' %}
+                                    <span class="badge bg-warning">Pendiente</span>
+                                {% elif purchase.status == 'ordered' %}
+                                    <span class="badge bg-info">Ordenado</span>
+                                {% elif purchase.status == 'received' %}
+                                    <span class="badge bg-success">Recibido</span>
+                                {% elif purchase.status == 'cancelled' %}
+                                    <span class="badge bg-danger">Cancelado</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">Notas</label>
+                            <textarea name="notes" class="form-control" rows="3">{{ purchase.notes }}</textarea>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Totals -->
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">Totales</h5>
+                    </div>
+                    <div class="card-body">
+                        <table class="table table-borderless mb-0">
+                            <tr>
+                                <td>Subtotal:</td>
+                                <td class="text-end">{{ purchase.subtotal|currency }}</td>
+                            </tr>
+                            <tr>
+                                <td>IVA (%):</td>
+                                <td class="text-end">
+                                    <div class="input-group input-group-sm justify-content-end" style="max-width:130px;margin-left:auto;">
+                                        <input type="number" name="tax_percent" class="form-control text-end"
+                                               step="0.01" min="0" value="{{ purchase.tax_percent }}">
+                                        <span class="input-group-text">%</span>
+                                    </div>
+                                    <small class="text-muted">= {{ purchase.tax|currency }}</small>
+                                </td>
+                            </tr>
+                            <tr class="fw-bold">
+                                <td>Total:</td>
+                                <td class="text-end fs-5">{{ purchase.total|currency }}</td>
+                            </tr>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Items -->
+            <div class="col-lg-8">
+                <div class="card">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5 class="card-title mb-0">Productos</h5>
+                    </div>
+                    <div class="card-body">
+                        {{ formset.management_form }}
+                        
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th>Producto</th>
+                                    <th class="text-center" style="width: 80px;">Cant.</th>
+                                    <th class="text-end" style="width: 110px;">Costo Unit.</th>
+                                    <th class="text-end" style="width: 110px;">Precio Venta</th>
+                                    <th class="text-end" style="width: 110px;">Subtotal</th>
+                                    <th style="width: 50px;"></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for item_form in formset %}
+                                <tr>
+                                    {{ item_form.id }}
+                                    <td>{{ item_form.product }}</td>
+                                    <td>{{ item_form.quantity }}</td>
+                                    <td>{{ item_form.unit_cost }}</td>
+                                    <td>{{ item_form.sale_price }}</td>
+                                    <td class="text-end">
+                                        {% if item_form.instance.pk %}
+                                            {{ item_form.instance.subtotal|currency }}
+                                        {% else %}
+                                            $0
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ item_form.DELETE }}</td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="5" class="text-center text-muted py-4">
+                                        No hay productos agregados
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                
+                <div class="d-flex gap-2 mt-3">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save me-1"></i> Guardar Cambios
+                    </button>
+                    <a href="{% url 'purchase:purchase_list' %}" class="btn btn-secondary">
+                        <i class="fas fa-times me-1"></i> Cancelar
+                    </a>
+                </div>
+            </div>
+        </div>
+    </form>
+</div>
+{% endblock %}
