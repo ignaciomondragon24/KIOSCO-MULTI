@@ -104,9 +104,13 @@ class Command(BaseCommand):
         if opts['reset']:
             self._reset_test_data()
 
+        self._load_company_and_branches()
+        self._load_cash_registers()
+        self._load_users()
         self._load_categories()
         self._load_products()
         self._load_promotions()
+        self._load_mp_credentials()
 
         if not opts['no_sales']:
             self._simulate_sales()
@@ -127,6 +131,134 @@ class Command(BaseCommand):
         ProductCategory.objects.filter(
             name__regex=r'(?i)^(test|qa|testcat|test category)',
         ).update(is_active=False)
+
+    def _load_company_and_branches(self):
+        """Crea/actualiza la empresa demo y dos sucursales tipicas."""
+        try:
+            from company.models import Company, Branch
+        except Exception:
+            return
+        company = Company.get_company()
+        company.name = 'Kiosco Don Beto'
+        company.legal_name = 'Comercializadora Don Beto SRL'
+        company.cuit = '30-71234567-8'
+        company.address = 'Av. Rivadavia 5234, CABA'
+        company.phone = '11-2345-6789'
+        company.email = 'donbeto@kioscopro.com.ar'
+        company.tax_condition = 'Responsable Inscripto'
+        company.save()
+
+        branches = [
+            ('CENTRO',   'Sucursal Centro',   'Av. Rivadavia 5234, CABA',          True),
+            ('BELGRANO', 'Sucursal Belgrano', 'Av. Cabildo 2890, Belgrano, CABA',  False),
+        ]
+        for code, name, address, is_main in branches:
+            Branch.objects.update_or_create(
+                code=code,
+                defaults={
+                    'company': company,
+                    'name': name,
+                    'address': address,
+                    'is_active': True,
+                    'is_main': is_main,
+                },
+            )
+        self.stdout.write(f'  Empresa "{company.name}" + 2 sucursales listas.')
+
+    def _load_cash_registers(self):
+        """Cajas registradoras: una por sucursal."""
+        try:
+            from cashregister.models import CashRegister
+        except Exception:
+            return
+        registers = [
+            ('CAJA-CENTRO',   'Caja Centro',   'Sucursal Centro - Mostrador'),
+            ('CAJA-BELGRANO', 'Caja Belgrano', 'Sucursal Belgrano - Entrada'),
+        ]
+        for code, name, location in registers:
+            CashRegister.objects.update_or_create(
+                code=code,
+                defaults={'name': name, 'location': location, 'is_active': True},
+            )
+        self.stdout.write(f'  {len(registers)} cajas registradoras configuradas.')
+
+    def _load_users(self):
+        """Crea usuarios demo, uno por cada rol, asignados a sus grupos."""
+        try:
+            from accounts.models import User
+            from django.contrib.auth.models import Group
+        except Exception:
+            return
+
+        # Asegurar que los grupos existan (los crea init_data normalmente)
+        for gname in ['Admin', 'Cajero Manager', 'Cashier', 'Stock Manager']:
+            Group.objects.get_or_create(name=gname)
+
+        demo_users = [
+            ('beto.dueno',    'Roberto',  'Gomez',     'Admin',          False),
+            ('lucia.encarga', 'Lucia',    'Fernandez', 'Cajero Manager', False),
+            ('carla.cajera',  'Carla',    'Lopez',     'Cashier',        False),
+            ('martin.stock',  'Martin',   'Diaz',      'Stock Manager',  False),
+        ]
+        for username, first, last, role, is_super in demo_users:
+            user, created = User.objects.get_or_create(
+                username=username,
+                defaults={
+                    'first_name': first,
+                    'last_name': last,
+                    'email': f'{username}@kioscodonbeto.com.ar',
+                    'is_staff': True,
+                    'is_superuser': is_super,
+                },
+            )
+            if created:
+                user.set_password('Demo1234!')
+                user.save()
+            try:
+                user.groups.add(Group.objects.get(name=role))
+            except Group.DoesNotExist:
+                pass
+        self.stdout.write(f'  {len(demo_users)} usuarios demo creados (password: Demo1234!).')
+
+    def _load_mp_credentials(self):
+        """Mercado Pago demo + dispositivos Point por caja."""
+        try:
+            from mercadopago.models import MPCredentials, PointDevice
+            from cashregister.models import CashRegister
+        except Exception:
+            return
+
+        creds, _ = MPCredentials.objects.update_or_create(
+            name='Mercado Pago - Don Beto (Demo)',
+            defaults={
+                'access_token': 'TEST-DEMO-XXX-XXXX-XXXX-XXXX',
+                'public_key': 'TEST-DEMO-PK',
+                'user_id': '987654321',
+                'is_sandbox': True,
+                'is_active': True,
+                'external_pos_id': 'DONBETO-CENTRO',
+            },
+        )
+        # Un Point Smart por caja
+        for code, device_id, serial in [
+            ('CAJA-CENTRO',   'POINT-CENTRO-001',   'PAX-A50-1234567'),
+            ('CAJA-BELGRANO', 'POINT-BELGRANO-001', 'PAX-A50-7654321'),
+        ]:
+            try:
+                cr = CashRegister.objects.get(code=code)
+            except CashRegister.DoesNotExist:
+                continue
+            PointDevice.objects.update_or_create(
+                device_id=device_id,
+                defaults={
+                    'device_name': f'Point Smart {cr.location}',
+                    'cash_register': cr,
+                    'serial_number': serial,
+                    'status': 'active',
+                    'operating_mode': 'PDV',
+                },
+            )
+        self.stdout.write('  Credenciales MP + 2 dispositivos Point asignados a cajas.')
 
     def _load_categories(self):
         for name, color in CATEGORY_COLORS.items():
@@ -243,10 +375,9 @@ class Command(BaseCommand):
 
     def _simulate_sales(self):
         """
-        Crea transacciones simuladas de los ultimos 7 dias para que el dashboard
-        tenga datos reales para mostrar. Las transacciones son livianas: usan
-        modelos directos sin pasar por la maquina de checkout (suficiente para
-        capturas, no para metricas exactas).
+        Crea transacciones simuladas de los ultimos 14 dias distribuidas entre
+        las dos cajas (Centro / Belgrano) y entre cajeros/usuarios distintos
+        para que los reportes tengan datos para mostrar.
         """
         try:
             from cashregister.models import CashShift, CashRegister
@@ -256,18 +387,19 @@ class Command(BaseCommand):
             self.stdout.write(self.style.WARNING(f'  No se pudo simular ventas: {e}'))
             return
 
-        admin = User.objects.filter(is_superuser=True).first()
-        if not admin:
-            self.stdout.write(self.style.WARNING('  Sin superuser, no se simulan ventas.'))
-            return
-
         # Limpiar transacciones demo previas
         POSTransaction.objects.filter(notes__startswith='[demo-seed]').delete()
+        CashShift.objects.filter(closed_at__isnull=True, opened_at__lt=timezone.now() - timedelta(days=20)).delete()
 
-        register = CashRegister.objects.first()
-        if not register:
-            self.stdout.write(self.style.WARNING('  Sin caja registradora configurada, salto simulacion.'))
+        registers = list(CashRegister.objects.filter(is_active=True))
+        if not registers:
+            self.stdout.write(self.style.WARNING('  Sin cajas, salto simulacion.'))
             return
+
+        # Distribuir cajeros disponibles entre cajas (manager + cashier + admin)
+        cashiers = list(
+            User.objects.filter(username__in=['lucia.encarga', 'carla.cajera']) | User.objects.filter(is_superuser=True)
+        ) or [User.objects.first()]
 
         products = list(Product.objects.filter(is_active=True, current_stock__gt=0))
         if not products:
@@ -276,49 +408,53 @@ class Command(BaseCommand):
         now = timezone.now()
         ticket_seq = 0
 
-        for days_ago in range(7, -1, -1):
-            day = now - timedelta(days=days_ago)
-            num_sales = random.randint(8, 22)
+        for register in registers:
+            for days_ago in range(14, -1, -1):
+                day = now - timedelta(days=days_ago)
+                # Centro vende mas (es el principal), Belgrano un poco menos
+                base_sales = 18 if 'CENTRO' in register.code else 12
+                num_sales = random.randint(base_sales - 4, base_sales + 6)
 
-            shift = CashShift.objects.create(
-                cash_register=register,
-                cashier=admin,
-                initial_amount=Decimal('5000.00'),
-                opened_at=day.replace(hour=8, minute=0),
-                status='closed' if days_ago > 0 else 'active',
-                closed_at=day.replace(hour=22, minute=0) if days_ago > 0 else None,
-                actual_amount=Decimal('25000.00') if days_ago > 0 else Decimal('0.00'),
-            )
-            session = POSSession.objects.create(cash_shift=shift, status='closed' if days_ago > 0 else 'active')
-
-            for _ in range(num_sales):
-                ticket_seq += 1
-                items_in_sale = random.randint(1, 4)
-                txn = POSTransaction.objects.create(
-                    session=session,
-                    ticket_number=f'CAJA-01-{day.strftime("%Y%m%d")}-{ticket_seq:04d}',
-                    status='completed',
-                    transaction_type='sale',
-                    completed_at=day.replace(hour=random.randint(9, 21), minute=random.randint(0, 59)),
-                    notes='[demo-seed]',
+                cashier = random.choice(cashiers)
+                shift = CashShift.objects.create(
+                    cash_register=register,
+                    cashier=cashier,
+                    initial_amount=Decimal('5000.00'),
+                    opened_at=day.replace(hour=8, minute=0),
+                    status='closed' if days_ago > 0 else 'open',
+                    closed_at=day.replace(hour=22, minute=0) if days_ago > 0 else None,
+                    actual_amount=Decimal(str(random.randint(28000, 65000))) if days_ago > 0 else Decimal('0.00'),
                 )
-                subtotal = Decimal('0')
-                for _ in range(items_in_sale):
-                    p = random.choice(products)
-                    qty = Decimal(str(random.randint(1, 3)))
-                    item = POSTransactionItem.objects.create(
-                        transaction=txn,
-                        product=p,
-                        quantity=qty,
-                        unit_price=p.sale_price,
-                        unit_cost=p.purchase_price,
+                session = POSSession.objects.create(cash_shift=shift, status='closed' if days_ago > 0 else 'active')
+
+                for _ in range(num_sales):
+                    ticket_seq += 1
+                    items_in_sale = random.randint(1, 5)
+                    txn = POSTransaction.objects.create(
+                        session=session,
+                        ticket_number=f'{register.code}-{day.strftime("%Y%m%d")}-{ticket_seq:04d}',
+                        status='completed',
+                        transaction_type='sale',
+                        completed_at=day.replace(hour=random.randint(9, 21), minute=random.randint(0, 59)),
+                        notes='[demo-seed]',
                     )
-                    subtotal += item.subtotal
+                    subtotal = Decimal('0')
+                    for _ in range(items_in_sale):
+                        p = random.choice(products)
+                        qty = Decimal(str(random.randint(1, 3)))
+                        item = POSTransactionItem.objects.create(
+                            transaction=txn,
+                            product=p,
+                            quantity=qty,
+                            unit_price=p.sale_price,
+                            unit_cost=p.purchase_price,
+                        )
+                        subtotal += item.subtotal
 
-                txn.subtotal = subtotal
-                txn.total = subtotal
-                txn.amount_paid = subtotal
-                txn.items_count = items_in_sale
-                txn.save()
+                    txn.subtotal = subtotal
+                    txn.total = subtotal
+                    txn.amount_paid = subtotal
+                    txn.items_count = items_in_sale
+                    txn.save()
 
-        self.stdout.write(f'  Generadas ~{ticket_seq} transacciones de demo en los ultimos 8 dias.')
+        self.stdout.write(f'  Generadas ~{ticket_seq} transacciones de demo en {len(registers)} cajas durante 15 dias.')

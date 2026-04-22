@@ -15,7 +15,7 @@ class Command(BaseCommand):
     help = 'Setup initial data for deployment (superuser + default data). Safe to run multiple times.'
 
     def handle(self, *args, **options):
-        self.stdout.write(self.style.MIGRATE_HEADING('CHE GOLOSO - Setup Inicial'))
+        self.stdout.write(self.style.MIGRATE_HEADING('Kiosco Pro - Setup Inicial'))
         self.stdout.write('')
 
         # 1. Create superuser from environment variables

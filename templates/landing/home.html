@@ -175,6 +175,143 @@
             </div>
             <figcaption>Escaneo de remitos con IA &mdash; sac&aacute;s una foto y se cargan los productos solos</figcaption>
         </figure>
+        <figure class="screen-card reveal" data-lightbox data-caption="Generador de cartelitos &mdash; precios y promos impresos con un mismo estilo">
+            <div class="screen-card__img">
+                <img src="{% static 'img/landing/cartelitos.png' %}" alt="Generador de cartelitos de precios" loading="lazy">
+                <span class="screen-card__zoom" aria-hidden="true"><i class="fas fa-magnifying-glass-plus"></i></span>
+            </div>
+            <figcaption>Generador de cartelitos &mdash; precios y promos impresos con un mismo estilo</figcaption>
+        </figure>
+        <figure class="screen-card reveal" data-lightbox data-caption="Asistente IA &mdash; preguntale por ventas, stock, productos m&aacute;s vendidos">
+            <div class="screen-card__img">
+                <img src="{% static 'img/landing/asistente.png' %}" alt="Asistente virtual con IA" loading="lazy">
+                <span class="screen-card__zoom" aria-hidden="true"><i class="fas fa-magnifying-glass-plus"></i></span>
+            </div>
+            <figcaption>Asistente IA &mdash; preguntale por ventas, stock, productos m&aacute;s vendidos</figcaption>
+        </figure>
+        <figure class="screen-card reveal" data-lightbox data-caption="Caja con turnos, arqueo y control de movimientos en tiempo real">
+            <div class="screen-card__img">
+                <img src="{% static 'img/landing/caja.png' %}" alt="Caja registradora con arqueo" loading="lazy">
+                <span class="screen-card__zoom" aria-hidden="true"><i class="fas fa-magnifying-glass-plus"></i></span>
+            </div>
+            <figcaption>Caja con turnos, arqueo y control de movimientos en tiempo real</figcaption>
+        </figure>
+        <figure class="screen-card reveal" data-lightbox data-caption="Reportes detallados &mdash; ventas por d&iacute;a, por cajero, por categor&iacute;a y por sucursal">
+            <div class="screen-card__img">
+                <img src="{% static 'img/landing/reportes.png' %}" alt="Reportes de ventas" loading="lazy">
+                <span class="screen-card__zoom" aria-hidden="true"><i class="fas fa-magnifying-glass-plus"></i></span>
+            </div>
+            <figcaption>Reportes detallados &mdash; ventas por d&iacute;a, por cajero, por categor&iacute;a y por sucursal</figcaption>
+        </figure>
+        <figure class="screen-card reveal" data-lightbox data-caption="Mercado Pago Point &mdash; cada caja con su posnet, ventas separadas en reportes">
+            <div class="screen-card__img">
+                <img src="{% static 'img/landing/mp-dashboard.png' %}" alt="Integraci&oacute;n con Mercado Pago Point" loading="lazy">
+                <span class="screen-card__zoom" aria-hidden="true"><i class="fas fa-magnifying-glass-plus"></i></span>
+            </div>
+            <figcaption>Mercado Pago Point &mdash; cada caja con su posnet, ventas separadas en reportes</figcaption>
+        </figure>
+    </div>
+</section>
+
+{# ============================================================ #}
+{# 3.5 ARMADO DEL EQUIPO (roles)                                 #}
+{# ============================================================ #}
+<section id="equipo" class="team">
+    <div class="section__header reveal">
+        <span class="section__label">Tu equipo, tus permisos</span>
+        <h2>Cada uno ve lo que tiene que ver</h2>
+        <p>Cre&aacute;s usuarios con roles distintos. Tu cajero entra al POS y nada m&aacute;s; tu encargado puede ver reportes; vos ten&eacute;s el control total.</p>
+    </div>
+    <div class="team__grid">
+        <div class="role-card reveal">
+            <div class="role-card__icon role-card__icon--admin"><i class="fas fa-user-shield"></i></div>
+            <h3>Administrador</h3>
+            <p class="role-card__sub">Vos, el dueño</p>
+            <ul>
+                <li><i class="fas fa-check"></i> Acceso total a todos los m&oacute;dulos</li>
+                <li><i class="fas fa-check"></i> Crea y desactiva usuarios</li>
+                <li><i class="fas fa-check"></i> Ve reportes de todas las sucursales</li>
+                <li><i class="fas fa-check"></i> Configura promos, planes y precios</li>
+            </ul>
+        </div>
+        <div class="role-card reveal">
+            <div class="role-card__icon role-card__icon--manager"><i class="fas fa-user-tie"></i></div>
+            <h3>Encargado</h3>
+            <p class="role-card__sub">Tu mano derecha</p>
+            <ul>
+                <li><i class="fas fa-check"></i> POS, caja y arqueo</li>
+                <li><i class="fas fa-check"></i> Carga stock y descarga remitos</li>
+                <li><i class="fas fa-check"></i> Configura promociones y cartelitos</li>
+                <li><i class="fas fa-check"></i> Ve reportes de su sucursal</li>
+            </ul>
+        </div>
+        <div class="role-card reveal">
+            <div class="role-card__icon role-card__icon--cashier"><i class="fas fa-cash-register"></i></div>
+            <h3>Cajero</h3>
+            <p class="role-card__sub">Atiende y vende</p>
+            <ul>
+                <li><i class="fas fa-check"></i> Solo POS y su caja asignada</li>
+                <li><i class="fas fa-check"></i> Apertura y cierre de turno</li>
+                <li><i class="fas fa-check"></i> Cobra con efectivo, QR o Point</li>
+                <li><i class="fas fa-check"></i> No puede modificar precios ni stock</li>
+            </ul>
+        </div>
+        <div class="role-card reveal">
+            <div class="role-card__icon role-card__icon--stock"><i class="fas fa-boxes-stacked"></i></div>
+            <h3>Stockista</h3>
+            <p class="role-card__sub">Cuida el inventario</p>
+            <ul>
+                <li><i class="fas fa-check"></i> Carga productos nuevos</li>
+                <li><i class="fas fa-check"></i> Recibe compras de proveedores</li>
+                <li><i class="fas fa-check"></i> Hace ajustes y conteos</li>
+                <li><i class="fas fa-check"></i> No accede a caja ni reportes</li>
+            </ul>
+        </div>
+    </div>
+</section>
+
+{# ============================================================ #}
+{# 3.6 MULTI-SUCURSAL + MULTI-CAJA + MERCADO PAGO                #}
+{# ============================================================ #}
+<section id="sucursales" class="multi">
+    <div class="section__header reveal">
+        <span class="section__label">Multi-caja &amp; multi-sucursal</span>
+        <h2>Crec&eacute; sin perder el control</h2>
+        <p>Manej&aacute; varios kioscos desde un solo sistema. Cada sucursal con sus cajas, cada caja con su Point Smart, y todo se discrimina en los reportes.</p>
+    </div>
+
+    <div class="multi__grid">
+        <div class="multi__col reveal">
+            <div class="multi__icon"><i class="fas fa-store"></i></div>
+            <h3>Varias sucursales</h3>
+            <p>Sum&aacute;s sucursales sin instalar nada nuevo. Cada una con su nombre, direcci&oacute;n y cajas asignadas. Los reportes consolidan o discriminan por sucursal seg&uacute;n quieras verlos.</p>
+        </div>
+        <div class="multi__col reveal">
+            <div class="multi__icon multi__icon--accent"><i class="fas fa-cash-register"></i></div>
+            <h3>Varias cajas por local</h3>
+            <p>Si ten&eacute;s dos cajas en el mismo kiosco, cada cajero abre su turno en su caja y trabajan en paralelo. Cada venta queda asociada a la caja y al cajero que la hizo.</p>
+        </div>
+        <div class="multi__col reveal">
+            <div class="multi__icon multi__icon--warm"><i class="fas fa-mobile-screen-button"></i></div>
+            <h3>Un Point por caja</h3>
+            <p>Cada caja registradora tiene su propio dispositivo Point Smart vinculado. Cobr&aacute;s desde el sistema y la posnet imprime su ticket sola. Las transacciones quedan ligadas a la caja correcta.</p>
+        </div>
+    </div>
+
+    <div class="multi__highlight reveal">
+        <div class="multi__highlight-icon"><i class="fas fa-chart-pie"></i></div>
+        <div>
+            <h3>Toda la plata cae en una sola cuenta. Los reportes te muestran qui&eacute;n vendi&oacute; cu&aacute;nto.</h3>
+            <p>
+                Aunque uses una misma cuenta de Mercado Pago para varios locales, el sistema sabe en qu&eacute; caja se hizo cada cobro
+                porque cada Point Smart est&aacute; asignado a su caja. Despu&eacute;s en los reportes ves: <strong>cu&aacute;nto vendi&oacute; el local del centro</strong>,
+                <strong>cu&aacute;nto el de la otra punta</strong>, y <strong>cu&aacute;nto cada cajero por turno</strong> &mdash; todo en tiempo real.
+            </p>
+            <div class="multi__brands">
+                <img src="{% static 'img/landing/mercadopago.svg' %}" alt="Mercado Pago" height="48">
+                <img src="{% static 'img/landing/point-smart.svg' %}" alt="Point Smart" height="48">
+            </div>
+        </div>
     </div>
 </section>
 

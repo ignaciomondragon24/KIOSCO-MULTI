@@ -12,10 +12,10 @@ from expenses.models import ExpenseCategory
 
 
 class Command(BaseCommand):
-    help = 'Initialize default data for CHE GOLOSO system'
+    help = 'Initialize default data for Kiosco Pro system'
 
     def handle(self, *args, **options):
-        self.stdout.write('Initializing CHE GOLOSO data...\n')
+        self.stdout.write('Initializing Kiosco Pro data...\n')
         
         # Create roles
         self.create_roles()

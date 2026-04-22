@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 220 60" role="img" aria-label="Point Smart">
+  <rect width="220" height="60" rx="12" fill="#0F172A"/>
+  <!-- Posnet icono -->
+  <rect x="18" y="14" width="28" height="36" rx="3" fill="#FFFFFF"/>
+  <rect x="22" y="18" width="20" height="10" rx="1.5" fill="#0EA5E9"/>
+  <circle cx="26" cy="34" r="1.6" fill="#0F172A"/>
+  <circle cx="32" cy="34" r="1.6" fill="#0F172A"/>
+  <circle cx="38" cy="34" r="1.6" fill="#0F172A"/>
+  <circle cx="26" cy="40" r="1.6" fill="#0F172A"/>
+  <circle cx="32" cy="40" r="1.6" fill="#0F172A"/>
+  <circle cx="38" cy="40" r="1.6" fill="#0F172A"/>
+  <circle cx="26" cy="46" r="1.6" fill="#0F172A"/>
+  <circle cx="32" cy="46" r="1.6" fill="#0F172A"/>
+  <circle cx="38" cy="46" r="1.6" fill="#0F172A"/>
+  <!-- Texto -->
+  <text x="60" y="32" fill="#FFFFFF" font-family="Inter, system-ui, sans-serif" font-weight="700" font-size="14">Point</text>
+  <text x="60" y="48" fill="#0EA5E9" font-family="Inter, system-ui, sans-serif" font-weight="700" font-size="14">Smart</text>
+</svg>
