@@ -43,6 +43,6 @@ if settings.DEBUG:
     urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
 
 # Admin site customization
-admin.site.site_header = 'KioskoPro - Administración'
-admin.site.site_title = 'KioskoPro Admin'
+admin.site.site_header = 'Kiosco Pro - Administración'
+admin.site.site_title = 'Kiosco Pro Admin'
 admin.site.index_title = 'Panel de Administración'

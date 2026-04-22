@@ -2,7 +2,7 @@
 {% load currency_filters %}
 {% load static %}
 
-{% block title %}Dashboard - KioskoPro{% endblock %}
+{% block title %}Dashboard - Kiosco Pro{% endblock %}
 
 {% block extra_css %}
 <style>
@@ -64,7 +64,7 @@
 <div class="container-fluid py-4">
     <!-- Welcome Header -->
     <div class="welcome-header d-flex align-items-center">
-        <img src="{% static 'img/logo.svg' %}" alt="KioskoPro" class="logo-small">
+        <img src="{% static 'img/logo.svg' %}" alt="Kiosco Pro" class="logo-small">
         <div>
             <h2 class="mb-1">¡Hola, {{ user.get_full_name|default:user.username }}!</h2>
             <p class="mb-0 opacity-75">

@@ -1,5 +1,5 @@
 /*
- * Landing KioskoPro — player hero + lightbox de capturas.
+ * Landing Kiosco Pro — player hero + lightbox de capturas.
  *
  * El "video demo" del hero es en realidad un carrusel que auto-rota entre
  * las 6 capturas reales del sistema. Es mas rapido de mantener que un video
